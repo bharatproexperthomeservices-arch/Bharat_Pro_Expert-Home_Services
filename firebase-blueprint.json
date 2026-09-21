@@ -1,0 +1,140 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role, contact information and wallet balance",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer", "partner", "admin"] },
+        "referralCode": { "type": "string" },
+        "walletBalance": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "name", "role"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Customer home service booking order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bookingNumber": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "categoryName": { "type": "string" },
+        "date": { "type": "string" },
+        "timeSlot": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "basePrice": { "type": "number" },
+        "status": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "startOtp": { "type": "string" },
+        "completionOtp": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "bookingNumber", "customerId", "serviceId", "totalAmount", "status", "startOtp", "completionOtp"]
+    },
+    "CleaningService": {
+      "title": "CleaningService",
+      "description": "Catalogue cleaning service item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "categoryName": { "type": "string" },
+        "name": { "type": "string" },
+        "shortDesc": { "type": "string" },
+        "basePrice": { "type": "number" },
+        "referencePrice": { "type": "number" },
+        "active": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" }
+      },
+      "required": ["id", "categoryId", "name", "basePrice", "active"]
+    },
+    "Partner": {
+      "title": "Partner",
+      "description": "Verified service technician partner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "pending", "inactive"] },
+        "isOnline": { "type": "boolean" },
+        "assignedHubId": { "type": "string" },
+        "rating": { "type": "number" },
+        "totalJobs": { "type": "number" },
+        "kycVerified": { "type": "boolean" }
+      },
+      "required": ["id", "name", "phone", "status", "isOnline"]
+    },
+    "HubLocation": {
+      "title": "HubLocation",
+      "description": "Bharat Pro local service operational hub",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "state": { "type": "string" },
+        "city": { "type": "string" },
+        "serviceRadiusKm": { "type": "number" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "name", "city", "active"]
+    },
+    "WhatsAppLog": {
+      "title": "WhatsAppLog",
+      "description": "Audit log for automated customer and partner WhatsApp notifications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bookingId": { "type": "string" },
+        "recipientPhone": { "type": "string" },
+        "recipientType": { "type": "string", "enum": ["ADMIN", "PARTNER", "CUSTOMER"] },
+        "eventType": { "type": "string" },
+        "messageSnippet": { "type": "string" },
+        "status": { "type": "string", "enum": ["SENT", "DELIVERED", "FAILED"] },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "bookingId", "recipientPhone", "recipientType", "status", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles and credentials"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Customer bookings and service status"
+    },
+    "/services/{serviceId}": {
+      "schema": "CleaningService",
+      "description": "Catalogue services and live prices"
+    },
+    "/partners/{partnerId}": {
+      "schema": "Partner",
+      "description": "Verified technicians and active availability"
+    },
+    "/hubs/{hubId}": {
+      "schema": "HubLocation",
+      "description": "Regional and city operational hubs"
+    },
+    "/whatsapp_logs/{logId}": {
+      "schema": "WhatsAppLog",
+      "description": "WhatsApp dispatch audit notifications"
+    }
+  }
+}
