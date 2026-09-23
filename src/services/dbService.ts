@@ -11,7 +11,7 @@ import {
   orderBy,
   onSnapshot 
 } from '../firebase-config';
-import { Booking, Partner, HubLocation, CleaningService, WhatsAppLog } from '../types';
+import { Booking, Partner, HubLocation, CleaningService, WhatsAppLog, AssignmentHistoryEntry, JobStatus } from '../types';
 import { INITIAL_SERVICES, INITIAL_HUBS, INITIAL_PARTNERS, WHATSAPP_NUMBER } from '../data';
 
 // Local storage backup keys
@@ -88,16 +88,16 @@ export const sendWhatsAppNotification = async (
   const logId = 'wa_' + Math.random().toString(36).substring(2, 9);
   
   let messageSnippet = '';
-  if (event === 'NEW_BOOKING_CONFIRMED') {
-    messageSnippet = `📢 Bharat Pro Alert [${booking.bookingNumber}]: Confirmed for ${booking.customerName} (${booking.serviceName}) at ${booking.timeSlot}, ${booking.date}. Location: ${booking.address.sector}, ${booking.address.city}. Total: ₹${booking.totalAmount}.`;
-  } else if (event === 'PARTNER_ASSIGNED') {
-    messageSnippet = `🚀 Job Assigned [${booking.bookingNumber}]: Partner ${booking.assignedPartnerName} assigned. Start OTP: ${booking.startOtp}.`;
+  if (event === 'NEW_BOOKING_SEARCHING' || event === 'NEW_BOOKING_CONFIRMED') {
+    messageSnippet = `Bharat Pro Expert Home Services\n\nNew Booking (Awaiting Dispatch Assignment)\n\nBooking ID: #${booking.bookingNumber}\nCustomer: ${booking.customerName}\nPhone: ${booking.customerPhone}\nService: ${booking.serviceName}\nSub-service: ${booking.categoryName || 'Deep Cleaning'}\nDate: ${booking.date}\nTime: ${booking.timeSlot}\nAddress: ${booking.address.street}, ${booking.address.sector}, ${booking.address.city}\nAmount: ₹${booking.totalAmount}\nPayment: ${booking.paymentMethod} (${booking.paymentStatus})\nStatus: SEARCHING_PROFESSIONAL`;
+  } else if (event === 'PROFESSIONAL_ASSIGNED' || event === 'PARTNER_ASSIGNED') {
+    messageSnippet = `Bharat Pro Expert Home Services\n\nProfessional Assigned\n\nBooking ID: #${booking.bookingNumber}\nProfessional: ${booking.assignedPartnerName}\nProfessional ID: BPE-${booking.assignedPartnerId}\nPhone: ${booking.assignedPartnerPhone}\nRating: ★ ${booking.partnerRating || '4.85'}\nService: ${booking.serviceName}\nCustomer: ${booking.customerName}\nDate: ${booking.date}\nTime: ${booking.timeSlot}\nAddress: ${booking.address.street}, ${booking.address.sector}, ${booking.address.city}\nStart OTP: ${booking.startOtp}`;
   } else if (event === 'JOB_STARTED') {
-    messageSnippet = `⏳ Job Started [${booking.bookingNumber}]: Partner verified Start OTP ${booking.startOtp}. Service is now IN_PROGRESS.`;
+    messageSnippet = `Bharat Pro Expert - Job Started [${booking.bookingNumber}]: Partner ${booking.assignedPartnerName} has verified Start OTP and service is now in progress.`;
   } else if (event === 'JOB_COMPLETED') {
-    messageSnippet = `🎉 Service Completed [${booking.bookingNumber}]: Verified with Completion OTP ${booking.completionOtp}. Total Paid: ₹${booking.totalAmount}. Invoice generated.`;
+    messageSnippet = `Bharat Pro Expert - Service Completed [${booking.bookingNumber}]: Partner ${booking.assignedPartnerName} verified completion OTP. Total Paid: ₹${booking.totalAmount}. Thank you for choosing Bharat Pro!`;
   } else {
-    messageSnippet = `ℹ️ Bharat Pro Update for booking #${booking.bookingNumber} - Status: ${booking.status}`;
+    messageSnippet = `Bharat Pro Update: Booking #${booking.bookingNumber} status is now ${booking.status}.`;
   }
 
   const log: WhatsAppLog = {
@@ -123,19 +123,10 @@ export const sendWhatsAppNotification = async (
   return log;
 };
 
-// Save a new booking & auto-dispatch to matched Partner in that Hub
+// BUSINESS RULE: MANUAL PARTNER ASSIGNMENT ONLY
+// Booking is created with status = SEARCHING_PROFESSIONAL.
+// NO automatic assignment based on distance, rating, skill or availability.
 export const createNewBooking = async (newBooking: Booking): Promise<Booking> => {
-  // 1. Find matched partner in the customer's hub and category
-  let matchedPartner: Partner | null = null;
-  const partners = await getPartnersList();
-  
-  matchedPartner = partners.find(p => 
-    p.status === 'active' &&
-    p.isOnline &&
-    (p.approvedCategories.includes(newBooking.serviceId) || 
-     p.approvedCategories.some(cat => newBooking.serviceName.toLowerCase().includes(cat.split('-')[0])))
-  ) || partners[0] || null;
-
   const calculatedRef = Math.round(newBooking.basePrice / 0.85);
   const priceSnapshot = newBooking.priceSnapshot || {
     basePrice: newBooking.basePrice,
@@ -152,47 +143,241 @@ export const createNewBooking = async (newBooking: Booking): Promise<Booking> =>
     capturedAt: new Date().toISOString()
   };
 
-  const bookingWithPartner: Booking = {
+  const bookingPendingAssignment: Booking = {
     ...newBooking,
     priceSnapshot,
-    status: matchedPartner ? 'PARTNER_ASSIGNED' : 'CONFIRMED',
-    assignedPartnerId: matchedPartner?.id,
-    assignedPartnerName: matchedPartner?.name,
-    assignedPartnerPhone: matchedPartner?.phone,
-    assignedHubId: matchedPartner?.assignedHubId || 'hub-gurugram-cyber'
+    // MANUAL ASSIGNMENT RULE: Booking begins in SEARCHING_PROFESSIONAL state
+    status: 'SEARCHING_PROFESSIONAL',
+    assignedPartnerId: undefined,
+    assignedPartnerName: undefined,
+    assignedPartnerPhone: undefined,
+    assignedPartnerAvatar: undefined,
+    assignedHubId: newBooking.assignedHubId || 'hub-gurugram-cyber',
+    assignedAt: undefined,
+    assignmentHistory: []
   };
 
   // Save to Firestore
   try {
-    await setDoc(doc(db, 'bookings', bookingWithPartner.id), bookingWithPartner);
+    await setDoc(doc(db, 'bookings', bookingPendingAssignment.id), bookingPendingAssignment);
   } catch (err) {
     console.warn('Firestore write fallback to local storage:', err);
   }
 
   // Backup in LocalStorage
   const stored: Booking[] = JSON.parse(localStorage.getItem(STORAGE_BOOKINGS_KEY) || '[]');
-  stored.unshift(bookingWithPartner);
+  stored.unshift(bookingPendingAssignment);
   localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(stored));
 
   // Trigger Real-time WhatsApp Notification to Admin Number
   await sendWhatsAppNotification(
-    bookingWithPartner,
+    bookingPendingAssignment,
     'ADMIN',
     WHATSAPP_NUMBER,
-    'NEW_BOOKING_CONFIRMED'
+    'NEW_BOOKING_SEARCHING'
   );
 
-  // Trigger WhatsApp to Assigned Partner
-  if (matchedPartner) {
-    await sendWhatsAppNotification(
-      bookingWithPartner,
-      'PARTNER',
-      matchedPartner.phone,
-      'PARTNER_ASSIGNED'
-    );
+  // Broadcast event for real-time app update
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bharatpro_booking_updated', { 
+      detail: { booking: bookingPendingAssignment } 
+    }));
+    localStorage.setItem('bharatpro_last_updated_booking', JSON.stringify({ 
+      id: bookingPendingAssignment.id, 
+      timestamp: Date.now() 
+    }));
   }
 
-  return bookingWithPartner;
+  return bookingPendingAssignment;
+};
+
+// ADMIN MANUAL PARTNER ASSIGNMENT
+export const assignPartnerManually = async (
+  bookingId: string,
+  partnerId: string,
+  adminId: string = 'admin_dispatch',
+  reason: string = 'Admin Manual Assignment'
+): Promise<{ success: boolean; booking?: Booking; error?: string }> => {
+  let booking: Booking | null = null;
+  
+  // Try Firestore first
+  try {
+    const snap = await getDoc(doc(db, 'bookings', bookingId));
+    if (snap.exists()) {
+      booking = snap.data() as Booking;
+    }
+  } catch {}
+
+  // Local storage fallback
+  if (!booking) {
+    const stored: Booking[] = JSON.parse(localStorage.getItem(STORAGE_BOOKINGS_KEY) || '[]');
+    booking = stored.find(b => b.id === bookingId) || null;
+  }
+
+  if (!booking) {
+    return { success: false, error: 'Booking record not found' };
+  }
+
+  const partners = await getPartnersList();
+  const partner = partners.find(p => p.id === partnerId);
+  if (!partner) {
+    return { success: false, error: 'Selected partner not found' };
+  }
+
+  const nowIso = new Date().toISOString();
+  const previousPartnerId = booking.assignedPartnerId;
+  const previousPartnerName = booking.assignedPartnerName;
+
+  const historyEntry: AssignmentHistoryEntry = {
+    id: `asg_${Date.now()}`,
+    bookingId,
+    previousPartnerId,
+    previousPartnerName,
+    newPartnerId: partner.id,
+    newPartnerName: partner.name,
+    assignedByAdminId: adminId,
+    reason,
+    createdAt: nowIso
+  };
+
+  const updatedHistory = [...(booking.assignmentHistory || []), historyEntry];
+
+  const updatedBooking: Booking = {
+    ...booking,
+    status: 'ASSIGNED',
+    assignedPartnerId: partner.id,
+    assignedPartnerName: partner.name,
+    assignedPartnerPhone: partner.phone,
+    assignedPartnerAvatar: partner.avatarUrl,
+    assignedHubId: partner.assignedHubId,
+    assignedHubName: partner.assignedHubName || partner.hubName || 'Central Hub',
+    partnerRating: partner.rating,
+    partnerCompletedJobs: partner.completedJobs ?? partner.totalJobs ?? 150,
+    assignedAt: nowIso,
+    updatedAt: nowIso,
+    assignmentHistory: updatedHistory
+  };
+
+  // Persist to Firestore
+  try {
+    await setDoc(doc(db, 'bookings', bookingId), updatedBooking, { merge: true });
+  } catch (err) {
+    console.warn('Firestore write fallback on partner assignment:', err);
+  }
+
+  // Persist to LocalStorage
+  const storedList: Booking[] = JSON.parse(localStorage.getItem(STORAGE_BOOKINGS_KEY) || '[]');
+  const updatedList = storedList.map(b => b.id === bookingId ? updatedBooking : b);
+  localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(updatedList));
+
+  // WhatsApp Alert to Partner
+  await sendWhatsAppNotification(
+    updatedBooking,
+    'PARTNER',
+    partner.phone,
+    'PROFESSIONAL_ASSIGNED'
+  );
+
+  // WhatsApp Alert to Customer
+  await sendWhatsAppNotification(
+    updatedBooking,
+    'CUSTOMER',
+    updatedBooking.customerPhone,
+    'PROFESSIONAL_ASSIGNED'
+  );
+
+  // WhatsApp Alert to Admin
+  await sendWhatsAppNotification(
+    updatedBooking,
+    'ADMIN',
+    WHATSAPP_NUMBER,
+    'PROFESSIONAL_ASSIGNED'
+  );
+
+  // Broadcast real-time event across app
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bharatpro_booking_updated', { 
+      detail: { booking: updatedBooking } 
+    }));
+    localStorage.setItem('bharatpro_last_updated_booking', JSON.stringify({ 
+      id: bookingId, 
+      timestamp: Date.now() 
+    }));
+  }
+
+  return { success: true, booking: updatedBooking };
+};
+
+// ADMIN REASSIGN PARTNER WITH REASON
+export const reassignPartnerManually = async (
+  bookingId: string,
+  newPartnerId: string,
+  adminId: string = 'admin_dispatch',
+  reason: string = 'Operational Reassignment'
+): Promise<{ success: boolean; booking?: Booking; error?: string }> => {
+  return assignPartnerManually(bookingId, newPartnerId, adminId, reason);
+};
+
+// REAL-TIME BOOKING SUBSCRIPTION (Firestore listener + Window Broadcast + Polling)
+export const subscribeToBooking = (
+  bookingId: string,
+  callback: (booking: Booking) => void
+): (() => void) => {
+  let unsubFirestore: (() => void) | null = null;
+  try {
+    unsubFirestore = onSnapshot(doc(db, 'bookings', bookingId), (snap) => {
+      if (snap.exists()) {
+        callback(snap.data() as Booking);
+      }
+    }, (err) => {
+      console.warn('Snapshot listener deferred to local polling:', err);
+    });
+  } catch (e) {
+    console.warn('Firestore onSnapshot init error:', e);
+  }
+
+  const handleCustomEvent = (e: any) => {
+    if (e.detail?.booking && e.detail.booking.id === bookingId) {
+      callback(e.detail.booking);
+    }
+  };
+
+  const handleStorageChange = (e: StorageEvent) => {
+    if (e.key === STORAGE_BOOKINGS_KEY || e.key === 'bharatpro_last_updated_booking') {
+      const stored: Booking[] = JSON.parse(localStorage.getItem(STORAGE_BOOKINGS_KEY) || '[]');
+      const found = stored.find(b => b.id === bookingId);
+      if (found) callback(found);
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('bharatpro_booking_updated', handleCustomEvent);
+    window.addEventListener('storage', handleStorageChange);
+  }
+
+  // Active polling fallback (2.5s) to guarantee real-time updates across multiple windows/devices
+  const pollTimer = setInterval(async () => {
+    try {
+      const stored: Booking[] = JSON.parse(localStorage.getItem(STORAGE_BOOKINGS_KEY) || '[]');
+      const found = stored.find(b => b.id === bookingId);
+      if (found) {
+        callback(found);
+      }
+      const snap = await withTimeout(getDoc(doc(db, 'bookings', bookingId)), 1500);
+      if (snap.exists()) {
+        callback(snap.data() as Booking);
+      }
+    } catch {}
+  }, 2500);
+
+  return () => {
+    if (unsubFirestore) unsubFirestore();
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('bharatpro_booking_updated', handleCustomEvent);
+      window.removeEventListener('storage', handleStorageChange);
+    }
+    clearInterval(pollTimer);
+  };
 };
 
 // Update booking status with OTP validation
@@ -221,26 +406,36 @@ export const updateBookingStatusWithOtp = async (
     return { success: false, error: 'Booking not found' };
   }
 
-  // Mandatory OTP validations
-  if (newStatus === 'IN_PROGRESS' && !isMasterBypass) {
-    if (enteredOtp !== booking.startOtp) {
-      return { success: false, error: 'Invalid Job Start OTP. Please ask the customer for their Start OTP.' };
-    }
-    booking.otpVerifiedAt = new Date().toISOString();
-    booking.jobStartedAt = new Date().toISOString();
-  }
+  const nowIso = new Date().toISOString();
 
-  if (newStatus === 'COMPLETED' && !isMasterBypass) {
-    if (enteredOtp !== booking.completionOtp) {
-      return { success: false, error: 'Invalid Job Completion OTP. Please verify with the customer.' };
+  // Partner status transitions
+  if (newStatus === 'ON_THE_WAY' || newStatus === 'PARTNER_ON_THE_WAY') {
+    booking.onTheWayAt = nowIso;
+  } else if (newStatus === 'ARRIVED') {
+    booking.arrivedAt = nowIso;
+  } else if (newStatus === 'IN_PROGRESS' || newStatus === 'STARTED') {
+    if (!isMasterBypass) {
+      if (enteredOtp !== booking.startOtp) {
+        return { success: false, error: 'Invalid Job Start OTP. Please ask customer for the 4-digit Start OTP.' };
+      }
+      booking.otpVerifiedAt = nowIso;
     }
-    booking.completionVerifiedAt = new Date().toISOString();
-    booking.jobFinishedAt = new Date().toISOString();
+    booking.jobStartedAt = nowIso;
+  } else if (newStatus === 'COMPLETED') {
+    if (!isMasterBypass) {
+      if (enteredOtp !== booking.completionOtp) {
+        return { success: false, error: 'Invalid Job Completion OTP. Please ask customer for the 4-digit Completion OTP.' };
+      }
+      booking.completionVerifiedAt = nowIso;
+    }
+    booking.jobFinishedAt = nowIso;
     booking.paymentStatus = 'PAID';
+  } else if (newStatus === 'CANCELLED') {
+    booking.cancelledAt = nowIso;
   }
 
   booking.status = newStatus;
-  booking.updatedAt = new Date().toISOString();
+  booking.updatedAt = nowIso;
 
   // Save to Firestore
   try {
@@ -253,25 +448,32 @@ export const updateBookingStatusWithOtp = async (
   localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(updatedList));
 
   // WhatsApp Alert
-  if (newStatus === 'IN_PROGRESS') {
+  if (newStatus === 'IN_PROGRESS' || newStatus === 'STARTED') {
     await sendWhatsAppNotification(booking, 'CUSTOMER', booking.customerPhone, 'JOB_STARTED');
   } else if (newStatus === 'COMPLETED') {
     await sendWhatsAppNotification(booking, 'CUSTOMER', booking.customerPhone, 'JOB_COMPLETED');
     await sendWhatsAppNotification(booking, 'ADMIN', WHATSAPP_NUMBER, 'JOB_COMPLETED');
   }
 
+  // Broadcast event
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bharatpro_booking_updated', { 
+      detail: { booking } 
+    }));
+    localStorage.setItem('bharatpro_last_updated_booking', JSON.stringify({ 
+      id: booking.id, 
+      timestamp: Date.now() 
+    }));
+  }
+
   return { success: true, booking };
 };
 
+import { getOrSeedPartners } from './partnerAuthService';
+
 // Fetch partners list
 export const getPartnersList = async (): Promise<Partner[]> => {
-  try {
-    const snap = await withTimeout(getDocs(collection(db, 'partners')), 2000);
-    if (!snap.empty) {
-      return snap.docs.map(d => d.data() as Partner);
-    }
-  } catch {}
-  return JSON.parse(localStorage.getItem(STORAGE_PARTNERS_KEY) || JSON.stringify(INITIAL_PARTNERS));
+  return getOrSeedPartners();
 };
 
 // Fetch all bookings
@@ -364,3 +566,42 @@ export const addNewService = async (service: CleaningService): Promise<boolean> 
 export const toggleServiceActive = async (serviceId: string, active: boolean): Promise<boolean> => {
   return updateServicePricing(serviceId, { active });
 };
+
+// Fetch All Hub Locations (combining cloud Firestore & local storage)
+export const getAllHubs = async (): Promise<HubLocation[]> => {
+  try {
+    const snap = await withTimeout(getDocs(collection(db, 'hubs')), 2000);
+    if (!snap.empty) {
+      const list = snap.docs.map(d => d.data() as HubLocation);
+      localStorage.setItem(STORAGE_HUBS_KEY, JSON.stringify(list));
+      return list;
+    }
+  } catch (err) {
+    console.warn('Firestore get hubs fallback to local cache:', err);
+  }
+
+  const stored = localStorage.getItem(STORAGE_HUBS_KEY);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {}
+  }
+  return INITIAL_HUBS;
+};
+
+// Save All Hub Locations (persists to Firestore, LocalStorage, and dispatches global event)
+export const saveAllHubs = async (hubs: HubLocation[]): Promise<boolean> => {
+  localStorage.setItem(STORAGE_HUBS_KEY, JSON.stringify(hubs));
+  window.dispatchEvent(new CustomEvent('bharatpro_hubs_updated', { detail: hubs }));
+
+  try {
+    for (const h of hubs) {
+      await withTimeout(setDoc(doc(db, 'hubs', h.id), h), 2000);
+    }
+  } catch (err) {
+    console.warn('Firestore hubs bulk save notice:', err);
+  }
+  return true;
+};
+

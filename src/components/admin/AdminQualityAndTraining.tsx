@@ -69,6 +69,7 @@ export const AdminQualityAndTraining: React.FC<AdminQualityAndTrainingProps> = (
             if (!title) return;
             const newRule: SOPRule = {
               id: `sop-${Date.now()}`,
+              categoryId: 'bathroom-cleaning',
               category: 'bathroom-cleaning',
               title,
               description: 'Standard cleaning operating procedure',
@@ -152,7 +153,7 @@ export const AdminQualityAndTraining: React.FC<AdminQualityAndTrainingProps> = (
                   Operational Step Sequence:
                 </span>
                 <ol className="list-decimal list-inside text-xs text-[#48484A] space-y-1 pl-1">
-                  {sop.steps.map((step, idx) => (
+                  {(sop.steps || []).map((step, idx) => (
                     <li key={idx}>{step}</li>
                   ))}
                 </ol>
@@ -198,7 +199,7 @@ export const AdminQualityAndTraining: React.FC<AdminQualityAndTrainingProps> = (
               <div>
                 <span className="text-[11px] font-bold text-[#48484A] block mb-1">Modules Covered:</span>
                 <div className="flex flex-wrap gap-1">
-                  {course.modules.map((m, idx) => (
+                  {(course.modules || []).map((m, idx) => (
                     <span key={idx} className="px-2 py-0.5 rounded bg-[#F2F2F7] text-[10px] font-medium text-[#1C1C1E]">
                       {m}
                     </span>

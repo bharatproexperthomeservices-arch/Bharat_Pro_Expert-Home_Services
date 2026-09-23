@@ -23,7 +23,7 @@ interface AuthModalProps {
   defaultRole?: 'customer' | 'partner';
 }
 
-const DEFAULT_USER_EMAIL = 'bharatproexperthomeservices@gmail.com';
+const DEFAULT_USER_EMAIL = 'bharatproexpert@gmail.com';
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,

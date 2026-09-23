@@ -6,7 +6,10 @@ import {
   getPartnersList, 
   updateBookingStatusWithOtp, 
   getWhatsAppLogs,
-  getAllServices
+  getAllServices,
+  assignPartnerManually,
+  getAllHubs,
+  saveAllHubs
 } from '../services/dbService';
 import { INITIAL_HUBS, INITIAL_SERVICES, BUMPER_OFFERS, WHATSAPP_NUMBER } from '../data';
 import { AdminCatalogueTab } from './admin/AdminCatalogueTab';
@@ -82,17 +85,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToCustomer
   const loadData = async () => {
     setLoading(true);
     try {
-      const [bks, prts, logs, srvs] = await Promise.all([
+      const [bks, prts, logs, srvs, loadedHubs] = await Promise.all([
         getAllBookings(),
         getPartnersList(),
         getWhatsAppLogs(),
-        getAllServices()
+        getAllServices(),
+        getAllHubs()
       ]);
       setBookings(bks);
       setPartners(prts);
       setWaLogs(logs);
       if (srvs && srvs.length > 0) {
         setServices(srvs);
+      }
+      if (loadedHubs && loadedHubs.length > 0) {
+        setHubs(loadedHubs);
       }
     } catch (e) {
       console.warn('Error loading admin data', e);
@@ -109,21 +116,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToCustomer
     console.log(`[AUDIT] Action: ${action} | Target: ${targetId} | Details: ${details}`);
   };
 
-  const handleManualAssign = (bookingId: string, partnerId: string) => {
-    const partner = partners.find(p => p.id === partnerId);
-    const updated = bookings.map(b => {
-      if (b.id === bookingId) {
-        return {
-          ...b,
-          partnerId,
-          partnerName: partner?.name || 'Assigned Partner',
-          partnerPhone: partner?.phone || '+91 94310 88291',
-          status: 'PARTNER_ASSIGNED' as any
-        };
-      }
-      return b;
-    });
-    setBookings(updated);
+  const handleManualAssign = async (bookingId: string, partnerId: string) => {
+    const res = await assignPartnerManually(bookingId, partnerId, 'admin_dispatch', 'Admin Manual Assignment');
+    if (res.success && res.booking) {
+      setBookings(prev => prev.map(b => b.id === bookingId ? res.booking! : b));
+      alert(`Success: Partner assigned to Booking #${res.booking.bookingNumber}! Customer has been updated in real time.`);
+    } else {
+      alert(`Assignment error: ${res.error || 'Could not assign partner'}`);
+    }
   };
 
   // Financial calculations
@@ -456,7 +456,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToCustomer
             <AdminHubOperations
               hubs={hubs}
               partners={partners}
-              onUpdateHubs={(updated) => setHubs(updated)}
+              onUpdateHubs={async (updated) => {
+                setHubs(updated);
+                await saveAllHubs(updated);
+              }}
               onAuditLog={handleAuditLog}
             />
           )}
@@ -519,7 +522,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToCustomer
           {activeTab === 'BOOKINGS' && (
             <AdminBookingsTab
               bookings={bookings}
+              partners={partners}
               onRefresh={loadData}
+              onManualAssign={handleManualAssign}
             />
           )}
 

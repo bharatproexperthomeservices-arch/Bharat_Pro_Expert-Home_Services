@@ -64,7 +64,7 @@
     },
     "Partner": {
       "title": "Partner",
-      "description": "Verified service technician partner",
+      "description": "Verified service technician partner with custom login credentials and onboarding approval state",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -76,9 +76,47 @@
         "assignedHubId": { "type": "string" },
         "rating": { "type": "number" },
         "totalJobs": { "type": "number" },
-        "kycVerified": { "type": "boolean" }
+        "kycVerified": { "type": "boolean" },
+        "loginUserId": { "type": "string" },
+        "loginPassword": { "type": "string" },
+        "onboardingStatus": { "type": "string", "enum": ["pending_approval", "approved", "rejected"] },
+        "approvedAt": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "emailNotificationSent": { "type": "boolean" }
       },
       "required": ["id", "name", "phone", "status", "isOnline"]
+    },
+    "AdminLoginRequest": {
+      "title": "AdminLoginRequest",
+      "description": "Approval request created when someone tries to login to the Admin Panel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "requesterEmail": { "type": "string" },
+        "requesterName": { "type": "string" },
+        "ipOrDevice": { "type": "string" },
+        "requestedAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "approvedAt": { "type": "string" },
+        "approvedBy": { "type": "string" },
+        "ownerEmail": { "type": "string" }
+      },
+      "required": ["id", "requesterEmail", "requestedAt", "status", "ownerEmail"]
+    },
+    "EmailNotificationLog": {
+      "title": "EmailNotificationLog",
+      "description": "Audit log for email notifications dispatched to owner bharatproexperthomeservices@gmail.com",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["PARTNER_ID_LIVE", "ADMIN_LOGIN_REQUEST", "ADMIN_LOGIN_APPROVED", "ADMIN_LOGIN_REJECTED"] },
+        "toEmail": { "type": "string" },
+        "subject": { "type": "string" },
+        "body": { "type": "string" },
+        "status": { "type": "string", "enum": ["SENT", "DISPATCHED", "QUEUED"] },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "type", "toEmail", "subject", "status", "timestamp"]
     },
     "HubLocation": {
       "title": "HubLocation",
@@ -126,7 +164,15 @@
     },
     "/partners/{partnerId}": {
       "schema": "Partner",
-      "description": "Verified technicians and active availability"
+      "description": "Verified technicians, custom User ID/Password, and onboarding approval"
+    },
+    "/admin_login_requests/{requestId}": {
+      "schema": "AdminLoginRequest",
+      "description": "Admin login requests awaiting owner approval from bharatproexperthomeservices@gmail.com"
+    },
+    "/email_logs/{logId}": {
+      "schema": "EmailNotificationLog",
+      "description": "Audit trail of email updates sent to bharatproexperthomeservices@gmail.com"
     },
     "/hubs/{hubId}": {
       "schema": "HubLocation",

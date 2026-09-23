@@ -145,7 +145,7 @@ export const AdminHubOperations: React.FC<AdminHubOperationsProps> = ({
         city: formCity,
         district: formDistrict,
         address: formAddress || `${formCity} Center Operations Facility`,
-        contactPhone: formContact || '+91 98765 00000',
+        contactPhone: formContact || '+91 8920252647',
         managerName: formManager || 'Operations Lead',
         operatingHours: formOperatingHours,
         coveredSectors: sectorsArray,

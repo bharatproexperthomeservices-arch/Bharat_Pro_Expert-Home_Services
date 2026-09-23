@@ -15,8 +15,9 @@ import {
   RBACRoleRecord
 } from './types';
 
-export const WHATSAPP_NUMBER = "919876543210";
-export const ADMIN_SUPPORT_EMAIL = "bharatproexperthomeservices@gmail.com";
+export const WHATSAPP_NUMBER = "918920252647";
+export const ADMIN_SUPPORT_EMAIL = "bharatproexpert@gmail.com";
+export const OFFICIAL_PHONE = "8920252647";
 
 // Helper to calculate Bharat Pro Expert Target Price (Market Reference × (1 - discount%))
 export const calculateBpePrice = (referencePrice: number, discountPct: number = 15): number => {
@@ -2198,7 +2199,9 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     hubName: 'Patna Central Hub',
     unit: 'Canister',
     stockQuantity: 42,
+    currentStock: 42,
     reorderLevel: 15,
+    minThreshold: 15,
     unitCost: 850,
     lastRestocked: '2026-09-18'
   },
@@ -2211,7 +2214,9 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     hubName: 'Patna Central Hub',
     unit: 'Canister',
     stockQuantity: 38,
+    currentStock: 38,
     reorderLevel: 12,
+    minThreshold: 12,
     unitCost: 920,
     lastRestocked: '2026-09-19'
   },
@@ -2224,7 +2229,9 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     hubName: 'Patna West Hub',
     unit: 'Machine Unit',
     stockQuantity: 18,
+    currentStock: 18,
     reorderLevel: 5,
+    minThreshold: 5,
     unitCost: 6800,
     lastRestocked: '2026-09-10'
   },
@@ -2237,7 +2244,9 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     hubName: 'Gurugram Central Hub',
     unit: 'Pack',
     stockQuantity: 110,
+    currentStock: 110,
     reorderLevel: 30,
+    minThreshold: 30,
     unitCost: 450,
     lastRestocked: '2026-09-15'
   },
@@ -2250,7 +2259,9 @@ export const INITIAL_INVENTORY_ITEMS: InventoryItem[] = [
     hubName: 'South Delhi Premium Hub',
     unit: 'Box (50 pairs)',
     stockQuantity: 65,
+    currentStock: 65,
     reorderLevel: 20,
+    minThreshold: 20,
     unitCost: 650,
     lastRestocked: '2026-09-16'
   }

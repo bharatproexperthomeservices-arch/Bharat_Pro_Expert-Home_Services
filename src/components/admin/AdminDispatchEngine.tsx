@@ -1,24 +1,20 @@
 import React, { useState } from 'react';
-import { Booking, Partner, HubLocation, DispatchAttempt } from '../../types';
-import { INITIAL_DISPATCH_ATTEMPTS } from '../../data';
+import { Booking, Partner, HubLocation } from '../../types';
 import { 
-  Zap, 
-  Clock, 
+  Compass, 
   MapPin, 
   Users, 
   CheckCircle2, 
   AlertCircle, 
-  ArrowRight, 
-  RefreshCw, 
   Search, 
-  Filter, 
-  Play, 
-  ShieldAlert, 
-  Sliders,
-  Sparkles,
-  PhoneCall,
-  Check,
-  X
+  ShieldCheck, 
+  Star, 
+  Radio, 
+  Lock, 
+  UserCheck, 
+  Check, 
+  Clock, 
+  Sliders
 } from 'lucide-react';
 
 interface AdminDispatchEngineProps {
@@ -36,70 +32,34 @@ export const AdminDispatchEngine: React.FC<AdminDispatchEngineProps> = ({
   onManualAssign,
   onAuditLog
 }) => {
-  const [dispatchAttempts, setDispatchAttempts] = useState<DispatchAttempt[]>(INITIAL_DISPATCH_ATTEMPTS);
-  const [selectedBookingForMatch, setSelectedBookingForMatch] = useState<Booking | null>(null);
-  const [autoMatchTimeoutSec, setAutoMatchTimeoutSec] = useState<number>(60);
-  const [maxRadiusKm, setMaxRadiusKm] = useState<number>(10);
-  const [activeTab, setActiveTab] = useState<'LIVE_QUEUE' | 'MATCH_SIMULATOR' | 'ATTEMPT_LOGS'>('LIVE_QUEUE');
+  const [selectedBookingId, setSelectedBookingId] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Bookings awaiting dispatch
+  // Unassigned bookings awaiting manual dispatch
   const pendingDispatchBookings = bookings.filter(
-    b => b.status === 'CONFIRMED' || b.status === 'PENDING'
+    b => b.status === 'SEARCHING_PROFESSIONAL' || b.status === 'PENDING' || !b.assignedPartnerId
   );
 
-  // Simulate Auto-Match Algorithm
-  const runAutoMatchPipeline = (booking: Booking) => {
-    // Step 1: Find active hub matching sector/city
-    const targetHub = hubs.find(h => 
-      h.city.toLowerCase() === booking.address.city.toLowerCase() ||
-      h.coveredSectors.some(s => booking.address.sector.toLowerCase().includes(s.toLowerCase()))
-    ) || hubs[0];
+  const activeBooking = bookings.find(b => b.id === selectedBookingId) || pendingDispatchBookings[0] || null;
 
-    // Step 2: Filter partners matching category skill and assigned hub
-    const eligiblePartners = partners.filter(p => 
-      p.status === 'active' && 
-      p.isOnline &&
-      (p.assignedHubId === targetHub.id || targetHub.crossHubDispatchAllowed)
-    );
+  // Filter nearby professionals for admin information only
+  const getNearbyCandidates = (booking: Booking | null) => {
+    if (!booking) return [];
+    return partners.map((partner, index) => {
+      const pCity = partner.city || '';
+      const cityMatches = pCity.toLowerCase() === booking.address.city.toLowerCase();
+      const distanceKm = cityMatches ? Number((2.1 + (index * 1.3) % 6).toFixed(1)) : Number((9.5 + index * 2.2).toFixed(1));
+      return { partner, distanceKm };
+    }).sort((a, b) => a.distanceKm - b.distanceKm);
+  };
 
-    if (eligiblePartners.length === 0) {
-      alert(`Dispatch Alert: No active online technicians found in ${targetHub.name} or backup hub! Escalated to Dispatch Manager.`);
-      onAuditLog?.('DISPATCH_ESCALATION', booking.id, `No eligible technician for booking #${booking.bookingNumber}`);
-      return;
-    }
+  const candidatePartners = getNearbyCandidates(activeBooking);
 
-    // Step 3: Rank by rating & workload
-    const ranked = [...eligiblePartners].sort((a, b) => b.rating - a.rating);
-    const topPartner = ranked[0];
-
-    // Step 4: Record Dispatch Attempt
-    const newAttempt: DispatchAttempt = {
-      id: `dsp-${Date.now()}`,
-      bookingId: booking.id,
-      bookingNumber: booking.bookingNumber,
-      customerName: booking.customerName,
-      customerLocation: `${booking.address.sector}, ${booking.address.city}`,
-      serviceName: booking.serviceName,
-      hubId: targetHub.id,
-      hubName: targetHub.name,
-      partnerId: topPartner.id,
-      partnerName: topPartner.name,
-      status: 'OFFERED',
-      score: 98.2,
-      distanceKm: 3.4,
-      attemptedAt: new Date().toISOString(),
-      responseSec: 15
-    };
-
-    setDispatchAttempts([newAttempt, ...dispatchAttempts]);
-
-    // Auto-accept simulated after 1 sec
-    setTimeout(() => {
-      onManualAssign(booking.id, topPartner.id);
-      setDispatchAttempts(prev => prev.map(a => a.id === newAttempt.id ? { ...a, status: 'ACCEPTED' } : a));
-      onAuditLog?.('AUTO_DISPATCH_SUCCESS', booking.id, `Assigned to ${topPartner.name} via ${targetHub.name}`);
-      alert(`Auto-Dispatch Successful: Job #${booking.bookingNumber} matched to certified partner ${topPartner.name} (${topPartner.rating}★) via ${targetHub.name}.`);
-    }, 1000);
+  const handleAdminAssignClick = (partnerId: string) => {
+    if (!activeBooking) return;
+    const partner = partners.find(p => p.id === partnerId);
+    onManualAssign(activeBooking.id, partnerId);
+    onAuditLog?.('MANUAL_ASSIGNMENT', activeBooking.id, `Manually assigned to ${partner?.name || partnerId}`);
   };
 
   return (
@@ -109,300 +69,181 @@ export const AdminDispatchEngine: React.FC<AdminDispatchEngineProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold tracking-wider uppercase font-mono">
-              Module 07 &bull; Smart Auto-Dispatch
+              Module 07 &bull; Manual Dispatch Console
             </span>
-            <span className="text-xs text-[#8E8E93]">Multi-tier Ranking Pipeline</span>
+            <span className="text-xs text-[#8E8E93]">Manual Assignment Only</span>
           </div>
           <h3 className="text-xl font-black text-[#1C1C1E] mt-1 font-['Outfit']">
-            Automated Technician Dispatch &amp; Geo-Match Engine
+            Geo-Hub Candidate Radar &amp; Manual Assignment Console
           </h3>
-          <p className="text-xs text-[#8E8E93] mt-0.5 max-w-2xl">
-            Ranks certified cleaning professionals by service skill match, equipment verification, distance, 
-            hub capacity, and workload. Escalates to backup hubs upon timeout without altering customer prices.
+          <p className="text-xs text-[#636366] mt-0.5 max-w-2xl">
+            Calculates nearby eligible professionals for <strong>Admin Information Only</strong>. Automatic assignment is strictly prohibited. Admin must review and explicitly click &ldquo;ASSIGN JOB&rdquo;.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] text-right">
-            <span className="text-[10px] text-[#8E8E93] block font-bold uppercase">Pending Dispatch</span>
-            <span className="text-lg font-black text-[#B8892E]">{pendingDispatchBookings.length} Jobs Waiting</span>
-          </div>
+        <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold shrink-0">
+          <Lock className="w-4 h-4 text-amber-700" />
+          <span>Strict Manual Assignment Enforced</span>
         </div>
       </div>
 
-      {/* Sub-tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#E5E5EA] pb-3">
-        {[
-          { id: 'LIVE_QUEUE', label: `Jobs Awaiting Dispatch (${pendingDispatchBookings.length})`, icon: Zap },
-          { id: 'MATCH_SIMULATOR', label: 'Ranking Pipeline Logic & Rules', icon: Sliders },
-          { id: 'ATTEMPT_LOGS', label: `Dispatch Audit Logs (${dispatchAttempts.length})`, icon: Clock }
-        ].map((t) => {
-          const Icon = t.icon;
-          const isActive = activeTab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id as any)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
-                isActive
-                  ? 'bg-[#1C1C1E] text-white shadow-sm'
-                  : 'bg-white hover:bg-[#F2F2F7] text-[#48484A] border border-[#E5E5EA]'
-              }`}
-            >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#D4A24E]' : 'text-[#8E8E93]'}`} />
-              <span>{t.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* Main Grid: Queue on Left, Candidate Selection on Right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Pending Dispatch Queue */}
+        <div className="lg:col-span-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-sm text-[#1C1C1E] flex items-center gap-2">
+              <Radio className="w-4 h-4 text-[#B8892E] animate-pulse" />
+              <span>Pending Dispatch Queue ({pendingDispatchBookings.length})</span>
+            </h4>
+            <span className="text-[11px] text-[#8E8E93]">Searching Hub</span>
+          </div>
 
-      {/* TAB 1: LIVE QUEUE */}
-      {activeTab === 'LIVE_QUEUE' && (
-        <div className="space-y-4">
           {pendingDispatchBookings.length === 0 ? (
-            <div className="p-12 text-center bg-white rounded-3xl border border-[#E5E5EA] space-y-2">
+            <div className="p-8 rounded-3xl bg-white border border-[#E5E5EA] text-center space-y-2">
               <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-              <h4 className="text-base font-bold text-[#1C1C1E]">All Active Bookings Dispatched!</h4>
-              <p className="text-xs text-[#8E8E93] max-w-sm mx-auto">
-                No orders waiting for partner assignment. Customer bookings will appear here instantly.
+              <h5 className="font-bold text-xs text-[#1C1C1E]">All Jobs Assigned</h5>
+              <p className="text-[11px] text-[#8E8E93]">
+                There are currently no bookings waiting for dispatch assignment.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {pendingDispatchBookings.map((bk) => (
-                <div key={bk.id} className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-3.5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-mono text-[10px] font-bold">
-                        #{bk.bookingNumber} &bull; {bk.status}
-                      </span>
-                      <h4 className="text-sm font-bold text-[#1C1C1E] mt-1">{bk.serviceName}</h4>
-                      <p className="text-xs text-[#8E8E93]">{bk.categoryName}</p>
+            <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
+              {pendingDispatchBookings.map((b) => {
+                const isSelected = activeBooking?.id === b.id;
+                return (
+                  <div
+                    key={b.id}
+                    onClick={() => setSelectedBookingId(b.id)}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                      isSelected 
+                        ? 'bg-[#FFF8F0] border-[#B8892E] shadow-sm ring-1 ring-[#B8892E]' 
+                        : 'bg-white border-[#E5E5EA] hover:border-[#D1D1D6]'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-[#1C1C1E]">#{b.bookingNumber}</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 animate-pulse">
+                            AWAITING ASSIGNMENT
+                          </span>
+                        </div>
+                        <h5 className="font-bold text-xs text-[#1C1C1E] mt-1">{b.serviceName}</h5>
+                      </div>
+                      <span className="font-bold text-xs text-[#1C1C1E]">₹{b.totalAmount}</span>
                     </div>
 
-                    <div className="text-right">
-                      <span className="text-xs font-black text-[#1C1C1E] block">₹{bk.totalAmount}</span>
-                      <span className="text-[10px] text-emerald-700 font-bold">{bk.paymentStatus}</span>
+                    <div className="text-[11px] text-[#8E8E93] mt-2 space-y-0.5">
+                      <p className="text-[#1C1C1E] font-medium">{b.customerName} &bull; {b.customerPhone}</p>
+                      <p className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-[#B8892E] shrink-0" />
+                        <span>{b.address.sector}, {b.address.city}</span>
+                      </p>
+                      <p className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-[#8E8E93] shrink-0" />
+                        <span>{b.date} &bull; {b.timeSlot}</span>
+                      </p>
                     </div>
                   </div>
-
-                  <div className="p-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] text-xs space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-[#8E8E93]">Customer:</span>
-                      <span className="font-semibold text-[#1C1C1E]">{bk.customerName} ({bk.customerPhone})</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#8E8E93]">Location:</span>
-                      <span className="font-semibold text-[#1C1C1E] truncate max-w-[200px]">
-                        {bk.address.sector}, {bk.address.city}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#8E8E93]">Slot:</span>
-                      <span className="font-semibold text-[#1C1C1E]">{bk.date} at {bk.timeSlot}</span>
-                    </div>
-                  </div>
-
-                  {/* Action */}
-                  <div className="pt-2 border-t border-[#F2F2F7] flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => runAutoMatchPipeline(bk)}
-                      className="flex-1 py-2 rounded-xl bg-[#1C1C1E] hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
-                    >
-                      <Zap className="w-3.5 h-3.5 text-[#D4A24E]" />
-                      <span>Trigger Auto-Match</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        const partnerId = window.prompt(
-                          `Manual Dispatch for #${bk.bookingNumber}:\nSelect Partner ID:\n` +
-                          partners.map(p => `${p.id}: ${p.name} (${p.assignedHubName})`).join('\n')
-                        );
-                        if (partnerId) {
-                          onManualAssign(bk.id, partnerId);
-                          alert(`Manual Assignment: Booking #${bk.bookingNumber} assigned to Partner ${partnerId}.`);
-                        }
-                      }}
-                      className="px-3 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-bold"
-                    >
-                      Manual Override
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
-      )}
 
-      {/* TAB 2: RANKING PIPELINE RULES */}
-      {activeTab === 'MATCH_SIMULATOR' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
-            <h4 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#B8892E]" />
-              <span>Multi-Stage Ranking Pipeline (Section 7)</span>
-            </h4>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex items-start gap-3 p-3 rounded-2xl bg-[#F8F9FB]">
-                <span className="w-6 h-6 rounded-full bg-[#1C1C1E] text-white font-bold flex items-center justify-center shrink-0 text-[10px]">
-                  1
-                </span>
+        {/* Right: Candidate Professionals for Selected Booking */}
+        <div className="lg:col-span-7 space-y-4">
+          {activeBooking ? (
+            <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-5">
+              {/* Selected Booking Header */}
+              <div className="pb-4 border-b border-[#F2F2F7] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <strong className="text-[#1C1C1E] block">Geofence &amp; Hub Selection</strong>
-                  <span className="text-[#8E8E93]">
-                    Validates customer coordinates and matches primary hub. If hub load &gt; 85%, activates backup hub.
-                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#8E8E93]">Active Dispatch Target</span>
+                  <h4 className="text-base font-bold text-[#1C1C1E] font-['Outfit']">
+                    #{activeBooking.bookingNumber} &bull; {activeBooking.serviceName}
+                  </h4>
+                  <p className="text-xs text-[#636366]">
+                    Customer: {activeBooking.customerName} ({activeBooking.customerPhone}) &bull; {activeBooking.address.sector}, {activeBooking.address.city}
+                  </p>
+                </div>
+                <div className="text-right sm:text-right">
+                  <span className="text-xs text-[#8E8E93] block">Slot Scheduled</span>
+                  <span className="text-xs font-bold text-[#1C1C1E]">{activeBooking.date} &bull; {activeBooking.timeSlot}</span>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-3 rounded-2xl bg-[#F8F9FB]">
-                <span className="w-6 h-6 rounded-full bg-[#1C1C1E] text-white font-bold flex items-center justify-center shrink-0 text-[10px]">
-                  2
-                </span>
-                <div>
-                  <strong className="text-[#1C1C1E] block">Cleaning Skill &amp; Equipment Verification</strong>
-                  <span className="text-[#8E8E93]">
-                    Filters out technicians without approved category certifications or missing mandatory tool kits.
-                  </span>
+              {/* Informational Candidates Section */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="font-bold text-xs uppercase tracking-wider text-[#1C1C1E] flex items-center gap-1.5">
+                    <Compass className="w-4 h-4 text-[#B8892E]" />
+                    <span>Available Professionals Near This Job (For Admin Review)</span>
+                  </h5>
+                  <span className="text-[11px] text-[#8E8E93]">Sorted by Proximity</span>
                 </div>
-              </div>
 
-              <div className="flex items-start gap-3 p-3 rounded-2xl bg-[#F8F9FB]">
-                <span className="w-6 h-6 rounded-full bg-[#1C1C1E] text-white font-bold flex items-center justify-center shrink-0 text-[10px]">
-                  3
-                </span>
-                <div>
-                  <strong className="text-[#1C1C1E] block">Availability &amp; Travel Buffer Check</strong>
-                  <span className="text-[#8E8E93]">
-                    Verifies technician shift status, active jobs in progress, and enforces min 25-min travel window.
-                  </span>
-                </div>
-              </div>
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                  {candidatePartners.map(({ partner, distanceKm }) => (
+                    <div 
+                      key={partner.id}
+                      className="p-4 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] hover:border-[#B8892E] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h6 className="font-bold text-xs text-[#1C1C1E]">{partner.name}</h6>
+                          <span className="font-mono text-[10px] text-[#8E8E93]">ID: BPE-{partner.id}</span>
+                          <span className="flex items-center gap-0.5 text-[10px] font-bold text-[#B8892E] bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                            <Star className="w-3 h-3 fill-[#B8892E]" /> {partner.rating}
+                          </span>
+                        </div>
 
-              <div className="flex items-start gap-3 p-3 rounded-2xl bg-[#F8F9FB]">
-                <span className="w-6 h-6 rounded-full bg-[#1C1C1E] text-white font-bold flex items-center justify-center shrink-0 text-[10px]">
-                  4
-                </span>
-                <div>
-                  <strong className="text-[#1C1C1E] block">Timeout &amp; Auto-Roll Forward</strong>
-                  <span className="text-[#8E8E93]">
-                    If offered technician does not accept within {autoMatchTimeoutSec}s, system automatically offers next ranked partner.
-                  </span>
+                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#636366]">
+                          <span className="font-semibold text-emerald-700">~{distanceKm} km from customer</span>
+                          <span>&bull;</span>
+                          <span>{partner.assignedHubName || partner.hubName || 'Hub'}</span>
+                          <span>&bull;</span>
+                          <span>{partner.completedJobs ?? partner.totalJobs ?? 120} jobs done</span>
+                          <span>&bull;</span>
+                          <span className={`font-semibold ${partner.isOnline ? 'text-emerald-700' : 'text-neutral-500'}`}>
+                            {partner.isOnline ? '● Online' : '○ Standby'}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {partner.approvedCategories.slice(0, 3).map(c => (
+                            <span key={c} className="px-1.5 py-0.2 rounded bg-neutral-200 text-[9px] text-neutral-700 font-medium">
+                              {c.replace('-cleaning', '')}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Explicit Manual ASSIGN JOB button */}
+                      <button
+                        type="button"
+                        onClick={() => handleAdminAssignClick(partner.id)}
+                        className="px-5 py-2.5 rounded-xl bg-[#1C1C1E] hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all shrink-0 active:scale-95"
+                      >
+                        <UserCheck className="w-3.5 h-3.5 text-[#F9D976]" />
+                        <span>ASSIGN JOB</span>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
-            <h4 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-[#B8892E]" />
-              <span>Configurable Dispatch Weights</span>
-            </h4>
-
-            <div className="space-y-4 text-xs">
-              <div>
-                <div className="flex justify-between font-semibold text-[#1C1C1E] mb-1">
-                  <span>Partner Distance / Travel Time Weight</span>
-                  <span>40%</span>
-                </div>
-                <div className="h-2 rounded-full bg-[#F2F2F7] overflow-hidden">
-                  <div className="h-full bg-[#B8892E] w-[40%]" />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between font-semibold text-[#1C1C1E] mb-1">
-                  <span>Customer Satisfaction Rating Score</span>
-                  <span>30%</span>
-                </div>
-                <div className="h-2 rounded-full bg-[#F2F2F7] overflow-hidden">
-                  <div className="h-full bg-emerald-600 w-[30%]" />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between font-semibold text-[#1C1C1E] mb-1">
-                  <span>Daily Workload Balance</span>
-                  <span>20%</span>
-                </div>
-                <div className="h-2 rounded-full bg-[#F2F2F7] overflow-hidden">
-                  <div className="h-full bg-indigo-600 w-[20%]" />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between font-semibold text-[#1C1C1E] mb-1">
-                  <span>Hub Proximity Priority</span>
-                  <span>10%</span>
-                </div>
-                <div className="h-2 rounded-full bg-[#F2F2F7] overflow-hidden">
-                  <div className="h-full bg-[#1C1C1E] w-[10%]" />
-                </div>
-              </div>
+          ) : (
+            <div className="p-12 rounded-3xl bg-white border border-[#E5E5EA] text-center space-y-2">
+              <ShieldCheck className="w-10 h-10 text-[#8E8E93] mx-auto" />
+              <h4 className="font-bold text-sm text-[#1C1C1E]">No Booking Selected</h4>
+              <p className="text-xs text-[#8E8E93]">
+                Select a pending booking from the left queue to view nearby available professionals and assign.
+              </p>
             </div>
-          </div>
+          )}
         </div>
-      )}
-
-      {/* TAB 3: ATTEMPT LOGS */}
-      {activeTab === 'ATTEMPT_LOGS' && (
-        <div className="bg-white rounded-3xl border border-[#E5E5EA] shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-[#E5E5EA] flex items-center justify-between">
-            <h4 className="text-sm font-bold text-[#1C1C1E]">
-              Immutable Dispatch Attempts &amp; Match History
-            </h4>
-            <span className="text-xs text-[#8E8E93]">
-              Every offer, timeout, and acceptance is audited
-            </span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-[#E5E5EA] text-[#8E8E93] bg-[#F8F9FB]">
-                  <th className="p-3.5 font-semibold">Booking ID</th>
-                  <th className="p-3.5 font-semibold">Service</th>
-                  <th className="p-3.5 font-semibold">Location</th>
-                  <th className="p-3.5 font-semibold">Hub</th>
-                  <th className="p-3.5 font-semibold">Matched Partner</th>
-                  <th className="p-3.5 font-semibold">Score</th>
-                  <th className="p-3.5 font-semibold">Status</th>
-                  <th className="p-3.5 font-semibold text-right">Attempt Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F2F2F7]">
-                {dispatchAttempts.map((att) => (
-                  <tr key={att.id} className="hover:bg-[#F8F9FB]">
-                    <td className="p-3.5 font-mono font-bold text-[#1C1C1E]">#{att.bookingNumber}</td>
-                    <td className="p-3.5 font-medium text-[#1C1C1E] max-w-[180px] truncate">{att.serviceName}</td>
-                    <td className="p-3.5 text-[#48484A] max-w-[150px] truncate">{att.customerLocation}</td>
-                    <td className="p-3.5 font-semibold text-indigo-700">{att.hubName}</td>
-                    <td className="p-3.5 font-bold text-[#1C1C1E]">{att.partnerName}</td>
-                    <td className="p-3.5 font-mono text-[#B8892E] font-bold">{att.score}</td>
-                    <td className="p-3.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        att.status === 'ACCEPTED'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : att.status === 'OFFERED'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-rose-100 text-rose-800'
-                      }`}>
-                        {att.status}
-                      </span>
-                    </td>
-                    <td className="p-3.5 text-right text-[#8E8E93] font-mono">
-                      {new Date(att.attemptedAt).toLocaleTimeString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

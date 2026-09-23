@@ -279,12 +279,12 @@ export const AdminCustomerAndCMS: React.FC<AdminCustomerAndCMSProps> = ({
                   <div>
                     <span className="text-[10px] text-[#8E8E93] block">Lifetime Spend</span>
                     <span className="font-black text-[#1F8A3B] block mt-0.5">
-                      ₹{cust.totalSpend.toLocaleString('en-IN')}
+                      ₹{(cust.totalSpend ?? cust.lifetimeValue ?? 0).toLocaleString('en-IN')}
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] text-[#8E8E93] block">Wallet Balance</span>
-                    <span className="font-bold text-[#B8892E] block mt-0.5">₹{cust.walletBalance}</span>
+                    <span className="font-bold text-[#B8892E] block mt-0.5">₹{cust.walletBalance ?? 0}</span>
                   </div>
                 </div>
 

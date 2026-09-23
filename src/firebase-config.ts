@@ -44,8 +44,7 @@ export const auth = getAuth(app);
 let dbInstance;
 try {
   dbInstance = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
-    useFetchStreams: false
+    experimentalForceLongPolling: true
   }, firebaseConfigJson.firestoreDatabaseId);
 } catch {
   dbInstance = getFirestore(app, firebaseConfigJson.firestoreDatabaseId);

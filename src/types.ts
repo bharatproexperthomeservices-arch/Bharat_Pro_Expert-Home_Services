@@ -77,25 +77,38 @@ export interface DispatchAttempt {
 
 export interface SOPRule {
   id: string;
-  categoryId: string;
-  stepName: string;
+  categoryId?: string;
+  category?: string;
+  stepName?: string;
+  title?: string;
   description: string;
-  mandatory: boolean;
-  photoProofRequired: boolean;
-  checkCriteria: string;
-  auditFrequency: string;
+  mandatory?: boolean;
+  photoProofRequired?: boolean;
+  mandatoryPhotoProof?: boolean;
+  checkCriteria?: string;
+  auditFrequency?: string;
+  chemicalUsed?: string;
+  dilutionRatio?: string;
+  penaltyIfViolated?: string;
+  steps?: string[];
 }
 
 export interface TrainingCourse {
   id: string;
+  code?: string;
   title: string;
   category: string;
+  description?: string;
   modulesCount: number;
   durationHours: number;
   passingScore: number;
+  passingScorePct?: number;
   requiredForOnboarding: boolean;
   autoAssignOnLowRating: boolean;
   certifiedPartnersCount: number;
+  enrolledCount?: number;
+  mandatoryFor?: string;
+  modules?: string[];
 }
 
 export interface InventoryItem {
@@ -110,6 +123,25 @@ export interface InventoryItem {
   reorderLevel: number;
   unitCost: number;
   lastRestocked: string;
+  currentStock: number;
+  minThreshold: number;
+}
+
+export interface CustomerUser {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  city: string;
+  hubName: string;
+  totalBookings: number;
+  lifetimeValue: number;
+  totalSpend?: number;
+  walletBalance?: number;
+  ratingGiven: number;
+  addresses: { tag: string; address: string }[];
+  savedAddresses?: string[];
+  registeredDate: string;
 }
 
 export interface ComplaintTicket {
@@ -267,13 +299,30 @@ export interface BumperOffer {
 
 export type JobStatus = 
   | 'PENDING'
+  | 'SEARCHING_PROFESSIONAL'
   | 'CONFIRMED'
+  | 'ASSIGNED'
   | 'PARTNER_ASSIGNED'
+  | 'ACCEPTED'
   | 'PARTNER_ON_THE_WAY'
+  | 'ON_THE_WAY'
   | 'ARRIVED'
+  | 'STARTED'
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CANCELLED';
+
+export interface AssignmentHistoryEntry {
+  id: string;
+  bookingId: string;
+  previousPartnerId?: string;
+  previousPartnerName?: string;
+  newPartnerId: string;
+  newPartnerName: string;
+  assignedByAdminId: string;
+  reason?: string;
+  createdAt: string;
+}
 
 export interface Booking {
   id: string;
@@ -322,16 +371,25 @@ export interface Booking {
   assignedPartnerId?: string;
   assignedPartnerName?: string;
   assignedPartnerPhone?: string;
+  assignedPartnerAvatar?: string;
   assignedHubId?: string;
+  assignedHubName?: string;
   partnerRating?: number;
+  partnerCompletedJobs?: number;
   partnerReview?: string;
   tipAmount?: number;
   
   // Timestamps
   createdAt: string;
   updatedAt: string;
+  assignedAt?: string;
+  acceptedAt?: string;
+  onTheWayAt?: string;
+  arrivedAt?: string;
   jobStartedAt?: string;
   jobFinishedAt?: string;
+  cancelledAt?: string;
+  assignmentHistory?: AssignmentHistoryEntry[];
 }
 
 export interface Partner {
@@ -344,12 +402,47 @@ export interface Partner {
   isOnline: boolean;
   assignedHubId: string;
   assignedHubName: string;
+  hubName?: string;
+  city?: string;
   approvedCategories: string[]; // Category IDs
   rating: number;
   totalJobs: number;
+  completedJobs?: number;
   totalEarnings: number;
   kycVerified: boolean;
+  kycStatus?: 'VERIFIED' | 'PENDING' | 'REJECTED';
   currentLocation?: { lat: number; lng: number };
+  // Partner Credentials & Approval State
+  loginUserId?: string; // Assigned User ID (e.g. BPE-PRO-101)
+  loginPassword?: string; // Admin-issued Password
+  onboardingStatus?: 'pending_approval' | 'approved' | 'rejected';
+  approvedAt?: string;
+  approvedBy?: string;
+  emailNotificationSent?: boolean;
+}
+
+export interface AdminLoginRequest {
+  id: string;
+  requesterEmail: string;
+  requesterName?: string;
+  ipOrDevice: string;
+  requestedAt: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvedAt?: string;
+  approvedBy?: string;
+  ownerEmail: string; // bharatproexperthomeservices@gmail.com
+  accessCode?: string;
+}
+
+export interface EmailNotificationLog {
+  id: string;
+  type: 'PARTNER_ID_LIVE' | 'ADMIN_LOGIN_REQUEST' | 'ADMIN_LOGIN_APPROVED' | 'ADMIN_LOGIN_REJECTED';
+  toEmail: string; // bharatproexperthomeservices@gmail.com
+  subject: string;
+  body: string;
+  status: 'SENT' | 'DISPATCHED';
+  timestamp: string;
+  metadata?: Record<string, any>;
 }
 
 export interface UserProfile {

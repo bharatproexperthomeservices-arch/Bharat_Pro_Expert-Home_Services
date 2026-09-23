@@ -16,6 +16,12 @@ service cloud.firestore {
     match /partners/{partnerId} {
       allow read, write: if true;
     }
+    match /admin_login_requests/{requestId} {
+      allow read, write: if true;
+    }
+    match /email_logs/{logId} {
+      allow read, write: if true;
+    }
     match /whatsapp_logs/{logId} {
       allow read, write: if true;
     }
