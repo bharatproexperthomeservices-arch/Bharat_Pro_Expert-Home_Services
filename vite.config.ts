@@ -1,10 +1,22 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, loadEnv} from 'vite';
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const razorpayKey = 
+    process.env.VITE_RAZORPAY_KEY_ID || 
+    process.env.RAZORPAY_KEY_ID || 
+    env.VITE_RAZORPAY_KEY_ID || 
+    env.RAZORPAY_KEY_ID || 
+    '';
+
   return {
+    define: {
+      'import.meta.env.VITE_RAZORPAY_KEY_ID': JSON.stringify(razorpayKey),
+      'import.meta.env.RAZORPAY_KEY_ID': JSON.stringify(razorpayKey),
+    },
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

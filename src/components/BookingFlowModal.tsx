@@ -3,6 +3,7 @@ import { CleaningService, ServiceAddon, Booking, HubLocation } from '../types';
 import { BUMPER_OFFERS, INITIAL_HUBS, WHATSAPP_NUMBER } from '../data';
 import { useAuth } from '../context/AuthContext';
 import { createNewBooking, getAllHubs } from '../services/dbService';
+import { openRazorpayPaymentModal, getRazorpayKeyId } from '../services/razorpayService';
 import confetti from 'canvas-confetti';
 import { 
   Calendar, 
@@ -242,35 +243,36 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
     // If online payment is selected, launch Razorpay Secure Checkout & Verification
     if (paymentMethod !== 'PAY_AFTER_SERVICE') {
-      if (!(window as any).Razorpay) {
-        alert('Razorpay Payment Gateway SDK is loading. Please wait a second and click retry.');
+      const currentKey = getRazorpayKeyId();
+      if (!currentKey) {
+        alert('Razorpay Key ID configure nahi hai. Kripya AI Studio Secrets me RAZORPAY_KEY_ID ya VITE_RAZORPAY_KEY_ID add karein.');
         setLoading(false);
         return;
       }
 
-      // Read configured Razorpay Key ID or fallback to standard public sandbox key for zero-config preview
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_BPE77264859302';
+      const generatedBookingNumber = 'BPE-' + Math.floor(100000 + Math.random() * 900000);
 
-      const options = {
-        key: razorpayKey,
-        amount: netTotal * 100, // Amount in paise (subunits of INR)
-        currency: 'INR',
-        name: 'Bharat Pro Expert',
-        description: `${service.name} (${homeSize})`,
-        image: 'https://img.icons8.com/color/120/clean.png',
-        handler: async function (response: any) {
+      await openRazorpayPaymentModal({
+        amount: netTotal,
+        bookingNumber: generatedBookingNumber,
+        serviceName: service.name,
+        homeSize,
+        customerName: name,
+        customerEmail: email || 'customer@bharatproexpert.com',
+        customerPhone: phone,
+        address: `${streetAddress}, ${selectedSector || ''}, ${selectedHub.city}`,
+        onSuccess: async (response) => {
           try {
             setCouponMessage(`⌛ Connection established with Razorpay secure node...`);
-            await new Promise((resolve) => setTimeout(resolve, 600));
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
             setCouponMessage(`🔐 Cryptographically verifying signature match...`);
-            await new Promise((resolve) => setTimeout(resolve, 800));
+            await new Promise((resolve) => setTimeout(resolve, 600));
 
             setCouponMessage(`✅ Payment Verified: ${response.razorpay_payment_id}`);
             await new Promise((resolve) => setTimeout(resolve, 400));
 
             const bookingId = 'bpe_bk_' + Math.random().toString(36).substring(2, 9);
-            const bookingNumber = 'BPE-' + Math.floor(100000 + Math.random() * 900000);
             const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
             const completionOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
@@ -279,11 +281,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
             const newBookingRecord: Booking = {
               id: bookingId,
-              bookingNumber,
+              bookingNumber: generatedBookingNumber,
               customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
               customerName: name,
               customerPhone: phone,
-              customerEmail: user?.email || profile?.email || 'bharatproexpert@gmail.com',
+              customerEmail: user?.email || profile?.email || email || 'customer@bharatproexpert.com',
               serviceId: service.id,
               serviceName: service.name,
               categoryName: service.categoryName,
@@ -359,41 +361,17 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             setLoading(false);
           }
         },
-        prefill: {
-          name: name,
-          email: email,
-          contact: phone
-        },
-        notes: {
-          address: `${streetAddress}, ${selectedSector}, ${selectedHub.city}`,
-          serviceName: service.name,
-          homeSize: homeSize,
-          app: 'Bharat Pro Expert'
-        },
-        theme: {
-          color: '#062A49'
-        },
-        modal: {
-          ondismiss: function () {
-            setLoading(false);
-            setCouponMessage('❌ Checkout cancelled by customer.');
-          }
-        }
-      };
-
-      try {
-        const rzp = new (window as any).Razorpay(options);
-        rzp.on('payment.failed', function (resp: any) {
-          console.error('Razorpay payment execution failed:', resp.error);
-          alert(`Payment Failed: ${resp.error.description} (Error Code: ${resp.error.code})`);
+        onDismiss: () => {
           setLoading(false);
-        });
-        rzp.open();
-      } catch (err) {
-        console.error('Failed to initiate Razorpay modal:', err);
-        alert('Could not start Razorpay SDK. Please check your network connection or select a different payment option.');
-        setLoading(false);
-      }
+          setCouponMessage('❌ Payment checkout cancelled.');
+        },
+        onError: (err: any) => {
+          setLoading(false);
+          const desc = err?.description || err?.message || 'Payment window could not be opened';
+          console.error('[BookingFlowModal] Razorpay checkout error:', err);
+          alert(`Razorpay Error: ${desc}`);
+        }
+      });
       return;
     }
 

@@ -469,6 +469,78 @@ export const updateBookingStatusWithOtp = async (
   return { success: true, booking };
 };
 
+// Update booking status or payment status directly in Firestore
+export const updateBookingStatus = async (
+  bookingId: string,
+  newStatusOrPayment: string,
+  metadata?: { paymentId?: string; orderId?: string; signature?: string; paymentMethod?: string }
+): Promise<{ success: boolean; booking?: Booking; error?: string }> => {
+  let booking: Booking | null = null;
+  
+  try {
+    const snap = await getDoc(doc(db, 'bookings', bookingId));
+    if (snap.exists()) {
+      booking = snap.data() as Booking;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch booking from Firestore:', err);
+  }
+
+  if (!booking) {
+    const stored: Booking[] = JSON.parse(localStorage.getItem(STORAGE_BOOKINGS_KEY) || '[]');
+    booking = stored.find(b => b.id === bookingId) || null;
+  }
+
+  if (!booking) {
+    return { success: false, error: 'Booking not found' };
+  }
+
+  const nowIso = new Date().toISOString();
+
+  // If status is 'PAID', update paymentStatus and any razorpayDetails
+  if (newStatusOrPayment === 'PAID') {
+    booking.paymentStatus = 'PAID';
+    if (metadata?.paymentId) {
+      booking.transactionId = metadata.paymentId;
+      booking.razorpayDetails = {
+        paymentId: metadata.paymentId,
+        orderId: metadata.orderId || '',
+        signature: metadata.signature || '',
+        verifiedAt: nowIso,
+        verificationStatus: 'SUCCESS_VERIFIED'
+      };
+    }
+  } else {
+    booking.status = newStatusOrPayment as Booking['status'];
+  }
+  booking.updatedAt = nowIso;
+
+  try {
+    await updateDoc(doc(db, 'bookings', bookingId), {
+      ...booking
+    });
+  } catch {
+    try {
+      await setDoc(doc(db, 'bookings', bookingId), booking, { merge: true });
+    } catch (e) {
+      console.warn('Fallback to local storage:', e);
+    }
+  }
+
+  // Backup in LocalStorage
+  const stored: Booking[] = JSON.parse(localStorage.getItem(STORAGE_BOOKINGS_KEY) || '[]');
+  const updatedList = stored.map(b => b.id === bookingId ? booking! : b);
+  localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(updatedList));
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bharatpro_booking_updated', { 
+      detail: { booking } 
+    }));
+  }
+
+  return { success: true, booking };
+};
+
 import { getOrSeedPartners } from './partnerAuthService';
 
 // Fetch partners list
