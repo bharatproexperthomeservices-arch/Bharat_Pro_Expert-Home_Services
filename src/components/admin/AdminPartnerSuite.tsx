@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { Partner, HubLocation, Booking } from '../../types';
 import { 
+  approvePartnerAndMakeIdLive, 
+  rejectPartnerApplication 
+} from '../../services/partnerAuthService';
+import { OWNER_EMAIL } from '../../services/emailService';
+import { 
   Users, 
   UserCheck, 
   ShieldCheck, 
@@ -23,7 +28,8 @@ import {
   Lock,
   ArrowUpRight,
   Sparkles,
-  Layers
+  Layers,
+  KeyRound
 } from 'lucide-react';
 
 interface AdminPartnerSuiteProps {
@@ -41,10 +47,14 @@ export const AdminPartnerSuite: React.FC<AdminPartnerSuiteProps> = ({
   onUpdatePartners,
   onAuditLog
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'FLEET' | 'ONBOARDING' | 'SKILLS_EQUIPMENT' | 'PROOF_OF_WORK'>('FLEET');
+  const [activeSubTab, setActiveSubTab] = useState<'PENDING_APPROVALS' | 'FLEET' | 'SKILLS_EQUIPMENT' | 'PROOF_OF_WORK'>('FLEET');
   const [selectedHub, setSelectedHub] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // Pending Partners for Owner Approval
+  const pendingPartners = partners.filter(p => p.onboardingStatus === 'pending_approval');
   
   // Onboarding Form State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -54,6 +64,47 @@ export const AdminPartnerSuite: React.FC<AdminPartnerSuiteProps> = ({
   const [newHubId, setNewHubId] = useState(hubs[0]?.id || 'hub-patna-central');
   const [selectedSkills, setSelectedSkills] = useState<string[]>(['full-home-cleaning', 'bathroom-cleaning']);
   const [equipmentVerified, setEquipmentVerified] = useState(true);
+
+  // Approve Partner
+  const handleApprovePartner = async (partnerId: string) => {
+    setProcessingId(partnerId);
+    try {
+      const res = await approvePartnerAndMakeIdLive(partnerId, { approvedBy: OWNER_EMAIL });
+      if (res.success && res.partner) {
+        const updated = partners.map(p => p.id === partnerId ? res.partner! : p);
+        onUpdatePartners(updated);
+        onAuditLog?.('APPROVE_PARTNER', partnerId, `Partner ${res.partner.name} approved by Owner (${OWNER_EMAIL})`);
+        alert(`✅ Partner ${res.partner.name} APPROVED!\n\nUser ID: ${res.partner.loginUserId}\nPassword: ${res.partner.loginPassword}\nStatus: Live & Active\n\nNotification sent to ${OWNER_EMAIL}. The partner can now log in.`);
+      } else {
+        alert(res.error || 'Approval failed.');
+      }
+    } catch {
+      alert('Error approving partner.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Reject Partner
+  const handleRejectPartner = async (partnerId: string) => {
+    const reason = window.prompt('Rejection reason for partner application:', 'Incomplete documentation or unverified credentials');
+    if (!reason) return;
+
+    setProcessingId(partnerId);
+    try {
+      const res = await rejectPartnerApplication(partnerId, reason);
+      if (res.success) {
+        const updated = partners.map(p => p.id === partnerId ? { ...p, status: 'inactive' as const, onboardingStatus: 'rejected' as any } : p);
+        onUpdatePartners(updated);
+        onAuditLog?.('REJECT_PARTNER', partnerId, `Partner application rejected: ${reason}`);
+        alert('Partner application marked as rejected.');
+      }
+    } catch {
+      alert('Error rejecting partner.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const categories = [
     { id: 'full-home-cleaning', label: 'Full Home Deep Cleaning' },
@@ -85,7 +136,7 @@ export const AdminPartnerSuite: React.FC<AdminPartnerSuiteProps> = ({
     const newPartner: Partner = {
       id: `partner-${Date.now().toString().slice(-4)}`,
       name: newName,
-      email: newEmail || `${newName.toLowerCase().replace(/\s+/g, '.')}@bharatpro.in`,
+      email: newEmail.trim() || '',
       phone: newPhone,
       avatarUrl: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?auto=format&fit=crop&w=200&q=80',
       status: 'active',
@@ -168,6 +219,13 @@ export const AdminPartnerSuite: React.FC<AdminPartnerSuiteProps> = ({
       {/* Sub Tabs */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[#E5E5EA] pb-3">
         {[
+          { 
+            id: 'PENDING_APPROVALS', 
+            label: `Pending Approvals (${pendingPartners.length})`, 
+            icon: Clock,
+            badge: pendingPartners.length > 0 ? `${pendingPartners.length} Action Needed` : undefined,
+            badgeColor: 'bg-amber-500 text-slate-950 font-black animate-pulse'
+          },
           { id: 'FLEET', label: `Active Fleet (${partners.length})`, icon: Users },
           { id: 'SKILLS_EQUIPMENT', label: 'Skills & Mandatory Equipment Matrix', icon: Wrench },
           { id: 'PROOF_OF_WORK', label: 'Proof-of-Work & Job Lifecycle Audit', icon: Camera }
@@ -178,7 +236,7 @@ export const AdminPartnerSuite: React.FC<AdminPartnerSuiteProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveSubTab(tab.id as any)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                 isActive
                   ? 'bg-[#1C1C1E] text-white shadow-sm'
                   : 'bg-white hover:bg-[#F2F2F7] text-[#48484A] border border-[#E5E5EA]'
@@ -186,10 +244,113 @@ export const AdminPartnerSuite: React.FC<AdminPartnerSuiteProps> = ({
             >
               <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#D4A24E]' : 'text-[#8E8E93]'}`} />
               <span>{tab.label}</span>
+              {tab.badge && (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] ${tab.badgeColor}`}>
+                  {tab.badge}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
+
+      {/* VIEW 0: PENDING APPROVALS (OWNER APPROVAL MANDATORY) */}
+      {activeSubTab === 'PENDING_APPROVALS' && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-800">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold">Owner Approval Gateway &bull; {OWNER_EMAIL}</h4>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  Koi bhi partner register karega toh direct login nahi kar payega. Aapke yahan se Approve karne par hi unhe User ID &amp; Password milega aur ID live hogi.
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-amber-200 text-amber-900 text-xs font-mono font-bold shrink-0">
+              {pendingPartners.length} Applications Awaiting Review
+            </span>
+          </div>
+
+          {pendingPartners.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-3xl border border-[#E5E5EA] space-y-2">
+              <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
+              <h4 className="text-sm font-bold text-[#1C1C1E]">No Pending Partner Registrations</h4>
+              <p className="text-xs text-[#8E8E93]">
+                Sabhi registered partner applications verify ho chuki hain. Nayi registration aane par yahan alert aayega aur {OWNER_EMAIL} par mail dispatch hoga.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pendingPartners.map((partner) => (
+                <div 
+                  key={partner.id}
+                  className="p-5 rounded-3xl bg-white border-2 border-amber-300 shadow-md space-y-4 relative overflow-hidden"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono text-[10px] font-bold uppercase tracking-wider">
+                        Pending Owner Approval
+                      </span>
+                      <h4 className="text-base font-bold text-[#1C1C1E] mt-1.5">{partner.name}</h4>
+                      <p className="text-xs text-[#8E8E93]">{partner.assignedHubName} &bull; {partner.city}</p>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
+                      {partner.loginUserId || 'TEMP_ID'}
+                    </span>
+                  </div>
+
+                  <div className="bg-[#F8F9FB] rounded-2xl p-3 text-xs space-y-2 text-[#48484A]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#8E8E93]">Phone (Calling/SMS):</span>
+                      <span className="font-mono font-bold text-[#1C1C1E]">{partner.phone}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#8E8E93]">Email Address:</span>
+                      <span className="font-mono text-[#1C1C1E]">{partner.email || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[#8E8E93]">Operational Hub:</span>
+                      <span className="font-medium text-[#1C1C1E]">{partner.assignedHubName}</span>
+                    </div>
+                    <div className="pt-2 border-t border-[#E5E5EA]">
+                      <span className="text-[11px] text-[#8E8E93] block mb-1">Applied Categories:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {partner.approvedCategories?.map((cat) => (
+                          <span key={cat} className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-mono text-[10px] font-bold">
+                            {cat}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions for Owner */}
+                  <div className="pt-2 border-t border-[#E5E5EA] flex items-center gap-2">
+                    <button
+                      onClick={() => handleApprovePartner(partner.id)}
+                      disabled={processingId === partner.id}
+                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>{processingId === partner.id ? 'Approving...' : 'Approve & Make ID Live'}</span>
+                    </button>
+                    <button
+                      onClick={() => handleRejectPartner(partner.id)}
+                      disabled={processingId === partner.id}
+                      className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* VIEW 1: FLEET DIRECTORY */}
       {activeSubTab === 'FLEET' && (
@@ -266,6 +427,19 @@ export const AdminPartnerSuite: React.FC<AdminPartnerSuiteProps> = ({
                   }`}>
                     {partner.status.toUpperCase()}
                   </span>
+                </div>
+
+                {/* Login Credentials & Status */}
+                <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-slate-100/80 border border-slate-200 text-xs font-mono">
+                  <div className="flex items-center gap-1.5 text-slate-700">
+                    <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Login ID: <strong className="text-black">{partner.loginUserId || partner.id}</strong></span>
+                  </div>
+                  {partner.loginPassword && (
+                    <div className="text-slate-600 text-[11px]">
+                      Pass: <span className="text-black font-bold">{partner.loginPassword}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Performance & Hub Mapping */}

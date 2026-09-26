@@ -7,9 +7,12 @@ import { BookingFlowModal } from './components/BookingFlowModal';
 import { LiveTrackingModal } from './components/LiveTrackingModal';
 import { WhatsAppFloatingWidget } from './components/WhatsAppFloatingWidget';
 import { AdminDashboard } from './components/AdminDashboard';
+import { AdminLoginGate } from './components/AdminLoginGate';
 import { PartnerDashboard } from './components/PartnerDashboard';
-import { UrbanCompanyCleaningView } from './components/UrbanCompanyCleaningView';
 import { CustomerApkView } from './components/CustomerApkView';
+import { UrbanCompanyCleaningView } from './components/UrbanCompanyCleaningView';
+import { CustomerDashboardModal } from './components/CustomerDashboardModal';
+import { BumperOfferBanner } from './components/BumperOfferBanner';
 import { 
   INITIAL_CATEGORIES, 
   INITIAL_SERVICES, 
@@ -18,26 +21,34 @@ import {
 import { CleaningService, Booking } from './types';
 import { initializeDatabaseDefaults, getAllBookings } from './services/dbService';
 import { 
+  getAdminSession, 
+  isOwnerEmail, 
+  clearAdminSession 
+} from './services/adminAuthService';
+import { 
+  Sparkles, 
+  User, 
+  ShieldCheck, 
   Search, 
   MapPin, 
+  Phone, 
   Clock, 
-  User, 
-  LogOut, 
-  LayoutDashboard, 
-  Briefcase,
-  ShieldCheck,
-  ChevronDown
+  CheckCircle2, 
+  Smartphone,
+  ChevronDown,
+  ArrowRight
 } from 'lucide-react';
 
 function AppContent() {
   const { user, profile, signOut } = useAuth();
 
-  // Navigation & Modals
+  // Navigation & Modals: default to 'apk' (The original deployed app)
   const [isAdminView, setIsAdminView] = useState(false);
   const [isPartnerView, setIsPartnerView] = useState(false);
   const [customerViewMode, setCustomerViewMode] = useState<'apk' | 'catalog'>('apk');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalDefaultRole, setAuthModalDefaultRole] = useState<'customer' | 'partner'>('customer');
+  const [customerDashboardOpen, setCustomerDashboardOpen] = useState(false);
   
   // Selected City & Hub
   const [selectedCity, setSelectedCity] = useState('Gurugram');
@@ -45,9 +56,17 @@ function AppContent() {
   const [bookingService, setBookingService] = useState<CleaningService | null>(null);
   const [activeTrackingBooking, setActiveTrackingBooking] = useState<Booking | null>(null);
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
 
-  // Search input state
-  const [searchQuery, setSearchQuery] = useState('');
+  // Check admin session
+  useEffect(() => {
+    const session = getAdminSession();
+    if (session && isOwnerEmail(session.email)) {
+      setIsAdminAuthenticated(true);
+    } else {
+      setIsAdminAuthenticated(false);
+    }
+  }, [isAdminView]);
 
   // Seed defaults on first load
   useEffect(() => {
@@ -74,24 +93,33 @@ function AppContent() {
     setActiveTrackingBooking(newBooking);
   };
 
-  // Filter services by search if user types
-  const displayedServices = searchQuery.trim()
-    ? INITIAL_SERVICES.filter(s => 
-        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.shortDesc.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.categoryName.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : INITIAL_SERVICES;
-
   if (isAdminView) {
-    return <AdminDashboard onBackToCustomerSite={() => setIsAdminView(false)} />;
+    if (!isAdminAuthenticated) {
+      return (
+        <AdminLoginGate
+          onAuthorized={() => setIsAdminAuthenticated(true)}
+          onBackToCustomerSite={() => setIsAdminView(false)}
+        />
+      );
+    }
+
+    return (
+      <AdminDashboard 
+        onBackToCustomerSite={() => setIsAdminView(false)} 
+        onSignOut={() => {
+          clearAdminSession();
+          setIsAdminAuthenticated(false);
+          setIsAdminView(false);
+        }}
+      />
+    );
   }
 
   if (isPartnerView) {
     return <PartnerDashboard onBackToCustomerSite={() => setIsPartnerView(false)} />;
   }
 
-  // Primary Customer Experience: Native-feel Customer APK App (Same to same as requested)
+  // Native-feel Mobile APK View (Default Original View)
   if (customerViewMode === 'apk') {
     return (
       <div className="relative">
@@ -125,262 +153,141 @@ function AppContent() {
     );
   }
 
+  // Web Marketplace View
   return (
-    <div className="min-h-screen bg-[#F5F5F7] text-[#1C1C1E] flex flex-col font-['Plus_Jakarta_Sans']">
-      
-      {/* 1. URBAN COMPANY CLEAN WHITE STICKY HEADER */}
-      <header className="sticky top-0 z-40 bg-white border-b border-[#E5E5EA] shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-4">
-          
-          {/* Logo & City Selector */}
-          <div className="flex items-center gap-4 sm:gap-6">
-            <BharatProLogo size="md" variant="horizontal" />
-
-            {/* Urban Company Style Location Box */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F8F9FB] border border-[#E5E5EA] hover:border-[#D1D1D6] transition-all cursor-pointer">
-              <MapPin className="w-3.5 h-3.5 text-[#B8892E]" />
-              <div className="text-left">
-                <span className="text-[10px] text-[#8E8E93] uppercase font-bold block leading-none">Serving in</span>
-                <select
-                  value={selectedCity}
-                  onChange={(e) => setSelectedCity(e.target.value)}
-                  className="bg-transparent border-0 outline-none text-xs font-bold text-[#1C1C1E] cursor-pointer pr-1"
-                >
-                  <option value="Gurugram">Gurugram (Cyber / Golf Course)</option>
-                  <option value="New Delhi">South Delhi &amp; Saket</option>
-                  <option value="Noida">Noida Sector 62 &amp; NCR</option>
-                  <option value="Mumbai">Mumbai Western &amp; BKC</option>
-                  <option value="Bengaluru">Bengaluru Tech Hub</option>
-                </select>
-              </div>
-            </div>
+    <div className="relative min-h-screen bg-[#F8F9FB] flex flex-col font-['Inter',sans-serif]">
+      {/* Top Announcement Bar */}
+      <div className="bg-[#1C1C1E] text-white text-xs py-2 px-4 border-b border-[#2C2C2E]">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="bg-[#B8892E] text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+              Festive Offer
+            </span>
+            <span className="text-[#D4A24E] font-medium hidden sm:inline">
+              Flat 15% Savings automatically applied to all Diversey Hospital-Grade Sanitization services!
+            </span>
           </div>
-
-          {/* Urban Company Search Bar (In-Header) */}
-          <div className="flex-1 max-w-md hidden md:block">
-            <div className="relative">
-              <Search className="w-4 h-4 text-[#8E8E93] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for 'bathroom cleaning', 'sofa shampoo', 'kitchen deep clean'..."
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] focus:bg-white text-xs font-medium text-[#1C1C1E] outline-none transition-all"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#8E8E93] hover:text-[#1C1C1E]"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Header Right Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            
-            {/* Switch to APK Mode */}
+          <div className="flex items-center gap-4 text-[#8E8E93] text-[11px]">
+            <a href="tel:8920252647" className="hover:text-white transition-colors flex items-center gap-1">
+              <Phone className="w-3 h-3 text-[#B8892E]" />
+              <span>24/7 Helpline: 8920252647</span>
+            </a>
             <button
               onClick={() => setCustomerViewMode('apk')}
-              className="px-3 py-1.5 rounded-xl bg-[#0b3ba8] text-white hover:bg-blue-800 text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-              title="Switch to Customer APK App"
+              className="text-[#B8892E] hover:text-[#D4A24E] font-bold flex items-center gap-1 cursor-pointer"
             >
-              <span>📱 Customer APK App</span>
+              <Smartphone className="w-3 h-3" />
+              <span>📱 Switch to App View</span>
             </button>
-
-            {/* Partner Portal Switch */}
-            <button
-              onClick={() => setIsPartnerView(true)}
-              className="px-3 py-1.5 rounded-xl border border-[#E5E5EA] hover:bg-[#F2F2F7] text-[11px] font-bold text-[#1C1C1E] flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-              title="Switch to Partner / Professional Dashboard"
-            >
-              <Briefcase className="w-3.5 h-3.5 text-[#B8892E]" />
-              <span className="hidden sm:inline">Partner Portal</span>
-            </button>
-
-            {/* Admin Switch */}
-            <button
-              onClick={() => setIsAdminView(true)}
-              className="px-3 py-1.5 rounded-xl border border-dashed border-[#B8892E] hover:bg-[#B8892E]/5 text-[11px] font-bold text-[#B8892E] flex items-center gap-1.5 transition-all cursor-pointer"
-              title="Switch to Admin Dashboard"
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Admin Dashboard</span>
-            </button>
-
-            {/* User Account / Sign In */}
-            {user || profile ? (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    if (myBookings.length > 0) {
-                      setActiveTrackingBooking(myBookings[0]);
-                    } else {
-                      alert('You have no active orders yet.');
-                    }
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-white border border-[#E5E5EA] text-xs font-bold text-[#1C1C1E] flex items-center gap-1.5 shadow-2xs hover:bg-[#F2F2F7] cursor-pointer"
-                >
-                  <Clock className="w-3.5 h-3.5 text-[#B8892E]" />
-                  <span>My Bookings ({myBookings.length})</span>
-                </button>
-
-                <div className="flex items-center gap-2 pl-2 border-l border-[#E5E5EA]">
-                  {profile?.avatarUrl ? (
-                    <img
-                      src={profile.avatarUrl}
-                      alt={profile.name}
-                      className="w-7 h-7 rounded-full object-cover border border-black/10"
-                    />
-                  ) : (
-                    <div className="w-7 h-7 rounded-full bg-[#1C1C1E] text-white flex items-center justify-center text-xs font-bold">
-                      {profile?.name?.charAt(0) || 'U'}
-                    </div>
-                  )}
-                  <button
-                    onClick={signOut}
-                    className="p-1.5 text-[#8E8E93] hover:text-red-600 rounded-lg hover:bg-black/5 cursor-pointer"
-                    title="Sign Out"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  id="header-google-login-btn"
-                  onClick={() => handleOpenAuth('customer')}
-                  className="px-4 py-2 rounded-xl bg-[#1C1C1E] hover:bg-black text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <User className="w-3.5 h-3.5 text-[#F9D976]" />
-                  <span>Login</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
+      </div>
 
-        {/* Mobile Search Input */}
-        <div className="p-3 border-t border-[#F2F2F7] md:hidden">
-          <div className="relative">
-            <Search className="w-4 h-4 text-[#8E8E93] absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search for bathroom, sofa, kitchen..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-[#F2F2F7] text-xs font-medium text-[#1C1C1E] outline-none"
-            />
+      {/* Main Navbar */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E5E5EA]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={() => setCustomerViewMode('apk')}
+              className="cursor-pointer"
+              title="Bharat Pro Expert"
+            >
+              <BharatProLogo size="md" variant="horizontal" />
+            </button>
+
+            {/* City Selector */}
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F8F9FB] border border-[#E5E5EA] text-xs font-semibold text-[#1C1C1E]">
+              <MapPin className="w-3.5 h-3.5 text-[#B8892E]" />
+              <select
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+                className="bg-transparent outline-none cursor-pointer text-xs font-bold text-[#1C1C1E]"
+              >
+                <option value="Gurugram">Gurugram (Cyber City, Golf Course Rd)</option>
+                <option value="Delhi NCR">South Delhi &amp; Saket</option>
+                <option value="Noida">Noida (Sector 62, 50, 137)</option>
+                <option value="Mumbai">Mumbai (Bandra, Andheri, Powai)</option>
+                <option value="Bengaluru">Bengaluru (Indiranagar, Whitefield)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Right Action Buttons */}
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setCustomerViewMode('apk')}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-xs font-bold text-[#1C1C1E] transition-all cursor-pointer"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-[#B8892E]" />
+              <span>Mobile App View</span>
+            </button>
+
+            <button
+              onClick={() => setIsPartnerView(true)}
+              className="px-3 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-xs font-semibold text-[#1C1C1E] transition-all cursor-pointer"
+            >
+              Partner Portal
+            </button>
+
+            <button
+              onClick={() => setIsAdminView(true)}
+              className="px-3 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-xs font-bold text-amber-900 transition-all cursor-pointer"
+            >
+              Admin Desk
+            </button>
+
+            {/* User Account / Login */}
+            {user || profile ? (
+              <button
+                onClick={() => setCustomerDashboardOpen(true)}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#1C1C1E] text-white text-xs font-bold hover:bg-[#2C2C2E] transition-all cursor-pointer"
+              >
+                <User className="w-3.5 h-3.5 text-[#B8892E]" />
+                <span className="hidden sm:inline">{profile?.name || user?.displayName || 'My Account'}</span>
+                {myBookings.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-[#1F8A3B]" />
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={() => handleOpenAuth('customer')}
+                className="px-4 py-2 rounded-xl bg-[#1C1C1E] text-white text-xs font-bold hover:bg-[#2C2C2E] transition-all cursor-pointer"
+              >
+                Sign In
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* 2. CORE URBAN COMPANY CLEANING EXPERIENCE */}
-      <main className="flex-1">
-        <UrbanCompanyCleaningView
-          categories={INITIAL_CATEGORIES}
-          services={displayedServices}
-          selectedCity={selectedCity}
-          onSelectServiceDetails={(srv) => setSelectedService(srv)}
-          onProceedToBooking={(primaryService) => setBookingService(primaryService)}
-        />
-      </main>
+      {/* Bumper Offer Banner Strip */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-6">
+        <BumperOfferBanner onSelectOffer={() => {
+          const first = INITIAL_SERVICES[0];
+          setSelectedService(first);
+        }} />
+      </div>
 
-      {/* 3. URBAN COMPANY STYLE FOOTER */}
-      <footer className="bg-[#1C1C1E] text-white py-12 px-4 sm:px-8 border-t border-white/10">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="space-y-3">
-            <BharatProLogo size="md" variant="horizontal" theme="dark" />
-            <p className="text-xs text-white/70 leading-relaxed">
-              India&apos;s specialized professional cleaning marketplace. Powered by Diversey hospital-grade chemicals, German extraction machines, and verified background-checked experts.
-            </p>
-            <div className="flex items-center gap-2 text-xs text-emerald-400 font-bold">
-              <ShieldCheck className="w-4 h-4" />
-              <span>100% Quality Assurance Guarantee</span>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-bold text-[#D4A24E] uppercase tracking-wider mb-3">
-              Cleaning Verticals
-            </h4>
-            <ul className="space-y-1.5 text-xs text-white/70">
-              <li>Bathroom Intense &amp; Classic Descaling</li>
-              <li>Fabric &amp; Leather Sofa Shampooing</li>
-              <li>Modular Kitchen &amp; Chimney Degreasing</li>
-              <li>Furnished &amp; Unfurnished Full Home Cleaning</li>
-              <li>Mattress Anti-Dust Mite UV Treatment</li>
-              <li>Floor Scrubbing with Single-Disc Machine</li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-bold text-[#D4A24E] uppercase tracking-wider mb-3">
-              Active Hubs
-            </h4>
-            <ul className="space-y-1.5 text-xs text-white/70">
-              <li>Gurugram (Cyber City, Sector 56, Golf Course)</li>
-              <li>South Delhi (Saket, Hauz Khas, Greater Kailash)</li>
-              <li>Noida (Sector 62, Indirapuram, Expressway)</li>
-              <li>Mumbai (BKC, Andheri, Bandra, Powai)</li>
-              <li>Bengaluru (Koramangala, HSR, Indiranagar)</li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-bold text-[#D4A24E] uppercase tracking-wider mb-3">
-              Direct Contact &amp; Support
-            </h4>
-            <div className="space-y-1.5 text-xs text-white/80">
-              <p>
-                <span className="text-white/50 block text-[10px] uppercase font-bold">Email Support:</span>
-                <a href="mailto:bharatproexpert@gmail.com" className="text-amber-300 hover:underline font-mono">
-                  bharatproexpert@gmail.com
-                </a>
-              </p>
-              <p>
-                <span className="text-white/50 block text-[10px] uppercase font-bold">Customer Helpline / WhatsApp:</span>
-                <a href="tel:+918920252647" className="text-[#25D366] font-bold font-mono text-sm hover:underline block">
-                  +91 8920252647
-                </a>
-              </p>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => setIsAdminView(true)}
-                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-all"
-              >
-                Admin Console
-              </button>
-              <button
-                onClick={() => setIsPartnerView(true)}
-                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-all"
-              >
-                Partner Console
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-xs text-white/50 gap-2">
-          <span>&copy; {new Date().getFullYear()} Bharat Pro Expert Home Services. All rights reserved.</span>
-          <span>Urban Company Style Pure Cleaning Platform &bull; Real Dual OTP Verification &bull; Manual Hub Dispatch</span>
-        </div>
-      </footer>
+      {/* Urban Company Cleaning Marketplace View */}
+      <UrbanCompanyCleaningView
+        categories={INITIAL_CATEGORIES}
+        services={INITIAL_SERVICES}
+        selectedCity={selectedCity}
+        onSelectServiceDetails={(srv) => setSelectedService(srv)}
+        onProceedToBooking={(srv) => setBookingService(srv)}
+      />
 
       {/* Floating WhatsApp Widget */}
       <WhatsAppFloatingWidget />
 
-      {/* MODALS */}
+      {/* Auth Modal */}
       <AuthModal
         isOpen={authModalOpen}
         defaultRole={authModalDefaultRole}
         onClose={() => setAuthModalOpen(false)}
       />
 
+      {/* Service Details Modal */}
       <ServiceDetailModal
         service={selectedService}
         onClose={() => setSelectedService(null)}
@@ -390,13 +297,15 @@ function AppContent() {
         }}
       />
 
+      {/* Booking Checkout Flow */}
       <BookingFlowModal
         service={bookingService}
         onClose={() => setBookingService(null)}
         onBookingSuccess={handleBookingSuccess}
-        onRequireAuth={() => setAuthModalOpen(true)}
+        onRequireAuth={() => handleOpenAuth('customer')}
       />
 
+      {/* Real-Time Live Tracking Modal */}
       {activeTrackingBooking && (
         <LiveTrackingModal
           booking={activeTrackingBooking}
@@ -407,6 +316,20 @@ function AppContent() {
           }}
         />
       )}
+
+      {/* Customer Account & Bookings Dashboard Modal */}
+      <CustomerDashboardModal
+        isOpen={customerDashboardOpen}
+        onClose={() => setCustomerDashboardOpen(false)}
+        user={user}
+        profile={profile}
+        onSignOut={signOut}
+        myBookings={myBookings}
+        onTrackBooking={(bk) => {
+          setCustomerDashboardOpen(false);
+          setActiveTrackingBooking(bk);
+        }}
+      />
     </div>
   );
 }

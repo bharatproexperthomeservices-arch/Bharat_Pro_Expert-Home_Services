@@ -12,6 +12,14 @@ import {
   saveAllHubs
 } from '../services/dbService';
 import { INITIAL_HUBS, INITIAL_SERVICES, BUMPER_OFFERS, WHATSAPP_NUMBER } from '../data';
+import { OWNER_EMAIL } from '../services/emailService';
+import { 
+  clearAdminSession, 
+  getAllAdminRequests, 
+  approveAdminLogin, 
+  rejectAdminLogin 
+} from '../services/adminAuthService';
+import { AdminLoginRequest } from '../types';
 import { AdminCatalogueTab } from './admin/AdminCatalogueTab';
 import { AdminPricingEngine } from './admin/AdminPricingEngine';
 import { AdminBookingsTab } from './admin/AdminBookingsTab';
@@ -49,11 +57,15 @@ import {
   Tag,
   Shield,
   Sliders,
-  Database
+  Database,
+  LogOut,
+  Clock,
+  UserCheck
 } from 'lucide-react';
 
 interface AdminDashboardProps {
   onBackToCustomerSite: () => void;
+  onSignOut?: () => void;
 }
 
 type AdminModuleTab = 
@@ -72,29 +84,35 @@ type AdminModuleTab =
   | 'CMS'
   | 'GOVERNANCE';
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToCustomerSite }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
+  onBackToCustomerSite,
+  onSignOut 
+}) => {
   const [activeTab, setActiveTab] = useState<AdminModuleTab>('OVERVIEW');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [hubs, setHubs] = useState<HubLocation[]>(INITIAL_HUBS);
   const [services, setServices] = useState<CleaningService[]>(INITIAL_SERVICES);
   const [waLogs, setWaLogs] = useState<WhatsAppLog[]>([]);
+  const [adminRequests, setAdminRequests] = useState<AdminLoginRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Load Admin state
   const loadData = async () => {
     setLoading(true);
     try {
-      const [bks, prts, logs, srvs, loadedHubs] = await Promise.all([
+      const [bks, prts, logs, srvs, loadedHubs, reqs] = await Promise.all([
         getAllBookings(),
         getPartnersList(),
         getWhatsAppLogs(),
         getAllServices(),
-        getAllHubs()
+        getAllHubs(),
+        getAllAdminRequests()
       ]);
       setBookings(bks);
       setPartners(prts);
       setWaLogs(logs);
+      setAdminRequests(reqs);
       if (srvs && srvs.length > 0) {
         setServices(srvs);
       }
@@ -111,6 +129,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToCustomer
   useEffect(() => {
     loadData();
   }, []);
+
+  const pendingPartners = partners.filter(p => p.onboardingStatus === 'pending_approval');
+  const pendingAdminRequests = adminRequests.filter(r => r.status === 'PENDING');
+
+  const handleApproveAdminRequest = async (reqId: string) => {
+    const res = await approveAdminLogin(reqId, OWNER_EMAIL);
+    if (res.success) {
+      setAdminRequests(prev => prev.map(r => r.id === reqId ? res.request! : r));
+      alert(`Admin access approved for ${res.request?.requesterEmail}! Confirmation dispatched to ${OWNER_EMAIL}.`);
+    }
+  };
+
+  const handleRejectAdminRequest = async (reqId: string) => {
+    const reason = window.prompt('Reason for rejecting admin login:', 'Unauthorized external attempt');
+    if (!reason) return;
+    const res = await rejectAdminLogin(reqId, reason);
+    if (res.success) {
+      setAdminRequests(prev => prev.map(r => r.id === reqId ? res.request! : r));
+      alert(`Admin login request rejected. Alert dispatched to ${OWNER_EMAIL}.`);
+    }
+  };
 
   const handleAuditLog = (action: string, targetId: string, details: string) => {
     console.log(`[AUDIT] Action: ${action} | Target: ${targetId} | Details: ${details}`);
@@ -161,17 +200,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToCustomer
         </div>
 
         <div className="flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs font-semibold">
+            <ShieldCheck className="w-4 h-4 text-amber-600" />
+            <span className="font-mono">{OWNER_EMAIL}</span>
+          </div>
+
+          <button
+            onClick={() => {
+              clearAdminSession();
+              if (onSignOut) {
+                onSignOut();
+              } else {
+                onBackToCustomerSite();
+              }
+            }}
+            className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-rose-200"
+            title="Sign out of Admin Session"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sign Out</span>
+          </button>
+
           <button
             onClick={loadData}
-            className="p-2 rounded-xl bg-white border border-[#E5E5EA] hover:bg-[#F2F2F7] text-[#1C1C1E] transition-all"
+            className="p-2 rounded-xl bg-white border border-[#E5E5EA] hover:bg-[#F2F2F7] text-[#1C1C1E] transition-all cursor-pointer"
             title="Reload live database metrics"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
-          <div className="text-right hidden sm:block">
-            <span className="text-xs font-bold text-[#1C1C1E] block">Bharat Pro Expert Operating System</span>
-            <span className="text-[10px] text-[#8E8E93]">Cloud Operations Master Architecture</span>
-          </div>
         </div>
       </header>
 
@@ -188,7 +244,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToCustomer
               { key: 'OVERVIEW', label: '01 Executive Dashboard', icon: BarChart3 },
               { key: 'HUBS', label: '02-03 Hub Operations', icon: MapPin, count: hubs.length },
               { key: 'DISPATCH', label: '07 Auto-Dispatch Engine', icon: Zap, count: bookings.filter(b => b.status === 'CONFIRMED').length },
-              { key: 'PARTNERS', label: '08-09 Partner Operations', icon: Users, count: partners.length }
+              { 
+                key: 'PARTNERS', 
+                label: '08-09 Partner Operations', 
+                icon: Users, 
+                count: partners.length,
+                pending: pendingPartners.length
+              }
             ].map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.key;
@@ -206,13 +268,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToCustomer
                     <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#D4A24E]' : 'text-[#8E8E93]'}`} />
                     <span>{tab.label}</span>
                   </div>
-                  {tab.count !== undefined && tab.count > 0 && (
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                      isActive ? 'bg-white/20 text-white' : 'bg-[#F2F2F7] text-[#8E8E93]'
-                    }`}>
-                      {tab.count}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {tab.pending !== undefined && tab.pending > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950 animate-pulse">
+                        {tab.pending} wait
+                      </span>
+                    )}
+                    {tab.count !== undefined && tab.count > 0 && (
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                        isActive ? 'bg-white/20 text-white' : 'bg-[#F2F2F7] text-[#8E8E93]'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -330,6 +399,72 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToCustomer
           {/* MODULE 01: EXECUTIVE OVERVIEW */}
           {activeTab === 'OVERVIEW' && (
             <div className="space-y-6">
+              
+              {/* URGENT OWNER APPROVAL ALERT BANNER */}
+              {(pendingPartners.length > 0 || pendingAdminRequests.length > 0) && (
+                <div className="p-5 rounded-3xl bg-amber-500/10 border-2 border-amber-400 text-amber-950 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-2xl bg-amber-500 text-slate-950 font-bold">
+                        <Clock className="w-5 h-5 animate-spin" style={{ animationDuration: '6s' }} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-[#1C1C1E] flex items-center gap-2">
+                          <span>Owner Approvals Required</span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 uppercase font-black">
+                            Action Needed
+                          </span>
+                        </h4>
+                        <p className="text-xs text-amber-900 mt-0.5">
+                          Target Account: <strong className="underline">{OWNER_EMAIL}</strong> &bull; Any partner registration or admin access requires your explicit sign-off.
+                        </p>
+                      </div>
+                    </div>
+
+                    {pendingPartners.length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('PARTNERS')}
+                        className="px-4 py-2 bg-[#1C1C1E] hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-sm cursor-pointer shrink-0"
+                      >
+                        <Users className="w-4 h-4 text-[#D4A24E]" />
+                        <span>Review {pendingPartners.length} Partner Applications →</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* List of pending admin requests if any */}
+                  {pendingAdminRequests.length > 0 && (
+                    <div className="pt-2 border-t border-amber-300/60 space-y-2">
+                      <span className="text-xs font-bold text-amber-900 block">
+                        Admin Login Access Requests ({pendingAdminRequests.length}):
+                      </span>
+                      {pendingAdminRequests.map(req => (
+                        <div key={req.id} className="p-3 rounded-xl bg-white border border-amber-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <div>
+                            <span className="font-bold text-[#1C1C1E]">{req.requesterEmail}</span>
+                            <span className="text-[11px] text-[#8E8E93] ml-2 font-mono">({new Date(req.requestedAt).toLocaleTimeString()})</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApproveAdminRequest(req.id)}
+                              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer"
+                            >
+                              Approve Access
+                            </button>
+                            <button
+                              onClick={() => handleRejectAdminRequest(req.id)}
+                              className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-medium cursor-pointer"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Stat Cards */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm">

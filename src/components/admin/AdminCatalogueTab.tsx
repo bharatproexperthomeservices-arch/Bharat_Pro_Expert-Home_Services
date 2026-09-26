@@ -38,14 +38,17 @@ export const AdminCatalogueTab: React.FC<AdminCatalogueTabProps> = ({
   const [previewService, setPreviewService] = useState<CleaningService | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false);
 
-  // New service form state
+  // New service form state (Strictly manual - no AI auto-fill)
   const [newName, setNewName] = useState('');
   const [newCategoryId, setNewCategoryId] = useState('bathroom-cleaning');
-  const [newRefPrice, setNewRefPrice] = useState(699);
-  const [newDiscountPct, setNewDiscountPct] = useState(15);
-  const [newDuration, setNewDuration] = useState(60);
+  const [newRefPrice, setNewRefPrice] = useState<number>(500);
+  const [newDiscountPct, setNewDiscountPct] = useState<number>(15);
+  const [newDuration, setNewDuration] = useState<number>(60);
   const [newDesc, setNewDesc] = useState('');
-  const [newSteps, setNewSteps] = useState('Tile scrubbing with Taski R2\nWater stain removal from chrome taps\nToilet bowl disinfection with Taski R6\nMirror streak-free wipe');
+  const [newInclusions, setNewInclusions] = useState('');
+  const [newExclusions, setNewExclusions] = useState('');
+  const [newSteps, setNewSteps] = useState('');
+  const [newImageUrl, setNewImageUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const categories = [
@@ -108,11 +111,11 @@ export const AdminCatalogueTab: React.FC<AdminCatalogueTabProps> = ({
 
       const newSrv: CleaningService = {
         id: `srv-${newCategoryId}-${Date.now().toString(36)}`,
-        name: newName,
+        name: newName.trim(),
         categoryId: newCategoryId,
         categoryName: categoryNames[newCategoryId] || 'Cleaning',
-        shortDesc: newDesc || `${newName} professional deep cleaning service with certified chemicals.`,
-        detailedDesc: newDesc || `${newName} professional deep cleaning service with certified chemicals.`,
+        shortDesc: newDesc.trim() || newName.trim(),
+        detailedDesc: newDesc.trim() || newName.trim(),
         referencePrice: newRefPrice,
         discountPct: newDiscountPct,
         basePrice: bpePrice,
@@ -120,28 +123,26 @@ export const AdminCatalogueTab: React.FC<AdminCatalogueTabProps> = ({
         pricingMode: 'REFERENCE_PERCENT',
         priceVersion: 'v1.0.0',
         estimatedMinutes: newDuration,
-        rating: 4.85,
-        reviewCount: 120,
-        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
+        rating: 5.0,
+        reviewCount: 0,
+        imageUrl: newImageUrl.trim() || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
         beforeAfterImage: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=600&q=80',
-        demoVideoBadge: 'HD Video Guide',
-        inclusions: ['Pre-treatment inspection', 'Single-disc scrubbing', 'Vacuuming & wiping'],
-        exclusions: ['Structural repairs', 'Deep rust removal from exterior walls'],
-        steps: parsedSteps.length > 0 ? parsedSteps : [
-          { order: 1, title: 'Deep inspection & dry dusting', description: 'Inspect surfaces and dry dust', estimatedMinutes: 15 },
-          { order: 2, title: 'Chemical application & scrubbing', description: 'Apply non-hazardous chemicals', estimatedMinutes: 30 },
-          { order: 3, title: 'Sanitization & mop wipe', description: 'Sanitize surfaces', estimatedMinutes: 15 }
-        ],
-        addons: [
-          { id: 'addon-1', name: 'Anti-Bacterial Spray Coat', price: 149, description: 'Medical-grade antibacterial surface protection' },
-          { id: 'addon-2', name: 'Exhaust Fan Deep Degreasing', price: 199, description: 'Chemical soak and rotary blade scrubbing' }
-        ],
+        demoVideoBadge: 'Service Guide',
+        inclusions: newInclusions.split('\n').map(s => s.trim()).filter(Boolean),
+        exclusions: newExclusions.split('\n').map(s => s.trim()).filter(Boolean),
+        steps: parsedSteps,
+        addons: [],
         active: true
       };
 
       await addNewService(newSrv);
       setIsCreatingNew(false);
       setNewName('');
+      setNewDesc('');
+      setNewInclusions('');
+      setNewExclusions('');
+      setNewSteps('');
+      setNewImageUrl('');
       onRefresh();
     } catch (err) {
       console.error('Failed to create service', err);
@@ -549,6 +550,17 @@ export const AdminCatalogueTab: React.FC<AdminCatalogueTabProps> = ({
                 />
               </div>
 
+              <div>
+                <label className="text-xs font-bold text-[#48484A] block mb-1">Service Description</label>
+                <textarea
+                  rows={2}
+                  placeholder="Describe the service..."
+                  value={newDesc}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-[#48484A] block mb-1">Market Benchmark (₹)</label>
@@ -577,23 +589,57 @@ export const AdminCatalogueTab: React.FC<AdminCatalogueTabProps> = ({
                 </span>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-[#48484A] block mb-1">Estimated Duration (Mins)</label>
+                  <input
+                    type="number"
+                    value={newDuration}
+                    onChange={(e) => setNewDuration(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-[#48484A] block mb-1">Image URL (Optional)</label>
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={newImageUrl}
+                    onChange={(e) => setNewImageUrl(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="text-xs font-bold text-[#48484A] block mb-1">Estimated Duration (Mins)</label>
-                <input
-                  type="number"
-                  value={newDuration}
-                  onChange={(e) => setNewDuration(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold"
+                <label className="text-xs font-bold text-[#48484A] block mb-1">What's Included (1 item per line)</label>
+                <textarea
+                  rows={2}
+                  value={newInclusions}
+                  onChange={(e) => setNewInclusions(e.target.value)}
+                  placeholder="e.g. Floor scrubbing&#10;Tile descaling&#10;Mirror wiping"
+                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-[#48484A] block mb-1">Standard Operating Procedure (SOP Steps)</label>
+                <label className="text-xs font-bold text-[#48484A] block mb-1">What's Excluded (1 item per line)</label>
+                <textarea
+                  rows={2}
+                  value={newExclusions}
+                  onChange={(e) => setNewExclusions(e.target.value)}
+                  placeholder="e.g. Wall painting&#10;Ceiling repair"
+                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-[#48484A] block mb-1">Standard Operating Procedure (SOP Steps - 1 per line)</label>
                 <textarea
                   rows={3}
                   value={newSteps}
                   onChange={(e) => setNewSteps(e.target.value)}
-                  placeholder="One step per line..."
+                  placeholder="Enter step by step cleaning process..."
                   className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-mono"
                 />
               </div>

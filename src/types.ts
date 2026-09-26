@@ -390,6 +390,13 @@ export interface Booking {
   jobFinishedAt?: string;
   cancelledAt?: string;
   assignmentHistory?: AssignmentHistoryEntry[];
+  razorpayDetails?: {
+    paymentId: string;
+    orderId: string;
+    signature: string;
+    verifiedAt: string;
+    verificationStatus: string;
+  };
 }
 
 export interface Partner {
@@ -430,14 +437,20 @@ export interface AdminLoginRequest {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   approvedAt?: string;
   approvedBy?: string;
-  ownerEmail: string; // bharatproexperthomeservices@gmail.com
+  ownerEmail: string; // bharatproexpert@gmail.com
   accessCode?: string;
 }
 
 export interface EmailNotificationLog {
   id: string;
-  type: 'PARTNER_ID_LIVE' | 'ADMIN_LOGIN_REQUEST' | 'ADMIN_LOGIN_APPROVED' | 'ADMIN_LOGIN_REJECTED';
-  toEmail: string; // bharatproexperthomeservices@gmail.com
+  type: 
+    | 'ADMIN_OTP'
+    | 'PARTNER_REGISTRATION_REQUEST'
+    | 'PARTNER_ID_LIVE' 
+    | 'ADMIN_LOGIN_REQUEST' 
+    | 'ADMIN_LOGIN_APPROVED' 
+    | 'ADMIN_LOGIN_REJECTED';
+  toEmail: string; // bharatproexpert@gmail.com
   subject: string;
   body: string;
   status: 'SENT' | 'DISPATCHED';

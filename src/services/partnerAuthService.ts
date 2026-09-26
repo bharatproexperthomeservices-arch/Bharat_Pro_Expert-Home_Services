@@ -37,6 +37,7 @@ export const getOrSeedPartners = async (): Promise<Partner[]> => {
     // Seed with INITIAL_PARTNERS plus default login IDs and passwords
     list = INITIAL_PARTNERS.map((p, idx) => ({
       ...p,
+      status: (p.status === 'active' || p.status === 'pending' || p.status === 'inactive' ? p.status : 'active') as 'active' | 'pending' | 'inactive',
       loginUserId: `BPE-PRO-${101 + idx}`,
       loginPassword: `Clean@${101 + idx}`,
       onboardingStatus: 'approved' as const,
@@ -126,7 +127,7 @@ export const verifyPartnerLogin = async (
   if (partner.onboardingStatus === 'pending_approval') {
     return {
       success: false,
-      error: 'आपकी Partner ID अभी Approval के लिए Pending है। Owner (bharatproexperthomeservices@gmail.com) द्वारा Approve होने के बाद ID Live होगी।'
+      error: `आपकी Partner ID अभी Approval के लिए Pending है। Owner (${OWNER_EMAIL}) द्वारा Approve होने के बाद ही ID Live होगी।`
     };
   }
 
@@ -198,7 +199,7 @@ export const approvePartnerAndMakeIdLive = async (
     console.warn('Firestore partner update notice:', err);
   }
 
-  // 3. SEND EMAIL UPDATE TO OWNER'S EMAIL (bharatproexperthomeservices@gmail.com)
+  // 3. SEND EMAIL UPDATE TO OWNER'S EMAIL (bharatproexpert@gmail.com)
   await sendOwnerEmailNotification({
     type: 'PARTNER_ID_LIVE',
     subject: `⚡ [Bharat Pro] Partner ID LIVE Alert: ${partner.name} (${finalUserId}) is Approved!`,
@@ -267,12 +268,12 @@ export const submitPartnerApplication = async (data: {
     await setDoc(doc(db, 'partners', newId), newPartner);
   } catch {}
 
-  // Alert Owner of New Partner Application
+  // Alert Owner of New Partner Application to bharatproexpert@gmail.com
   await sendOwnerEmailNotification({
-    type: 'PARTNER_ID_LIVE',
-    subject: `📋 [Bharat Pro] New Partner Onboarding Application: ${newPartner.name}`,
-    body: `New Partner Application Received:\n- Name: ${newPartner.name}\n- Phone: ${newPartner.phone}\n- City: ${newPartner.city}\n- Hub: ${newPartner.assignedHubName}\n- Temporary ID: ${tempUserId}\n\nStatus: PENDING APPROVAL\nPlease open the Admin Dashboard to review KYC, verify credentials, and click "Approve & Make ID Live".`,
-    metadata: { partnerId: newId, name: newPartner.name }
+    type: 'PARTNER_REGISTRATION_REQUEST',
+    subject: `📋 [Bharat Pro] New Partner Registration Pending Approval: ${newPartner.name}`,
+    body: `New Partner Application Received:\n- Name: ${newPartner.name}\n- Phone: ${newPartner.phone}\n- Email: ${newPartner.email || 'N/A'}\n- City: ${newPartner.city}\n- Hub: ${newPartner.assignedHubName}\n- Temporary ID: ${tempUserId}\n\nStatus: PENDING APPROVAL\nPlease open the Admin Dashboard (bharatproexpert@gmail.com) to review KYC and click "Approve & Make ID Live". The partner cannot login until you approve.`,
+    metadata: { partnerId: newId, name: newPartner.name, phone: newPartner.phone }
   });
 
   if (typeof window !== 'undefined') {
@@ -280,6 +281,39 @@ export const submitPartnerApplication = async (data: {
   }
 
   return newPartner;
+};
+
+// REJECT PARTNER APPLICATION
+export const rejectPartnerApplication = async (
+  partnerId: string,
+  reason: string = 'Incomplete documentation or unverified credentials'
+): Promise<{ success: boolean; error?: string }> => {
+  const partners = await getOrSeedPartners();
+  const index = partners.findIndex(p => p.id === partnerId);
+  if (index === -1) return { success: false, error: 'Partner not found' };
+
+  const partner = { ...partners[index] };
+  partner.status = 'inactive';
+  partner.onboardingStatus = 'rejected' as any;
+  partner.approvedBy = `${OWNER_EMAIL} (REJECTED: ${reason})`;
+  partners[index] = partner;
+
+  localStorage.setItem(STORAGE_PARTNERS_KEY, JSON.stringify(partners));
+  try {
+    await setDoc(doc(db, 'partners', partnerId), partner, { merge: true });
+  } catch {}
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bharatpro_partners_updated', { detail: partners }));
+  }
+
+  return { success: true };
+};
+
+// GET PENDING PARTNER APPLICATIONS
+export const getPendingPartners = async (): Promise<Partner[]> => {
+  const all = await getOrSeedPartners();
+  return all.filter(p => p.onboardingStatus === 'pending_approval');
 };
 
 // Session Management

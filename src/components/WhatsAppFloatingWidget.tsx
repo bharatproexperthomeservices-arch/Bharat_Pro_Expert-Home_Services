@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { WHATSAPP_NUMBER } from '../data';
-import { MessageCircle, X, Send, Bot, Sparkles, PhoneCall } from 'lucide-react';
+import { MessageCircle, X, Send, Sparkles, PhoneCall } from 'lucide-react';
 
 export const WhatsAppFloatingWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,15 +26,15 @@ export const WhatsAppFloatingWidget: React.FC = () => {
           <div className="bg-[#128C7E] text-white p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-white border border-white/30">
-                <Bot className="w-6 h-6" />
+                <MessageCircle className="w-6 h-6" />
               </div>
               <div>
                 <h4 className="text-sm font-bold flex items-center gap-1.5">
-                  <span>Bharat Pro WhatsApp AI</span>
+                  <span>Bharat Pro Support Desk</span>
                   <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
                 </h4>
                 <p className="text-[11px] text-white/80">
-                  Instant Booking &bull; Free WhatsApp Dispatch
+                  Instant Booking &bull; 24/7 WhatsApp Dispatch
                 </p>
               </div>
             </div>
@@ -50,9 +50,9 @@ export const WhatsAppFloatingWidget: React.FC = () => {
           <div className="p-4 bg-[#ECE5DD] space-y-3 min-h-[160px] text-xs">
             {/* System Agent Bubble */}
             <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-[#1C1C1E]">
-              <p className="font-semibold text-[#128C7E] text-[11px] mb-1">Bharat Pro AI Assistant</p>
+              <p className="font-semibold text-[#128C7E] text-[11px] mb-1">Bharat Pro Customer Helpdesk</p>
               <p>
-                Namaste! 🙏 You can book complete sofa, bathroom, or full home deep cleaning directly over WhatsApp without downloading an app.
+                Namaste! 🙏 You can book complete sofa, bathroom, or full home deep cleaning directly over WhatsApp with our team.
               </p>
               <span className="block text-[9px] text-[#8E8E93] text-right mt-1">Just now</span>
             </div>

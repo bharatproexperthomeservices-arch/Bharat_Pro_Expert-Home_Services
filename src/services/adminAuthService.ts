@@ -9,13 +9,144 @@ import {
   onSnapshot 
 } from '../firebase-config';
 import { AdminLoginRequest } from '../types';
-import { sendOwnerEmailNotification, OWNER_EMAIL } from './emailService';
+import { 
+  sendOwnerEmailNotification, 
+  sendAdminLoginOtpEmail,
+  OWNER_EMAIL 
+} from './emailService';
 
 const STORAGE_ADMIN_REQUESTS_KEY = 'bharat_pro_admin_requests_v1';
 const STORAGE_ADMIN_SESSION_KEY = 'bharat_pro_admin_session_v1';
+const STORAGE_ACTIVE_OTP_KEY = 'bharat_pro_active_admin_otp';
 
 // Master passkey for owner emergency access or direct authorization
 export const OWNER_MASTER_PIN = '892025';
+
+// Verify if email is the strictly authorized Owner
+export const isOwnerEmail = (email: string): boolean => {
+  return email.trim().toLowerCase() === OWNER_EMAIL.toLowerCase();
+};
+
+// Send real Mail OTP to bharatproexpert@gmail.com
+export const sendAdminOtp = async (
+  email: string
+): Promise<{ success: boolean; message: string; otp?: string; error?: string }> => {
+  const cleanEmail = email.trim().toLowerCase();
+
+  // If NOT owner, block direct login and trigger approval request
+  if (!isOwnerEmail(cleanEmail)) {
+    const req = await requestAdminLogin(cleanEmail, 'External Requester');
+    return {
+      success: false,
+      message: '',
+      error: `Access Denied: Admin Panel sirf Owner (${OWNER_EMAIL}) ke liye reserved hai. Aapki login request owner ke paas approval ke liye bhej di gayi hai (Request ID: ${req.id}).`
+    };
+  }
+
+  // Generate real 6-digit OTP
+  const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+
+  const otpPayload = {
+    otp: generatedOtp,
+    email: OWNER_EMAIL,
+    createdAt: new Date().toISOString(),
+    expiresAt
+  };
+
+  // 1. Store in Firestore
+  try {
+    await setDoc(doc(db, 'admin_otps', 'latest_admin_otp'), otpPayload);
+  } catch (err) {
+    console.warn('Firestore admin otp write notice:', err);
+  }
+
+  // 2. Store in local storage / session storage
+  sessionStorage.setItem(STORAGE_ACTIVE_OTP_KEY, JSON.stringify(otpPayload));
+  localStorage.setItem(STORAGE_ACTIVE_OTP_KEY, JSON.stringify(otpPayload));
+
+  // 3. Dispatch real Email notification to bharatproexpert@gmail.com
+  await sendAdminLoginOtpEmail(generatedOtp);
+
+  return {
+    success: true,
+    message: `6-Digit OTP sent to ${OWNER_EMAIL}. Check inbox or spam folder.`,
+    otp: generatedOtp
+  };
+};
+
+// Verify OTP for Admin Login
+export const verifyAdminOtp = async (
+  email: string,
+  enteredOtp: string
+): Promise<{ success: boolean; error?: string }> => {
+  const cleanEmail = email.trim().toLowerCase();
+  const cleanOtp = enteredOtp.trim();
+
+  if (!isOwnerEmail(cleanEmail)) {
+    return {
+      success: false,
+      error: `Unauthorized email ID. Only ${OWNER_EMAIL} can verify admin OTP.`
+    };
+  }
+
+  // Check against Master PIN or Active OTP
+  if (cleanOtp === OWNER_MASTER_PIN) {
+    saveAdminSession(OWNER_EMAIL);
+    return { success: true };
+  }
+
+  // Check stored active OTP
+  let validOtp: string | null = null;
+  let expiresAt: string | null = null;
+
+  try {
+    const stored = sessionStorage.getItem(STORAGE_ACTIVE_OTP_KEY) || localStorage.getItem(STORAGE_ACTIVE_OTP_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      validOtp = parsed.otp;
+      expiresAt = parsed.expiresAt;
+    }
+  } catch {}
+
+  // Check Firestore fallback
+  if (!validOtp) {
+    try {
+      const snap = await getDoc(doc(db, 'admin_otps', 'latest_admin_otp'));
+      if (snap.exists()) {
+        const data = snap.data();
+        validOtp = data.otp;
+        expiresAt = data.expiresAt;
+      }
+    } catch {}
+  }
+
+  if (!validOtp) {
+    return {
+      success: false,
+      error: 'OTP expire ho chuka hai ya generate nahi hua. Kripya naya OTP mangwayein.'
+    };
+  }
+
+  if (expiresAt && new Date(expiresAt).getTime() < Date.now()) {
+    return {
+      success: false,
+      error: 'OTP expire ho gaya hai (10 minute limit). Kripya "Resend OTP" par click karein.'
+    };
+  }
+
+  if (cleanOtp !== validOtp) {
+    return {
+      success: false,
+      error: `गलत OTP! यह OTP ${OWNER_EMAIL} पर भेजे गए कोड से मेल नहीं खाता।`
+    };
+  }
+
+  // Successful verification
+  sessionStorage.removeItem(STORAGE_ACTIVE_OTP_KEY);
+  saveAdminSession(OWNER_EMAIL);
+  return { success: true };
+};
 
 // Request Admin Panel Login Access (triggers approval request to owner)
 export const requestAdminLogin = async (

@@ -6,6 +6,16 @@ import {
   updateBookingStatusWithOtp,
   sendWhatsAppNotification 
 } from '../services/dbService';
+import { 
+  getPartnerSession, 
+  savePartnerSession, 
+  clearPartnerSession, 
+  verifyPartnerLogin, 
+  submitPartnerApplication,
+  getOrSeedPartners 
+} from '../services/partnerAuthService';
+import { OWNER_EMAIL } from '../services/emailService';
+import { INITIAL_HUBS } from '../data';
 import { BharatProLogo } from './BharatProLogo';
 import { 
   Briefcase, 
@@ -24,10 +34,13 @@ import {
   FileCheck, 
   Power, 
   Calendar, 
-  MessageSquare,
-  AlertCircle,
-  RefreshCw,
-  ExternalLink
+  MessageSquare, 
+  AlertCircle, 
+  RefreshCw, 
+  ExternalLink,
+  LogOut,
+  Send,
+  UserPlus
 } from 'lucide-react';
 
 interface PartnerDashboardProps {
@@ -43,12 +56,29 @@ type PartnerTab =
   | 'PROFILE_KYC';
 
 export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCustomerSite }) => {
+  const [authenticatedPartner, setAuthenticatedPartner] = useState<Partner | null>(null);
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [selectedPartnerId, setSelectedPartnerId] = useState<string>('prt-01');
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<PartnerTab>('ASSIGNED_JOBS');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isOnline, setIsOnline] = useState<boolean>(true);
+
+  // Auth Gate State
+  const [authView, setAuthView] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
+  const [loginUserId, setLoginUserId] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // Register Partner Form State
+  const [regName, setRegName] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regCity, setRegCity] = useState('Gurugram');
+  const [regHubId, setRegHubId] = useState('hub-gurugram-cyber');
+  const [regCategories, setRegCategories] = useState<string[]>(['bathroom-cleaning', 'full-home-cleaning']);
+  const [regSuccessApplication, setRegSuccessApplication] = useState<Partner | null>(null);
   
   // OTP input modal / form state
   const [otpBookingId, setOtpBookingId] = useState<string | null>(null);
@@ -57,15 +87,24 @@ export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCust
   const [otpError, setOtpError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
 
+  // Check saved session on mount
+  useEffect(() => {
+    const existing = getPartnerSession();
+    if (existing) {
+      setAuthenticatedPartner(existing);
+      setSelectedPartnerId(existing.id);
+    }
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
     try {
       const [prts, bks] = await Promise.all([
-        getPartnersList(),
+        getOrSeedPartners(),
         getAllBookings()
       ]);
       setPartners(prts);
-      if (prts.length > 0 && !selectedPartnerId) {
+      if (prts.length > 0 && !selectedPartnerId && !authenticatedPartner) {
         setSelectedPartnerId(prts[0].id);
       }
       setBookings(bks);
@@ -79,34 +118,327 @@ export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCust
   useEffect(() => {
     loadData();
 
-    // Real-time listener for newly assigned jobs
     const handleUpdate = () => {
       loadData();
     };
 
     window.addEventListener('bharatpro_booking_updated', handleUpdate);
+    window.addEventListener('bharatpro_partners_updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
 
     return () => {
       window.removeEventListener('bharatpro_booking_updated', handleUpdate);
+      window.removeEventListener('bharatpro_partners_updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
     };
   }, []);
 
-  const currentPartner = partners.find(p => p.id === selectedPartnerId) || partners[0] || {
-    id: 'prt-01',
-    name: 'Rahul Kumar',
-    phone: '+91 98110 44219',
-    assignedHubId: 'hub-gurugram-cyber',
-    hubName: 'Gurugram Central Hub',
-    city: 'Gurugram',
-    rating: 4.88,
-    completedJobs: 342,
-    approvedCategories: ['bathroom-cleaning', 'kitchen-cleaning', 'sofa-cleaning'],
-    kycStatus: 'VERIFIED',
-    isOnline: true,
-    status: 'active'
+  // Handle Partner Login
+  const handlePartnerLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setAuthLoading(true);
+
+    try {
+      const res = await verifyPartnerLogin(loginUserId, loginPassword);
+      if (res.success && res.partner) {
+        setAuthenticatedPartner(res.partner);
+        setSelectedPartnerId(res.partner.id);
+        savePartnerSession(res.partner);
+      } else {
+        setAuthError(res.error || 'अमान्य क्रेडेंशियल्स');
+      }
+    } catch {
+      setAuthError('लॉगिन के दौरान त्रुटि');
+    } finally {
+      setAuthLoading(false);
+    }
   };
+
+  // Handle Partner Registration
+  const handlePartnerRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setAuthLoading(true);
+
+    const hub = INITIAL_HUBS.find(h => h.id === regHubId);
+    try {
+      const app = await submitPartnerApplication({
+        name: regName,
+        phone: regPhone,
+        email: regEmail,
+        city: regCity,
+        hubId: regHubId,
+        hubName: hub ? `${hub.city} - ${hub.name}` : 'Central Hub',
+        categories: regCategories
+      });
+      setRegSuccessApplication(app);
+    } catch {
+      setAuthError('पंजीकरण फॉर्म भेजने में विफल');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handlePartnerLogout = () => {
+    clearPartnerSession();
+    setAuthenticatedPartner(null);
+    setSelectedPartnerId('');
+    setLoginUserId('');
+    setLoginPassword('');
+  };
+
+  // IF NOT AUTHENTICATED: RENDER PARTNER ACCESS GATE
+  if (!authenticatedPartner) {
+    return (
+      <div className="min-h-screen bg-[#071321] text-slate-100 flex flex-col justify-center items-center p-4 selection:bg-amber-600 font-['Inter',sans-serif]">
+        <div className="w-full max-w-md mb-6 flex items-center justify-between">
+          <button
+            onClick={onBackToCustomerSite}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Customer Website</span>
+          </button>
+          <span className="text-[11px] font-mono text-amber-400 bg-amber-950/70 border border-amber-800/50 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+            Partner Operations Portal
+          </span>
+        </div>
+
+        <div className="w-full max-w-md bg-slate-900/90 border border-slate-700/80 rounded-3xl shadow-2xl p-6 sm:p-8 backdrop-blur-2xl relative overflow-hidden">
+          <div className="text-center mb-6">
+            <div className="inline-flex p-3 bg-amber-500/15 border border-amber-500/30 rounded-2xl mb-3 text-amber-400">
+              <Briefcase className="w-8 h-8" />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
+              Bharat Pro Expert <span className="text-[11px] bg-amber-500 text-slate-950 px-2 py-0.5 rounded font-mono uppercase tracking-wider font-bold">Partner</span>
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Service Technician &amp; Professional Portal
+            </p>
+          </div>
+
+          {/* Toggle Tabs: Sign In / Register */}
+          <div className="flex bg-slate-950 p-1 rounded-2xl mb-5 text-xs font-bold">
+            <button
+              onClick={() => { setAuthView('LOGIN'); setAuthError(null); setRegSuccessApplication(null); }}
+              className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
+                authView === 'LOGIN' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Partner Sign In
+            </button>
+            <button
+              onClick={() => { setAuthView('REGISTER'); setAuthError(null); }}
+              className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
+                authView === 'REGISTER' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              New Partner Apply
+            </button>
+          </div>
+
+          {authError && (
+            <div className="mb-4 p-3 rounded-xl bg-red-950/60 border border-red-800 text-red-200 text-xs flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <span>{authError}</span>
+            </div>
+          )}
+
+          {/* TAB 1: PARTNER LOGIN */}
+          {authView === 'LOGIN' && (
+            <form onSubmit={handlePartnerLoginSubmit} className="space-y-4">
+              <div className="p-3 bg-amber-950/30 border border-amber-800/40 rounded-xl text-xs text-amber-200 flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold block text-amber-100">Owner Approval Mandatory:</span>
+                  Partner ID Owner (<strong className="underline text-white">{OWNER_EMAIL}</strong>) द्वारा approve होने के बाद ही Live होती है।
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Partner User ID
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    required
+                    value={loginUserId}
+                    onChange={(e) => setLoginUserId(e.target.value.toUpperCase())}
+                    placeholder="e.g. BPE-PRO-101"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+                  <input
+                    type="password"
+                    required
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="Enter assigned password"
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={authLoading}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {authLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Verifying Credentials...</span>
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4" />
+                    <span>Sign In to Partner Portal</span>
+                  </>
+                )}
+              </button>
+
+              <div className="pt-2 text-center text-xs text-slate-500">
+                <span>New Service Professional? </span>
+                <button
+                  type="button"
+                  onClick={() => setAuthView('REGISTER')}
+                  className="text-amber-400 font-bold hover:underline cursor-pointer"
+                >
+                  Apply for Onboarding →
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* TAB 2: PARTNER REGISTRATION */}
+          {authView === 'REGISTER' && (
+            <div>
+              {regSuccessApplication ? (
+                <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-800 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mx-auto">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-sm font-bold text-white">Application Submitted!</h3>
+                  <p className="text-xs text-slate-300">
+                    Aapki Partner Application Owner (<strong className="text-amber-400">{OWNER_EMAIL}</strong>) ke paas approval ke liye bhej di gayi hai.
+                  </p>
+                  <div className="p-3 bg-slate-950 rounded-xl text-xs font-mono text-left space-y-1 text-slate-400">
+                    <div>Temporary ID: <span className="text-white font-bold">{regSuccessApplication.loginUserId}</span></div>
+                    <div>Status: <span className="text-amber-400 font-bold uppercase">Pending Owner Approval</span></div>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Owner dwara approve hote hi aapko User ID aur Password activate ho jayega.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setRegSuccessApplication(null);
+                      setAuthView('LOGIN');
+                    }}
+                    className="w-full py-2 bg-amber-500 text-slate-950 text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    Go to Partner Login
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handlePartnerRegisterSubmit} className="space-y-3 text-xs">
+                  <div className="p-2.5 rounded-xl bg-blue-950/40 border border-blue-800/40 text-[11px] text-blue-200">
+                    ℹ️ Register karne par aapka data Owner (<strong className="underline text-white">{OWNER_EMAIL}</strong>) ke paas approval ke liye jayega.
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      placeholder="e.g. Ramesh Kumar"
+                      className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-white outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1">Mobile Number</label>
+                      <input
+                        type="tel"
+                        required
+                        value={regPhone}
+                        onChange={(e) => setRegPhone(e.target.value)}
+                        placeholder="9876543210"
+                        className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-white outline-none font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1">Email (Optional)</label>
+                      <input
+                        type="email"
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        placeholder="pro@gmail.com"
+                        className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-white outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1">City</label>
+                      <input
+                        type="text"
+                        required
+                        value={regCity}
+                        onChange={(e) => setRegCity(e.target.value)}
+                        placeholder="e.g. Gurugram"
+                        className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-white outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1">Operational Hub</label>
+                      <select
+                        value={regHubId}
+                        onChange={(e) => setRegHubId(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl px-3 py-2 text-white outline-none"
+                      >
+                        {INITIAL_HUBS.map(h => (
+                          <option key={h.id} value={h.id}>{h.city} - {h.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={authLoading}
+                    className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold transition-all shadow-md cursor-pointer disabled:opacity-50 mt-2 flex items-center justify-center gap-1.5"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>{authLoading ? 'Submitting Application...' : 'Submit Application for Owner Approval'}</span>
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+        </div>
+      </div>
+    );
+  }
+
+  // AUTHENTICATED PARTNER VIEW
+  const currentPartner = authenticatedPartner || partners.find(p => p.id === selectedPartnerId) || partners[0];
 
   // Filter jobs explicitly assigned by Admin to THIS partner
   // RULE: Partner must NOT receive jobs automatically. Only jobs with assignedPartnerId === currentPartner.id
@@ -390,19 +722,21 @@ export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCust
 
         {/* Switch Partner & Availability Toggle */}
         <div className="flex items-center gap-3">
-          {/* Demo Partner Selector */}
-          <div className="hidden md:flex items-center gap-1.5 text-xs">
-            <span className="text-[#8E8E93]">Logged Partner:</span>
-            <select
-              value={selectedPartnerId}
-              onChange={(e) => setSelectedPartnerId(e.target.value)}
-              className="px-2 py-1 rounded-lg border border-[#D1D1D6] bg-white font-bold text-[#1C1C1E] text-xs outline-none"
-            >
-              {partners.map(p => (
-                <option key={p.id} value={p.id}>{p.name} ({p.assignedHubName || p.hubName || 'Hub'})</option>
-              ))}
-            </select>
+          {/* Authenticated Partner Info */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs">
+            <User className="w-3.5 h-3.5 text-amber-600" />
+            <span className="font-bold text-[#1C1C1E]">{currentPartner.name}</span>
+            <span className="font-mono text-[11px] text-[#8E8E93] hidden sm:inline">({currentPartner.loginUserId || currentPartner.id})</span>
           </div>
+
+          <button
+            onClick={handlePartnerLogout}
+            className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border border-rose-200"
+            title="Sign out of Partner Account"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Logout</span>
+          </button>
 
           {/* Online Toggle */}
           <button

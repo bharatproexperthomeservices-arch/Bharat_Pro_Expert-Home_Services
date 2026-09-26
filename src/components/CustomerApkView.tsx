@@ -518,9 +518,9 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
           {onToggleCatalog && (
             <button
               onClick={onToggleCatalog}
-              className="px-2.5 py-1 rounded bg-blue-900 hover:bg-blue-800 text-blue-100 font-semibold text-[11px] transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded bg-blue-900 hover:bg-blue-800 text-amber-300 font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
             >
-              Desktop Catalog
+              <span>🌐 Website Portal</span>
             </button>
           )}
           <button

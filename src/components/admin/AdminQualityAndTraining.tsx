@@ -217,10 +217,10 @@ export const AdminQualityAndTraining: React.FC<AdminQualityAndTrainingProps> = (
           <div className="flex items-center justify-between">
             <div>
               <h4 className="text-base font-bold text-[#1C1C1E]">
-                Automated 10% Random Sampling &amp; Quality Inspections
+                10% Random Sampling &amp; Quality Inspections
               </h4>
               <p className="text-xs text-[#8E8E93]">
-                AI-triggered random spot checks and on-site hub supervisor inspections to maintain top-tier ratings.
+                Supervisor-led random spot checks and on-site hub inspections to maintain top-tier ratings.
               </p>
             </div>
             <button

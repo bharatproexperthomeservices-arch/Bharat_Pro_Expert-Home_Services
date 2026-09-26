@@ -1,6 +1,21 @@
 import React, { useState } from 'react';
 import { CleaningService } from '../types';
-import { Star, Clock, Video, CheckCircle2, ShieldAlert, ArrowRight, X, Sparkles, AlertCircle, Eye } from 'lucide-react';
+import { 
+  Star, 
+  Clock, 
+  CheckCircle2, 
+  X, 
+  ArrowRight, 
+  ShieldCheck, 
+  Sparkles, 
+  Users, 
+  Leaf, 
+  AlertCircle,
+  Calendar,
+  MapPin,
+  IndianRupee,
+  Play
+} from 'lucide-react';
 
 interface ServiceDetailModalProps {
   service: CleaningService | null;
@@ -13,304 +28,252 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   onClose,
   onBookNow
 }) => {
-  const [photoViewMode, setPhotoViewMode] = useState<'both' | 'before' | 'after'>('both');
+  const [activeTab, setActiveTab] = useState<'overview' | 'inclusions' | 'process'>('overview');
 
   if (!service) return null;
 
-  const hasDistinctBeforeAfter = Boolean(service.beforeImage && service.afterImage);
-  const beforePhoto = service.beforeImage || service.imageUrl;
-  const afterPhoto = service.afterImage || service.beforeAfterImage || service.imageUrl;
+  const basePrice = service.basePrice;
+  const refPrice = service.referencePrice || Math.round(basePrice * 1.18);
+  const savings = refPrice - basePrice;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/65 backdrop-blur-md overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md overflow-y-auto">
       <div 
-        id="service-detail-modal-card"
-        className="w-full max-w-3xl rounded-3xl bg-white shadow-2xl border border-white/50 overflow-hidden relative my-auto animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col"
+        className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-[#E2E8F0] overflow-hidden relative my-auto animate-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col font-['Inter',sans-serif]"
       >
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-md transition-all"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Hero Visual Banner */}
-        <div className="relative h-56 sm:h-72 w-full shrink-0 overflow-hidden bg-black">
-          <img
-            src={service.imageUrl}
-            alt={service.name}
-            className="w-full h-full object-cover opacity-90"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-          
-          <div className="absolute top-4 left-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1C1C1E]/80 backdrop-blur-md border border-white/20 text-white text-xs font-semibold">
-            <Video className="w-3.5 h-3.5 text-[#E07B1A]" />
-            <span>{service.demoVideoBadge}</span>
-          </div>
-
-          <div className="absolute bottom-4 left-4 right-4 text-white">
-            <span className="text-xs uppercase tracking-wider font-bold text-[#D4A24E]">
-              {service.categoryName}
+        {/* Header Bar */}
+        <div className="p-4 px-6 border-b border-[#E2E8F0] flex items-center justify-between bg-white shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#2FA84F] bg-[#EBF8EE] px-2.5 py-0.5 rounded-full">
+              {service.categoryName || 'Home Cleaning'}
             </span>
-            <h2 className="text-xl sm:text-2xl font-bold font-['Outfit'] leading-tight mt-1">
-              {service.name}
-            </h2>
-            <div className="flex items-center gap-4 mt-2 text-xs sm:text-sm text-white/90">
-              <span className="flex items-center gap-1 font-bold text-[#F9D976]">
-                <Star className="w-4 h-4 fill-[#F9D976] text-[#F9D976]" />
-                {service.rating} ({service.reviewCount} verified reviews)
-              </span>
-              <span>&bull;</span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-4 h-4 text-white/70" />
-                ~{service.estimatedMinutes} mins duration
-              </span>
-            </div>
+            <span className="text-xs text-gray-400 font-semibold">•</span>
+            <span className="text-xs text-gray-500 font-medium">BharatProExpert Certified</span>
           </div>
+
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-full text-gray-400 hover:text-[#0B2A4A] hover:bg-gray-100 transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Scrollable Content Body */}
-        <div className="p-5 sm:p-7 overflow-y-auto space-y-6">
-          {/* Pricing Highlight */}
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA]">
-            <div>
-              <span className="text-xs text-[#8E8E93] font-medium block">Bharat Pro Direct Price</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl sm:text-3xl font-black text-[#1C1C1E]">
-                  ₹{service.basePrice.toLocaleString('en-IN')}
-                </span>
-                <span className="text-sm line-through text-[#8E8E93]">
-                  ₹{service.competitorPrice.toLocaleString('en-IN')}
-                </span>
-                <span className="text-xs font-bold text-[#1F8A3B] bg-emerald-100 px-2 py-0.5 rounded-full">
-                  Save 15% vs Market
-                </span>
-              </div>
+        {/* Modal Scrollable Body */}
+        <div className="p-6 overflow-y-auto space-y-6">
+          
+          {/* Top Hero Banner */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+            <div className="md:col-span-6 relative h-52 sm:h-60 rounded-xl overflow-hidden bg-gray-100 shadow-xs border border-gray-100">
+              <img
+                src={service.imageUrl}
+                alt={service.name}
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute top-3 left-3 bg-[#2FA84F] text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-xs">
+                15% OFF
+              </span>
             </div>
 
+            <div className="md:col-span-6 space-y-3">
+              <h2 className="text-xl sm:text-2xl font-black text-[#0B2A4A] leading-tight">
+                {service.name}
+              </h2>
+
+              <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+                {service.shortDesc || service.detailedDesc}
+              </p>
+
+              {/* Rating & Duration */}
+              <div className="flex flex-wrap items-center gap-3 pt-1 text-xs">
+                <div className="flex items-center gap-1 text-amber-500 font-bold bg-amber-50 px-2.5 py-1 rounded-md">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <span>{service.rating || '4.8'}</span>
+                  <span className="text-gray-400 font-normal">({service.reviewCount || 42} reviews)</span>
+                </div>
+                <div className="flex items-center gap-1 text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
+                  <Clock className="w-3.5 h-3.5 text-gray-500" />
+                  <span>~{service.estimatedMinutes || 120} mins</span>
+                </div>
+              </div>
+
+              {/* Price Card */}
+              <div className="p-3.5 rounded-xl bg-[#EEF7FD] border border-[#D0E7F9] flex items-center justify-between">
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-[#0B2A4A]">₹{basePrice.toLocaleString('en-IN')}</span>
+                    <span className="text-xs text-gray-400 line-through">₹{refPrice.toLocaleString('en-IN')}</span>
+                  </div>
+                  <span className="text-[11px] font-bold text-[#2FA84F]">Save ₹{savings.toLocaleString('en-IN')} (Direct Benchmark Price)</span>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-[10px] text-gray-500 block">Pay After Inspection</span>
+                  <span className="text-[11px] font-bold text-[#0B2A4A]">Zero Advance Needed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Tabs */}
+          <div className="flex border-b border-[#E2E8F0] gap-6 text-xs font-bold text-[#0B2A4A]">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`pb-2 transition-all cursor-pointer ${
+                activeTab === 'overview' 
+                  ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' 
+                  : 'text-gray-400 hover:text-[#0B2A4A]'
+              }`}
+            >
+              Overview &amp; Standards
+            </button>
+            <button
+              onClick={() => setActiveTab('inclusions')}
+              className={`pb-2 transition-all cursor-pointer ${
+                activeTab === 'inclusions' 
+                  ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' 
+                  : 'text-gray-400 hover:text-[#0B2A4A]'
+              }`}
+            >
+              What&apos;s Included &amp; Excluded
+            </button>
+            <button
+              onClick={() => setActiveTab('process')}
+              className={`pb-2 transition-all cursor-pointer ${
+                activeTab === 'process' 
+                  ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' 
+                  : 'text-gray-400 hover:text-[#0B2A4A]'
+              }`}
+            >
+              Step-by-Step SOP
+            </button>
+          </div>
+
+          {/* Tab 1: Overview */}
+          {activeTab === 'overview' && (
+            <div className="space-y-4 text-xs text-gray-600 leading-relaxed">
+              <p>
+                {service.detailedDesc || 'Our certified BharatProExpert deep cleaning professionals deploy hospital-grade Diversey chemicals and German extraction equipment. Every corner is descaled, scrubbed, and sanitized with zero harsh acidic fumes.'}
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <div className="p-3 rounded-xl bg-white border border-[#E2E8F0] space-y-1">
+                  <Leaf className="w-4 h-4 text-[#2FA84F]" />
+                  <div className="font-bold text-[#0B2A4A]">Diversey Solutions</div>
+                  <div className="text-[11px] text-gray-500">100% infant &amp; pet safe formulations.</div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white border border-[#E2E8F0] space-y-1">
+                  <ShieldCheck className="w-4 h-4 text-[#0B2A4A]" />
+                  <div className="font-bold text-[#0B2A4A]">7-Point Police Check</div>
+                  <div className="text-[11px] text-gray-500">Aadhaar verified &amp; uniformed pros.</div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-white border border-[#E2E8F0] space-y-1">
+                  <Sparkles className="w-4 h-4 text-[#F5A400]" />
+                  <div className="font-bold text-[#0B2A4A]">48-Hour Re-Clean</div>
+                  <div className="text-[11px] text-gray-500">Free touch-up if any spot is missed.</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: Inclusions & Exclusions */}
+          {activeTab === 'inclusions' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-[#EBF8EE] border border-[#C6ECD2] space-y-2">
+                <h4 className="text-xs font-bold text-[#2FA84F] uppercase tracking-wide flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>What&apos;s Included</span>
+                </h4>
+                <ul className="space-y-1.5 text-xs text-[#0B2A4A]">
+                  {(service.inclusions && service.inclusions.length > 0 ? service.inclusions : [
+                    'Intense tile descaling with rotary scrubbing machine',
+                    'Hard-water stain removal on taps, shower & basins',
+                    'Mirror buffing & glass streak-free squeegee wash',
+                    'Floor scrubbing & hospital-grade surface sanitization',
+                    'Cobweb removal and ceiling fixtures dusting'
+                  ]).map((inc, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <span className="text-[#2FA84F] font-bold">✓</span>
+                      <span>{inc}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-2">
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-gray-400" />
+                  <span>What&apos;s Excluded</span>
+                </h4>
+                <ul className="space-y-1.5 text-xs text-gray-600">
+                  {(service.exclusions && service.exclusions.length > 0 ? service.exclusions : [
+                    'Wall paint peeling or seepage touch-ups',
+                    'Exterior facade high-rise window cleaning without balcony',
+                    'Furniture structural carpentry repairs'
+                  ]).map((exc, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <span className="text-gray-400 font-bold">✕</span>
+                      <span>{exc}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 3: Process SOP */}
+          {activeTab === 'process' && (
+            <div className="space-y-3">
+              {(service.steps && service.steps.length > 0 ? service.steps : [
+                { order: 1, title: 'Dry Inspection & Dusting', description: 'Complete dry vacuuming and inspection of hard-water accumulation.', estimatedMinutes: 20 },
+                { order: 2, title: 'Diversey Chemical Application', description: 'Application of Diversey specialized cleaning agents for grease/scale breakdown.', estimatedMinutes: 40 },
+                { order: 3, title: 'Single-Disc Machine Scrubbing', description: 'Mechanical rotary buffing and high-pressure steam/suction extraction.', estimatedMinutes: 40 },
+                { order: 4, title: 'Final Glass Buffing & Customer Inspection', description: 'Crystal shine buffing and joint walkthrough before payment collection.', estimatedMinutes: 20 }
+              ]).map((step) => (
+                <div key={step.order} className="flex items-start gap-3 p-3 rounded-xl bg-white border border-[#E2E8F0]">
+                  <div className="w-7 h-7 rounded-full bg-[#0B2A4A] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    {step.order}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-[#0B2A4A]">{step.title}</div>
+                    <div className="text-[11px] text-gray-500 mt-0.5">{step.description}</div>
+                  </div>
+                  <div className="ml-auto text-[10px] text-gray-400 font-semibold shrink-0">
+                    {step.estimatedMinutes} mins
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-4 px-6 border-t border-[#E2E8F0] bg-[#F8FAFC] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+          <div>
+            <div className="text-xs text-gray-500">Total All-Inclusive Price</div>
+            <div className="text-xl font-black text-[#0B2A4A]">₹{basePrice.toLocaleString('en-IN')}</div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-full border border-gray-300 text-xs font-bold text-[#0B2A4A] hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              Close
+            </button>
             <button
               onClick={() => {
                 onClose();
                 onBookNow(service);
               }}
-              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#B8892E] to-[#D4A24E] text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+              className="px-6 py-2.5 rounded-full bg-[#0B2A4A] hover:bg-[#071E36] text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer"
             >
-              <span>Book This Service</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>Proceed to Booking</span>
+              <ArrowRight className="w-3.5 h-3.5 text-[#F5A400]" />
             </button>
           </div>
-
-          {/* Description */}
-          <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider text-[#1C1C1E] mb-2">
-              Service Overview
-            </h3>
-            <p className="text-sm text-[#48484A] leading-relaxed">
-              {service.detailedDesc}
-            </p>
-          </div>
-
-          {/* Real Before & After Proof Photos */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-[#1C1C1E]">
-                  Real Verified Before &amp; After Results
-                </h3>
-                <p className="text-xs text-[#8E8E93]">
-                  Actual camera evidence from verified Bharat Pro expert cleaning jobs
-                </p>
-              </div>
-
-              {hasDistinctBeforeAfter && (
-                <div className="flex items-center gap-1 bg-[#F2F2F7] p-1 rounded-xl text-xs font-medium">
-                  <button
-                    type="button"
-                    onClick={() => setPhotoViewMode('both')}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${
-                      photoViewMode === 'both'
-                        ? 'bg-white shadow-sm text-[#1C1C1E] font-bold'
-                        : 'text-[#8E8E93] hover:text-[#1C1C1E]'
-                    }`}
-                  >
-                    Side-by-Side
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPhotoViewMode('before')}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${
-                      photoViewMode === 'before'
-                        ? 'bg-red-500 text-white font-bold'
-                        : 'text-[#8E8E93] hover:text-[#1C1C1E]'
-                    }`}
-                  >
-                    Before
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPhotoViewMode('after')}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${
-                      photoViewMode === 'after'
-                        ? 'bg-emerald-600 text-white font-bold'
-                        : 'text-[#8E8E93] hover:text-[#1C1C1E]'
-                    }`}
-                  >
-                    After Clean
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {hasDistinctBeforeAfter ? (
-              photoViewMode === 'both' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Before Box */}
-                  <div className="relative rounded-2xl overflow-hidden border border-red-200 bg-red-50/20 group">
-                    <img
-                      src={beforePhoto}
-                      alt={`${service.name} before cleaning`}
-                      className="w-full h-44 sm:h-52 object-cover transition-transform group-hover:scale-105 duration-300"
-                    />
-                    <div className="absolute top-2.5 left-2.5 bg-red-600/90 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow backdrop-blur-sm flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      <span>BEFORE: Uncleaned / Grease &amp; Grime</span>
-                    </div>
-                  </div>
-
-                  {/* After Box */}
-                  <div className="relative rounded-2xl overflow-hidden border border-emerald-300 bg-emerald-50/20 group">
-                    <img
-                      src={afterPhoto}
-                      alt={`${service.name} after cleaning`}
-                      className="w-full h-44 sm:h-52 object-cover transition-transform group-hover:scale-105 duration-300"
-                    />
-                    <div className="absolute top-2.5 left-2.5 bg-emerald-600/90 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow backdrop-blur-sm flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-amber-200" />
-                      <span>AFTER: Bharat Pro Deep Cleaned</span>
-                    </div>
-                  </div>
-                </div>
-              ) : photoViewMode === 'before' ? (
-                <div className="relative rounded-2xl overflow-hidden border border-red-200 bg-red-50/20">
-                  <img
-                    src={beforePhoto}
-                    alt={`${service.name} before cleaning`}
-                    className="w-full h-56 sm:h-64 object-cover"
-                  />
-                  <div className="absolute top-3 left-3 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
-                    BEFORE CLEANING: Stains, Sticky Oil &amp; Dust Accumulation
-                  </div>
-                </div>
-              ) : (
-                <div className="relative rounded-2xl overflow-hidden border border-emerald-300 bg-emerald-50/20">
-                  <img
-                    src={afterPhoto}
-                    alt={`${service.name} after cleaning`}
-                    className="w-full h-56 sm:h-64 object-cover"
-                  />
-                  <div className="absolute top-3 left-3 bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>AFTER CLEANING: Restored &amp; Food-Safe Sanitized</span>
-                  </div>
-                </div>
-              )
-            ) : (
-              <div className="relative rounded-2xl overflow-hidden border border-black/10 bg-black/5">
-                <img
-                  src={service.beforeAfterImage || service.imageUrl}
-                  alt="Before After cleaning result"
-                  className="w-full h-48 sm:h-64 object-cover"
-                />
-                <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-semibold text-white">
-                  100% Real Camera Evidence from Certified Bharat Pro Hubs
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Accurate Step-by-Step Sequence */}
-          <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider text-[#1C1C1E] mb-3">
-              Standard Operating Procedure (SOP Steps)
-            </h3>
-            <div className="space-y-3">
-              {service.steps.map((step) => (
-                <div 
-                  key={step.order}
-                  className="flex items-start gap-3 p-3 rounded-xl bg-[#F8F9FB] border border-[#E5E5EA]"
-                >
-                  <div className="w-6 h-6 rounded-full bg-[#B8892E] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
-                    {step.order}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-semibold text-[#1C1C1E]">
-                        {step.title}
-                      </h4>
-                      <span className="text-[11px] text-[#8E8E93] font-mono">
-                        {step.estimatedMinutes} min
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#636366] mt-0.5">
-                      {step.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Inclusions & Exclusions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-[#1F8A3B] mb-2 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" /> What&apos;s Included
-              </h4>
-              <ul className="space-y-1.5 text-xs text-emerald-900">
-                {service.inclusions.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-1.5">
-                    <span className="text-[#1F8A3B] font-bold">&bull;</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-2 flex items-center gap-1.5">
-                <ShieldAlert className="w-4 h-4 text-amber-700" /> What&apos;s Not Included
-              </h4>
-              <ul className="space-y-1.5 text-xs text-amber-900">
-                {service.exclusions.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-1.5">
-                    <span className="text-amber-700 font-bold">&bull;</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Sticky Footer CTA */}
-        <div className="p-4 sm:p-5 border-t border-[#E5E5EA] bg-white flex items-center justify-between shrink-0">
-          <div>
-            <span className="text-[11px] text-[#8E8E93] uppercase font-bold tracking-wider block">Estimated Price</span>
-            <span className="text-2xl font-black text-[#1C1C1E]">
-              ₹{service.basePrice.toLocaleString('en-IN')}
-            </span>
-          </div>
-          <button
-            id={`book-now-modal-btn-${service.id}`}
-            onClick={() => {
-              onClose();
-              onBookNow(service);
-            }}
-            className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#B8892E] to-[#D4A24E] text-white font-bold text-sm shadow-md hover:shadow-xl transition-all"
-          >
-            Confirm &amp; Proceed
-          </button>
         </div>
       </div>
     </div>
