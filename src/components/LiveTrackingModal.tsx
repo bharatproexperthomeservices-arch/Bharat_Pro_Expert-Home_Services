@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Booking } from '../types';
+import { Booking, CustomerInvoice } from '../types';
 import { updateBookingStatusWithOtp, subscribeToBooking } from '../services/dbService';
+import { generateCustomerInvoice } from '../services/settlementService';
 import { 
   CheckCircle2, 
   Clock, 
@@ -35,6 +36,8 @@ export const LiveTrackingModal: React.FC<LiveTrackingModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoice, setInvoice] = useState<CustomerInvoice | null>(null);
 
   // Real-time listener
   useEffect(() => {
@@ -61,49 +64,21 @@ export const LiveTrackingModal: React.FC<LiveTrackingModalProps> = ({
   ];
 
   const getPipelineIndex = (status: Booking['status']) => {
-    if (status === 'SEARCHING_PROFESSIONAL' || status === 'PENDING') return 0;
-    if (status === 'ASSIGNED' || status === 'CONFIRMED' || status === 'PARTNER_ASSIGNED' || status === 'ACCEPTED') return 1;
+    if (status === 'SEARCHING_PROFESSIONAL' || status === 'PENDING' || status === 'ASSIGNMENT_PENDING' || status === 'PAYMENT_CONFIRMED') return 0;
+    if (status === 'ASSIGNED' || status === 'CONFIRMED' || status === 'PARTNER_ASSIGNED' || status === 'ACCEPTED' || status === 'PARTNER_ACCEPTED') return 1;
     if (status === 'ON_THE_WAY' || status === 'PARTNER_ON_THE_WAY') return 2;
     if (status === 'ARRIVED') return 3;
     if (status === 'IN_PROGRESS' || status === 'STARTED') return 4;
-    if (status === 'COMPLETED') return 5;
+    if (status === 'COMPLETED' || status === 'SETTLED') return 5;
     return 0;
   };
 
   const currentIdx = getPipelineIndex(booking.status);
 
-  const handleVerifyStartOtp = async () => {
-    setErrorMsg(null);
-    setLoading(true);
-    try {
-      const res = await updateBookingStatusWithOtp(booking.id, 'IN_PROGRESS', enteredOtp);
-      if (!res.success) {
-        setErrorMsg(res.error || 'Failed to start job.');
-      } else if (res.booking) {
-        setBooking(res.booking);
-        onBookingUpdated?.(res.booking);
-        setSuccessMsg('Job successfully started! Cleaning is now in progress.');
-      }
-    } catch (e: any) {
-      setErrorMsg(e?.message || 'Verification error.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSimulateStatus = async (targetStatus: Booking['status']) => {
-    setLoading(true);
-    try {
-      const res = await updateBookingStatusWithOtp(booking.id, targetStatus, booking.startOtp);
-      if (res.booking) {
-        setBooking(res.booking);
-        onBookingUpdated?.(res.booking);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+  const handleOpenInvoice = () => {
+    const inv = generateCustomerInvoice(booking);
+    setInvoice(inv);
+    setShowInvoiceModal(true);
   };
 
   return (
@@ -174,48 +149,59 @@ export const LiveTrackingModal: React.FC<LiveTrackingModalProps> = ({
             </div>
           </div>
 
-          {/* Assigned Professional Card */}
-          <div className="p-4 rounded-xl bg-white border border-[#E2E8F0] shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="relative">
-                <img
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
-                  alt="Assigned Pro"
-                  className="w-12 h-12 rounded-full object-cover border border-[#2FA84F]"
-                />
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#2FA84F] border-2 border-white flex items-center justify-center text-[8px] text-white">
-                  ✓
+          {/* Assigned Professional Card or Truthful Waiting State */}
+          {booking.assignedPartnerId ? (
+            <div className="p-4 rounded-xl bg-white border border-[#E2E8F0] shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full bg-[#0B2A4A] text-white flex items-center justify-center font-bold text-base border-2 border-[#2FA84F]">
+                    {booking.assignedPartnerName?.charAt(0) || 'P'}
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#2FA84F] border-2 border-white flex items-center justify-center text-[8px] text-white">
+                    ✓
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-[#0B2A4A]">{booking.assignedPartnerName}</h4>
+                    <span className="text-[10px] font-bold bg-[#EBF8EE] text-[#2FA84F] px-2 py-0.5 rounded-full">
+                      Verified Pro ✓
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                    <span className="flex items-center gap-1 text-amber-500 font-bold">
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      <span>{booking.partnerRating || '4.88'}</span>
+                    </span>
+                    <span>&bull;</span>
+                    <span>Diversey Taski Certified</span>
+                  </div>
                 </div>
               </div>
 
-              <div>
+              {booking.assignedPartnerPhone && (
                 <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-[#0B2A4A]">Rakesh Kumar (Lead Specialist)</h4>
-                  <span className="text-[10px] font-bold bg-[#EBF8EE] text-[#2FA84F] px-2 py-0.5 rounded-full">
-                    Aadhaar Verified
-                  </span>
+                  <a
+                    href={`tel:${booking.assignedPartnerPhone}`}
+                    className="px-3.5 py-1.5 rounded-full bg-[#0B2A4A] text-white text-xs font-bold hover:bg-[#071E36] transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Call Pro</span>
+                  </a>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
-                  <span className="flex items-center gap-1 text-amber-500 font-bold">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    <span>4.94 (340+ homes)</span>
-                  </span>
-                  <span>&bull;</span>
-                  <span>Diversey Certified Specialist</span>
-                </div>
-              </div>
+              )}
             </div>
-
-            <div className="flex items-center gap-2">
-              <a
-                href="tel:+918920252647"
-                className="px-3.5 py-1.5 rounded-full bg-[#0B2A4A] text-white text-xs font-bold hover:bg-[#071E36] transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                <span>Call Pro</span>
-              </a>
+          ) : (
+            <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200/90 text-xs space-y-1">
+              <span className="font-bold text-[#0B2A4A] block text-sm">
+                Your booking is confirmed. Our team is assigning a professional to your booking.
+              </span>
+              <p className="text-gray-600">
+                Admin dispatch is reviewing certified specialists in your hub sector. Your assigned professional details, photo, and direct phone link will appear here as soon as assigned.
+              </p>
             </div>
-          </div>
+          )}
 
           {/* OTP Verification & Safety Box */}
           <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-2.5">
@@ -254,47 +240,28 @@ export const LiveTrackingModal: React.FC<LiveTrackingModalProps> = ({
               <span className="font-bold text-[#0B2A4A] text-right truncate max-w-[280px]">{booking.address.street}, {booking.address.city}</span>
             </div>
             <div className="flex justify-between pt-2 border-t border-gray-100">
-              <span className="text-gray-500">Total Payable:</span>
-              <span className="font-extrabold text-[#2FA84F] text-sm">₹{booking.totalAmount.toLocaleString('en-IN')}</span>
+              <span className="text-gray-500">Total Amount:</span>
+              <span className="font-extrabold text-[#2FA84F] text-sm">₹{booking.totalAmount.toLocaleString('en-IN')} ({booking.paymentStatus})</span>
             </div>
           </div>
 
-          {/* Simulation Controls for testing */}
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-400">
-            <span>Progress demo:</span>
-            <div className="flex gap-1.5">
-              <button 
-                onClick={() => handleSimulateStatus('ON_THE_WAY')} 
-                className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-[#0B2A4A] rounded cursor-pointer"
-              >
-                On Way
-              </button>
-              <button 
-                onClick={() => handleSimulateStatus('ARRIVED')} 
-                className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-[#0B2A4A] rounded cursor-pointer"
-              >
-                Arrived
-              </button>
-              <button 
-                onClick={() => handleSimulateStatus('IN_PROGRESS')} 
-                className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 text-[#0B2A4A] rounded cursor-pointer"
-              >
-                Started
-              </button>
-              <button 
-                onClick={() => handleSimulateStatus('COMPLETED')} 
-                className="px-2 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded font-bold cursor-pointer"
-              >
-                Complete
-              </button>
-            </div>
+          {/* Official Tax Invoice Download Button */}
+          <div className="pt-1 flex items-center justify-between">
+            <span className="text-[11px] text-gray-500">Need official bill for GST claim?</span>
+            <button
+              onClick={handleOpenInvoice}
+              className="px-3 py-1.5 rounded-xl bg-white border border-[#0B2A4A] text-[#0B2A4A] font-bold text-xs flex items-center gap-1.5 hover:bg-neutral-50 cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Official GST Invoice</span>
+            </button>
           </div>
         </div>
 
         {/* Footer */}
         <div className="p-4 px-6 border-t border-[#E2E8F0] bg-[#F8FAFC] flex items-center justify-between">
           <div className="text-xs text-gray-500">
-            Need urgent help? <a href="tel:+919876543210" className="font-bold text-[#0B2A4A] hover:underline">Call Helpline</a>
+            Need help? <a href="tel:+918920252647" className="font-bold text-[#0B2A4A] hover:underline">Customer Support</a>
           </div>
           <button
             onClick={onClose}
@@ -303,6 +270,63 @@ export const LiveTrackingModal: React.FC<LiveTrackingModalProps> = ({
             Close Tracking
           </button>
         </div>
+
+        {/* INVOICE MODAL */}
+        {showInvoiceModal && invoice && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-4">
+              <div className="flex justify-between items-start border-b border-gray-200 pb-3">
+                <div>
+                  <h3 className="font-bold text-base text-[#0B2A4A]">Bharat Pro Expert Tax Invoice</h3>
+                  <span className="text-[11px] text-gray-500">GSTIN: {invoice.companyGstin} &bull; SAC: {invoice.sacCode}</span>
+                </div>
+                <button onClick={() => setShowInvoiceModal(false)} className="p-1 rounded-full hover:bg-gray-100">
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="space-y-1.5 text-xs text-gray-700">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Invoice Number:</span>
+                  <span className="font-mono font-bold">{invoice.invoiceNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Booking Reference:</span>
+                  <span className="font-mono font-bold">#{invoice.bookingNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Customer:</span>
+                  <span className="font-bold">{invoice.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Taxable Value:</span>
+                  <span>₹{invoice.taxableAmount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">CGST (2.5%):</span>
+                  <span>₹{invoice.cgst}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">SGST (2.5%):</span>
+                  <span>₹{invoice.sgst}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-gray-200 font-bold text-sm text-[#0B2A4A]">
+                  <span>Total Paid:</span>
+                  <span>₹{invoice.totalPaid}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2 rounded-xl bg-[#0B2A4A] text-white text-xs font-bold cursor-pointer"
+                >
+                  Print / Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

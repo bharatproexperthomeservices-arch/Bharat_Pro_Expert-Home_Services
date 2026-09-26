@@ -30,6 +30,7 @@ import { AdminQualityAndTraining } from './admin/AdminQualityAndTraining';
 import { AdminInventorySupplies } from './admin/AdminInventorySupplies';
 import { AdminCustomerAndCMS } from './admin/AdminCustomerAndCMS';
 import { AdminGovernanceAndAudit } from './admin/AdminGovernanceAndAudit';
+import { AdminFinanceAndSettlementSuite } from './admin/AdminFinanceAndSettlementSuite';
 import { 
   BarChart3, 
   Users, 
@@ -333,7 +334,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </span>
             {[
               { key: 'BOOKINGS', label: '06 Bookings & Snapshots', icon: ShieldCheck, count: bookings.length },
-              { key: 'FINANCE', label: '15 Finance & 18% GST', icon: Receipt },
+              { key: 'FINANCE', label: '15 Finance & Settlements (5% GST)', icon: Receipt },
               { key: 'COUPONS', label: '13, 14, 16 CRM, CMS & Offers', icon: Tag }
             ].map(tab => {
               const Icon = tab.icon;
@@ -671,107 +672,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             />
           )}
 
-          {/* MODULE 15: FINANCE & GST */}
+          {/* MODULE 15: FINANCE & SETTLEMENT ENGINE */}
           {activeTab === 'FINANCE' && (
-            <div className="space-y-6">
-              <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold tracking-wider uppercase">
-                      Audited Ledger
-                    </span>
-                    <span className="text-xs text-[#8E8E93]">Indian Tax &amp; Commission Breakdown</span>
-                  </div>
-                  <h3 className="text-lg font-bold font-['Outfit'] text-[#1C1C1E] mt-0.5">
-                    Payments, GST &amp; Partner Settlement
-                  </h3>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] text-right">
-                    <span className="text-[10px] text-[#8E8E93] block font-bold uppercase">Customer Savings Delivered</span>
-                    <span className="text-base font-black text-emerald-600">₹{totalCustomerSavings.toLocaleString('en-IN')}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Ledger Summary Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-1">
-                  <span className="text-xs text-[#8E8E93] font-medium">Gross Bookings (GMV)</span>
-                  <p className="text-2xl font-black text-[#1C1C1E]">₹{totalRevenue.toLocaleString('en-IN')}</p>
-                  <span className="text-[11px] text-[#8E8E93] block">Paid via UPI / Card / COD</span>
-                </div>
-
-                <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-1">
-                  <span className="text-xs text-[#8E8E93] font-medium">18% GST Collected</span>
-                  <p className="text-2xl font-black text-amber-600">₹{totalGstCollected.toLocaleString('en-IN')}</p>
-                  <span className="text-[11px] text-amber-700 font-semibold block">Statutory Remittance</span>
-                </div>
-
-                <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-1">
-                  <span className="text-xs text-[#8E8E93] font-medium">Platform / Safety Fees</span>
-                  <p className="text-2xl font-black text-[#1C1C1E]">₹{totalPlatformFees.toLocaleString('en-IN')}</p>
-                  <span className="text-[11px] text-[#8E8E93] block">₹49 Standard per booking</span>
-                </div>
-
-                <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-1">
-                  <span className="text-xs text-[#8E8E93] font-medium">Partner Payouts (80%)</span>
-                  <p className="text-2xl font-black text-emerald-700">
-                    ₹{Math.round(bookings.filter(b => b.status === 'COMPLETED').reduce((sum, b) => sum + (b.basePrice * 0.8), 0)).toLocaleString('en-IN')}
-                  </p>
-                  <span className="text-[11px] text-emerald-800 font-semibold block">Completed Job Remittances</span>
-                </div>
-              </div>
-
-              {/* Transactions Audit Table */}
-              <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
-                <h4 className="text-sm font-bold text-[#1C1C1E]">
-                  Recent Transaction Invoices &amp; Gateway IDs
-                </h4>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-[#E5E5EA] text-[#8E8E93]">
-                        <th className="pb-3 font-semibold">Booking ID</th>
-                        <th className="pb-3 font-semibold">Transaction Ref</th>
-                        <th className="pb-3 font-semibold">Customer</th>
-                        <th className="pb-3 font-semibold">Method</th>
-                        <th className="pb-3 font-semibold">Base Price</th>
-                        <th className="pb-3 font-semibold">18% GST</th>
-                        <th className="pb-3 font-semibold text-right">Total Net</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#F2F2F7]">
-                      {bookings.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="py-6 text-center text-[#8E8E93]">
-                            No transactions recorded yet.
-                          </td>
-                        </tr>
-                      ) : (
-                        bookings.map((b) => (
-                          <tr key={b.id} className="hover:bg-[#F8F9FB]">
-                            <td className="py-3 font-mono font-bold text-[#1C1C1E]">#{b.bookingNumber}</td>
-                            <td className="py-3 font-mono text-[#8E8E93]">{b.transactionId || 'TXN_SIMULATED'}</td>
-                            <td className="py-3 font-medium text-[#1C1C1E]">{b.customerName}</td>
-                            <td className="py-3">
-                              <span className="px-2 py-0.5 rounded bg-neutral-100 text-neutral-800 font-medium text-[10px]">
-                                {b.paymentMethod}
-                              </span>
-                            </td>
-                            <td className="py-3 text-[#1C1C1E]">₹{b.basePrice}</td>
-                            <td className="py-3 text-amber-700 font-semibold">₹{b.taxesGst || Math.round(b.basePrice * 0.18)}</td>
-                            <td className="py-3 text-right font-black text-[#1C1C1E]">₹{b.totalAmount}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+            <AdminFinanceAndSettlementSuite
+              bookings={bookings}
+              partners={partners}
+              onAuditLog={handleAuditLog}
+            />
           )}
 
           {/* MODULE 17-22: GOVERNANCE, RBAC, COMPLAINTS, AUDIT */}

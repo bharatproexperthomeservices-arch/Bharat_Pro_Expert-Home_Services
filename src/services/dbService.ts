@@ -409,7 +409,10 @@ export const updateBookingStatusWithOtp = async (
   const nowIso = new Date().toISOString();
 
   // Partner status transitions
-  if (newStatus === 'ON_THE_WAY' || newStatus === 'PARTNER_ON_THE_WAY') {
+  if (newStatus === 'ACCEPTED' || newStatus === 'PARTNER_ACCEPTED') {
+    booking.acceptedPartnerId = booking.assignedPartnerId;
+    booking.acceptedAt = nowIso;
+  } else if (newStatus === 'ON_THE_WAY' || newStatus === 'PARTNER_ON_THE_WAY') {
     booking.onTheWayAt = nowIso;
   } else if (newStatus === 'ARRIVED') {
     booking.arrivedAt = nowIso;
@@ -428,6 +431,9 @@ export const updateBookingStatusWithOtp = async (
       }
       booking.completionVerifiedAt = nowIso;
     }
+    // Record fulfillment partner for accurate settlement payout
+    booking.completedByPartnerId = booking.assignedPartnerId;
+    booking.settledToPartnerId = booking.assignedPartnerId;
     booking.jobFinishedAt = nowIso;
     booking.paymentStatus = 'PAID';
   } else if (newStatus === 'CANCELLED') {

@@ -299,10 +299,14 @@ export interface BumperOffer {
 
 export type JobStatus = 
   | 'PENDING'
+  | 'PAYMENT_PENDING'
+  | 'PAYMENT_CONFIRMED'
+  | 'ASSIGNMENT_PENDING'
   | 'SEARCHING_PROFESSIONAL'
   | 'CONFIRMED'
   | 'ASSIGNED'
   | 'PARTNER_ASSIGNED'
+  | 'PARTNER_ACCEPTED'
   | 'ACCEPTED'
   | 'PARTNER_ON_THE_WAY'
   | 'ON_THE_WAY'
@@ -310,7 +314,17 @@ export type JobStatus =
   | 'STARTED'
   | 'IN_PROGRESS'
   | 'COMPLETED'
-  | 'CANCELLED';
+  | 'SETTLEMENT_PROCESSING'
+  | 'SETTLED'
+  | 'CANCELLED_BY_CUSTOMER'
+  | 'CANCELLED_BY_PARTNER'
+  | 'CANCELLED_BY_ADMIN'
+  | 'CANCELLED'
+  | 'PAYMENT_FAILED'
+  | 'PAYMENT_REFUNDED'
+  | 'DISPUTED'
+  | 'SETTLEMENT_ON_HOLD'
+  | 'SETTLEMENT_FAILED';
 
 export interface AssignmentHistoryEntry {
   id: string;
@@ -366,14 +380,23 @@ export interface Booking {
   otpVerifiedAt?: string;
   completionVerifiedAt?: string;
 
-  // Partner details
+  // Partner Assignment & Fulfillment Details
   status: JobStatus;
   assignedPartnerId?: string;
   assignedPartnerName?: string;
   assignedPartnerPhone?: string;
   assignedPartnerAvatar?: string;
+  assignedByAdminId?: string;
   assignedHubId?: string;
   assignedHubName?: string;
+  
+  // Explicit Tracking of Actual Service Fulfillment
+  acceptedPartnerId?: string;
+  completedByPartnerId?: string;
+  settledToPartnerId?: string;
+  settlementId?: string;
+  settlementStatus?: 'PENDING' | 'PROCESSING' | 'SETTLED' | 'ON_HOLD' | 'FAILED';
+
   partnerRating?: number;
   partnerCompletedJobs?: number;
   partnerReview?: string;
@@ -480,4 +503,198 @@ export interface WhatsAppLog {
   messageSnippet: string;
   status: 'SENT' | 'DELIVERED' | 'FAILED';
   timestamp: string;
+}
+
+// ==================== PARTNER KYC & BANK ====================
+export interface PartnerBankAccount {
+  id: string;
+  partnerId: string;
+  accountHolderName: string;
+  accountNumberMasked: string; // e.g. "XXXXXX1234"
+  accountNumberHash?: string;
+  ifsc: string;
+  bankName: string;
+  upiId?: string;
+  verificationStatus: 'BANK_PENDING' | 'BANK_VERIFIED' | 'BANK_REJECTED';
+  verifiedAt?: string;
+  updatedAt: string;
+}
+
+export interface PartnerKYC {
+  id: string;
+  partnerId: string;
+  fullName: string;
+  mobile: string;
+  panNumber: string;
+  aadhaarNumberMasked: string;
+  documents: {
+    panDocUrl?: string;
+    aadhaarFrontUrl?: string;
+    aadhaarBackUrl?: string;
+  };
+  status: 'KYC_PENDING' | 'KYC_SUBMITTED' | 'KYC_VERIFIED' | 'KYC_REJECTED';
+  verifiedAt?: string;
+  verifiedBy?: string;
+  rejectionReason?: string;
+  submittedAt: string;
+}
+
+// ==================== FINANCIAL & SETTLEMENT ENGINE ====================
+export interface SettlementConfiguration {
+  id: string;
+  gstRate: number; // default 0.05 (5%)
+  gstMode: 'INCLUSIVE' | 'EXCLUSIVE';
+  commissionRate: number; // default 0.15 (15%)
+  commissionBase: 'GROSS' | 'NET_BEFORE_TAX';
+  platformFeeType: 'FLAT' | 'PERCENT';
+  platformFeeAmount: number; // default 10 (₹10)
+  settlementHoldPeriodHours: number; // default 24 hours
+  minimumPayoutAmount: number; // default ₹100
+  payoutEnabled: boolean;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export type SettlementStatus = 
+  | 'CREATED'
+  | 'CALCULATED'
+  | 'APPROVED'
+  | 'PAYOUT_INITIATED'
+  | 'PROCESSING'
+  | 'SUCCESS'
+  | 'PAYOUT_FAILED'
+  | 'PAYOUT_RETRY'
+  | 'PAYOUT_ON_HOLD'
+  | 'CANCELLED';
+
+export interface Settlement {
+  id: string; // SET-YYYYMMDD-XXXXXX
+  bookingId: string;
+  bookingNumber: string;
+  partnerId: string;
+  partnerName: string;
+  
+  // Breakdown
+  grossAmount: number;
+  discountAmount: number;
+  customerPaidAmount: number;
+  taxableAmount: number;
+  taxAmount: number;
+  companyCommission: number;
+  platformFee: number;
+  refundAmount: number;
+  otherAdjustments: number;
+  partnerPayableAmount: number;
+
+  // Status & Provider
+  status: SettlementStatus;
+  payoutProvider: 'RAZORPAY_PAYOUTS' | 'MANUAL_BANK_TRANSFER' | 'MOCK_SANDBOX';
+  payoutReference?: string;
+  idempotencyKey: string;
+  failureReason?: string;
+  isEligible: boolean;
+  eligibilityNotes?: string[];
+  
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
+  processedAt?: string;
+  settledAt?: string;
+}
+
+// ==================== LEDGER & DISPUTE ====================
+export interface PartnerLedgerEntry {
+  id: string;
+  partnerId: string;
+  bookingId?: string;
+  bookingNumber?: string;
+  settlementId?: string;
+  type: 
+    | 'JOB_EARNING'
+    | 'COMMISSION_DEDUCTION'
+    | 'PLATFORM_FEE'
+    | 'TAX_DEDUCTION'
+    | 'PAYOUT'
+    | 'ADJUSTMENT'
+    | 'DISPUTE_HOLD';
+  amount: number; // positive for credit, negative for debit
+  balance: number;
+  description: string;
+  payoutReference?: string;
+  createdAt: string;
+}
+
+export interface CompanyLedgerEntry {
+  id: string;
+  bookingId?: string;
+  bookingNumber?: string;
+  settlementId?: string;
+  type: 
+    | 'CUSTOMER_COLLECTION'
+    | 'COMMISSION_EARNED'
+    | 'PLATFORM_FEE'
+    | 'TAX_COLLECTED'
+    | 'PARTNER_PAYOUT'
+    | 'REFUND'
+    | 'ADJUSTMENT';
+  amount: number;
+  balance: number;
+  description: string;
+  createdAt: string;
+}
+
+export interface FinancialAuditLog {
+  id: string;
+  actor: string;
+  actorRole: string;
+  action: string;
+  entityType: 'SETTLEMENT' | 'CONFIGURATION' | 'PAYOUT' | 'DISPUTE' | 'REFUND' | 'ADJUSTMENT';
+  entityId: string;
+  previousValue?: any;
+  newValue?: any;
+  reason?: string;
+  timestamp: string;
+}
+
+export interface DisputeRecord {
+  id: string;
+  bookingId: string;
+  bookingNumber: string;
+  partnerId: string;
+  partnerName: string;
+  customerId: string;
+  customerName: string;
+  status: 'DISPUTE_OPEN' | 'SETTLEMENT_ON_HOLD' | 'DISPUTE_RESOLVED' | 'SETTLEMENT_RELEASED';
+  reason: string;
+  resolutionNotes?: string;
+  refundAmount?: number;
+  createdAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+}
+
+export interface CustomerInvoice {
+  invoiceNumber: string;
+  bookingNumber: string;
+  bookingDate: string;
+  serviceDate: string;
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  serviceName: string;
+  baseAmount: number;
+  taxableAmount: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  platformFee: number;
+  discount: number;
+  totalPaid: number;
+  paymentMethod: string;
+  transactionId: string;
+  companyName: string;
+  companyGstin: string;
+  companyPan: string;
+  sacCode: string; // 998533 (Disinfection and pest control / cleaning services)
+  issuedAt: string;
 }

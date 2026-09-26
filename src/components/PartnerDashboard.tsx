@@ -14,6 +14,21 @@ import {
   submitPartnerApplication,
   getOrSeedPartners 
 } from '../services/partnerAuthService';
+import { 
+  getSettlementConfig, 
+  calculateSettlementBreakdown, 
+  getAllSettlements, 
+  getPartnerBankAccount, 
+  savePartnerBankAccount, 
+  getPartnerKYC, 
+  savePartnerKYC 
+} from '../services/settlementService';
+import { 
+  Settlement, 
+  SettlementConfiguration, 
+  PartnerBankAccount, 
+  PartnerKYC 
+} from '../types';
 import { OWNER_EMAIL } from '../services/emailService';
 import { INITIAL_HUBS } from '../data';
 import { BharatProLogo } from './BharatProLogo';
@@ -40,7 +55,9 @@ import {
   ExternalLink,
   LogOut,
   Send,
-  UserPlus
+  UserPlus,
+  Building,
+  Check
 } from 'lucide-react';
 
 interface PartnerDashboardProps {
@@ -87,6 +104,28 @@ export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCust
   const [otpError, setOtpError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<boolean>(false);
 
+  // Settlement & Financial State
+  const [settlementConfig, setSettlementConfig] = useState<SettlementConfiguration | null>(null);
+  const [partnerSettlements, setPartnerSettlements] = useState<Settlement[]>([]);
+  const [bankAccount, setBankAccount] = useState<PartnerBankAccount | null>(null);
+  const [kycRecord, setKycRecord] = useState<PartnerKYC | null>(null);
+
+  // Bank Form State
+  const [bankHolderName, setBankHolderName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankIfsc, setBankIfsc] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankUpiId, setBankUpiId] = useState('');
+  const [bankSaving, setBankSaving] = useState(false);
+  const [bankSuccess, setBankSuccess] = useState<string | null>(null);
+
+  // KYC Form State
+  const [kycFullName, setKycFullName] = useState('');
+  const [kycPan, setKycPan] = useState('');
+  const [kycAadhaar, setKycAadhaar] = useState('');
+  const [kycSaving, setKycSaving] = useState(false);
+  const [kycSuccess, setKycSuccess] = useState<string | null>(null);
+
   // Check saved session on mount
   useEffect(() => {
     const existing = getPartnerSession();
@@ -99,15 +138,40 @@ export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCust
   const loadData = async () => {
     setLoading(true);
     try {
-      const [prts, bks] = await Promise.all([
+      const [prts, bks, cfg, setts] = await Promise.all([
         getOrSeedPartners(),
-        getAllBookings()
+        getAllBookings(),
+        getSettlementConfig(),
+        getAllSettlements()
       ]);
       setPartners(prts);
+      setSettlementConfig(cfg);
+      setPartnerSettlements(setts);
+
+      const activeId = authenticatedPartner?.id || selectedPartnerId || (prts[0] ? prts[0].id : '');
       if (prts.length > 0 && !selectedPartnerId && !authenticatedPartner) {
         setSelectedPartnerId(prts[0].id);
       }
       setBookings(bks);
+
+      if (activeId) {
+        const [bRec, kRec] = await Promise.all([
+          getPartnerBankAccount(activeId),
+          getPartnerKYC(activeId)
+        ]);
+        setBankAccount(bRec);
+        setKycRecord(kRec);
+        if (bRec) {
+          setBankHolderName(bRec.accountHolderName);
+          setBankIfsc(bRec.ifsc);
+          setBankName(bRec.bankName);
+          setBankUpiId(bRec.upiId || '');
+        }
+        if (kRec) {
+          setKycFullName(kRec.fullName);
+          setKycPan(kRec.panNumber);
+        }
+      }
     } catch (e) {
       console.warn('Error loading partner dashboard data', e);
     } finally {
@@ -504,21 +568,82 @@ export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCust
     }
   };
 
-  // Financial calculations for partner
+  // Authoritative financial calculations for partner using central SettlementCalculationService
+  const activeCfg = settlementConfig || {
+    id: 'config_default',
+    gstRate: 0.05,
+    gstMode: 'INCLUSIVE',
+    commissionRate: 0.15,
+    commissionBase: 'GROSS',
+    platformFeeType: 'FLAT',
+    platformFeeAmount: 10,
+    settlementHoldPeriodHours: 24,
+    minimumPayoutAmount: 100,
+    payoutEnabled: true,
+    updatedAt: '',
+    updatedBy: ''
+  };
+
   const totalEarned = completedJobs.reduce((sum, b) => {
-    // Partner receives 80% net payout
-    return sum + Math.round(b.totalAmount * 0.80);
+    const calc = calculateSettlementBreakdown(b, activeCfg);
+    return sum + calc.partnerPayableAmount;
   }, 0);
+
+  // Handle saving bank details
+  const handleSaveBankSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPartner) return;
+    setBankSaving(true);
+    setBankSuccess(null);
+    try {
+      const rec = await savePartnerBankAccount(currentPartner.id, {
+        accountHolderName: bankHolderName,
+        accountNumber: bankAccountNumber,
+        ifsc: bankIfsc,
+        bankName: bankName,
+        upiId: bankUpiId
+      });
+      setBankAccount(rec);
+      setBankSuccess('Bank account details saved and verified.');
+    } catch {
+      alert('Failed to save bank details.');
+    } finally {
+      setBankSaving(false);
+    }
+  };
+
+  // Handle saving KYC details
+  const handleSaveKycSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPartner) return;
+    setKycSaving(true);
+    setKycSuccess(null);
+    try {
+      const rec = await savePartnerKYC(currentPartner.id, {
+        fullName: kycFullName,
+        mobile: currentPartner.phone,
+        panNumber: kycPan,
+        aadhaarNumber: kycAadhaar
+      });
+      setKycRecord(rec);
+      setKycSuccess('KYC documents submitted and verified.');
+    } catch {
+      alert('Failed to save KYC documents.');
+    } finally {
+      setKycSaving(false);
+    }
+  };
 
   const renderJobCard = (b: Booking) => {
     const isNewAssigned = b.status === 'ASSIGNED' || b.status === 'PARTNER_ASSIGNED';
-    const isAccepted = b.status === 'ACCEPTED';
+    const isAccepted = b.status === 'ACCEPTED' || b.status === 'PARTNER_ACCEPTED';
     const isOnTheWay = b.status === 'ON_THE_WAY' || b.status === 'PARTNER_ON_THE_WAY';
     const isArrived = b.status === 'ARRIVED';
     const isInProgress = b.status === 'IN_PROGRESS' || b.status === 'STARTED';
     const isFinished = b.status === 'COMPLETED';
 
     const cleanPhone = (b.customerPhone || '').replace(/\D/g, '');
+    const bBreak = calculateSettlementBreakdown(b, activeCfg);
 
     return (
       <div 
@@ -573,8 +698,22 @@ export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCust
               <span className="font-bold text-[#1C1C1E]">₹{b.totalAmount} ({b.paymentMethod})</span>
             </div>
             <div className="flex justify-between items-center text-xs">
-              <span className="text-emerald-700 font-bold">Your Net Payout (80%):</span>
-              <span className="font-black text-sm text-emerald-700">₹{Math.round(b.totalAmount * 0.80)}</span>
+              <span className="text-emerald-700 font-bold">Your Net Payout:</span>
+              <span className="font-black text-sm text-emerald-700">₹{bBreak.partnerPayableAmount}</span>
+            </div>
+            <div className="text-[10px] text-[#8E8E93] pt-1 space-y-0.5 border-t border-dashed border-[#E5E5EA]">
+              <div className="flex justify-between">
+                <span>GST (5%):</span>
+                <span>−₹{bBreak.taxAmount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Company Commission (15%):</span>
+                <span>−₹{bBreak.companyCommission}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Platform Fee:</span>
+                <span>−₹{bBreak.platformFee}</span>
+              </div>
             </div>
             {b.assignedAt && (
               <p className="text-[11px] text-[#8E8E93] pt-1">
@@ -892,30 +1031,63 @@ export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCust
               <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-1">
                 <span className="text-xs text-[#8E8E93] font-bold uppercase">Jobs Closed</span>
                 <h3 className="text-2xl font-black text-[#1C1C1E]">{completedJobs.length}</h3>
-                <p className="text-[11px] text-[#8E8E93]">100% verified with OTP</p>
+                <p className="text-[11px] text-[#8E8E93]">100% verified with Customer OTP</p>
               </div>
               <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-1">
-                <span className="text-xs text-[#8E8E93] font-bold uppercase">Commission Rate</span>
-                <h3 className="text-2xl font-black text-[#B8892E]">80% Partner / 20% Hub</h3>
-                <p className="text-[11px] text-[#8E8E93]">Guaranteed floor pricing</p>
+                <span className="text-xs text-[#8E8E93] font-bold uppercase">Company Rate</span>
+                <h3 className="text-2xl font-black text-[#062A49]">15% Comm. + 5% GST</h3>
+                <p className="text-[11px] text-[#8E8E93]">Platform safety fee: ₹{activeCfg.platformFeeAmount}</p>
               </div>
             </div>
 
             <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-3">
-              <h4 className="font-bold text-[#1C1C1E] text-sm">Payout Settlement History</h4>
+              <div className="flex justify-between items-center">
+                <h4 className="font-bold text-[#1C1C1E] text-sm">Audited Payout Settlement History</h4>
+                <span className="text-xs text-[#8E8E93]">Daily Direct Remittance</span>
+              </div>
+
               <div className="divide-y divide-[#F2F2F7] text-xs">
-                {completedJobs.map(j => (
-                  <div key={j.id} className="py-3 flex justify-between items-center">
-                    <div>
-                      <span className="font-bold text-[#1C1C1E] block">{j.serviceName} &bull; #{j.bookingNumber}</span>
-                      <span className="text-[#8E8E93]">{j.date} &bull; Customer: {j.customerName}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-black text-emerald-700 block">+₹{Math.round(j.totalAmount * 0.80)}</span>
-                      <span className="text-[10px] text-neutral-500 font-mono">UTR-BPE-{j.id.slice(0, 8)}</span>
-                    </div>
-                  </div>
-                ))}
+                {completedJobs.length === 0 ? (
+                  <p className="text-center text-[#8E8E93] py-6">No completed jobs yet.</p>
+                ) : (
+                  completedJobs.map(j => {
+                    const calc = calculateSettlementBreakdown(j, activeCfg);
+                    const matchingSettlement = partnerSettlements.find(s => s.bookingId === j.id);
+                    return (
+                      <div key={j.id} className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-[#1C1C1E]">{j.serviceName}</span>
+                            <span className="font-mono text-[#062A49] font-bold">#{j.bookingNumber}</span>
+                            {matchingSettlement?.status === 'SUCCESS' ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                ✓ PAID TO BANK
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                                ELIGIBLE &bull; PROCESSING
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[#8E8E93] block text-[11px] mt-0.5">
+                            Customer: {j.customerName} &bull; Date: {j.date}
+                          </span>
+                          <span className="text-[10px] text-[#8E8E93]">
+                            Customer Paid: ₹{j.totalAmount} | 5% GST: −₹{calc.taxAmount} | 15% Comm: −₹{calc.companyCommission} | Fee: −₹{calc.platformFee}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-black text-emerald-700 text-base block">
+                            +₹{calc.partnerPayableAmount}
+                          </span>
+                          <span className="text-[10px] text-neutral-500 font-mono">
+                            {matchingSettlement?.payoutReference ? `Ref: ${matchingSettlement.payoutReference}` : 'Pending Next Bank Cycle'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -924,42 +1096,191 @@ export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCust
         {/* TAB 5: PROFILE, KYC & SKILLS */}
         {activeTab === 'PROFILE_KYC' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Bank Details Form */}
             <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
-              <h4 className="font-bold text-sm text-[#1C1C1E] flex items-center gap-2">
-                <FileCheck className="w-4 h-4 text-emerald-600" />
-                <span>KYC &amp; Police Verification Status</span>
-              </h4>
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-2 text-emerald-900">
-                <div className="flex justify-between">
-                  <span className="font-semibold">Aadhaar Card:</span>
-                  <span className="font-bold">Verified (UIDAI Biometric)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Police Clearance Certificate:</span>
-                  <span className="font-bold">Clear (Valid till 2027)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Bank Account:</span>
-                  <span className="font-bold">HDFC Bank (Linked for UPI Instant)</span>
-                </div>
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-sm text-[#1C1C1E] flex items-center gap-2">
+                  <Building className="w-4 h-4 text-[#062A49]" />
+                  <span>Bank Account for Payouts</span>
+                </h4>
+                {bankAccount ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    VERIFIED ✓
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                    SETUP REQUIRED
+                  </span>
+                )}
               </div>
+
+              {bankSuccess && (
+                <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-xs flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  <span>{bankSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveBankSubmit} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-semibold text-[#1C1C1E] mb-1">Account Holder Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={bankHolderName}
+                    onChange={e => setBankHolderName(e.target.value)}
+                    placeholder="As per bank passbook"
+                    className="w-full p-2.5 rounded-xl border border-[#E5E5EA]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-[#1C1C1E] mb-1">
+                    Bank Account Number {bankAccount?.accountNumberMasked && `(Current: ${bankAccount.accountNumberMasked})`}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={bankAccountNumber}
+                    onChange={e => setBankAccountNumber(e.target.value)}
+                    placeholder="Enter account number"
+                    className="w-full p-2.5 rounded-xl border border-[#E5E5EA] font-mono"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold text-[#1C1C1E] mb-1">Bank Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={bankName}
+                      onChange={e => setBankName(e.target.value)}
+                      placeholder="e.g. HDFC Bank"
+                      className="w-full p-2.5 rounded-xl border border-[#E5E5EA]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-[#1C1C1E] mb-1">IFSC Code</label>
+                    <input
+                      type="text"
+                      required
+                      value={bankIfsc}
+                      onChange={e => setBankIfsc(e.target.value.toUpperCase())}
+                      placeholder="e.g. HDFC0001234"
+                      className="w-full p-2.5 rounded-xl border border-[#E5E5EA] font-mono uppercase"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-[#1C1C1E] mb-1">UPI ID (Optional Instant Transfer)</label>
+                  <input
+                    type="text"
+                    value={bankUpiId}
+                    onChange={e => setBankUpiId(e.target.value)}
+                    placeholder="e.g. name@upi"
+                    className="w-full p-2.5 rounded-xl border border-[#E5E5EA]"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={bankSaving}
+                  className="w-full py-2.5 rounded-xl bg-[#062A49] text-white font-bold hover:bg-opacity-90 cursor-pointer shadow-sm"
+                >
+                  {bankSaving ? 'Saving...' : 'Save & Verify Bank Details'}
+                </button>
+              </form>
             </div>
 
+            {/* KYC Form */}
             <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
-              <h4 className="font-bold text-sm text-[#1C1C1E] flex items-center gap-2">
-                <Award className="w-4 h-4 text-[#B8892E]" />
-                <span>Certified Service Skills</span>
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {currentPartner.approvedCategories.map(cat => (
-                  <span key={cat} className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
-                    ✓ {cat.replace(/-/g, ' ').toUpperCase()}
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-sm text-[#1C1C1E] flex items-center gap-2">
+                  <FileCheck className="w-4 h-4 text-emerald-600" />
+                  <span>KYC Identification &amp; Verification</span>
+                </h4>
+                {kycRecord ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    KYC VERIFIED ✓
                   </span>
-                ))}
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                    PENDING
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-[#8E8E93] leading-relaxed">
-                Bharat Pro Expert certified technician with certified German chemicals (Taski R-Series) and extraction vacuum authorization.
-              </p>
+
+              {kycSuccess && (
+                <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-xs flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  <span>{kycSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveKycSubmit} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-semibold text-[#1C1C1E] mb-1">Full Legal Name (as on PAN/Aadhaar)</label>
+                  <input
+                    type="text"
+                    required
+                    value={kycFullName}
+                    onChange={e => setKycFullName(e.target.value)}
+                    placeholder="Full Name"
+                    className="w-full p-2.5 rounded-xl border border-[#E5E5EA]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-[#1C1C1E] mb-1">PAN Card Number</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={10}
+                    value={kycPan}
+                    onChange={e => setKycPan(e.target.value.toUpperCase())}
+                    placeholder="e.g. ABCDE1234F"
+                    className="w-full p-2.5 rounded-xl border border-[#E5E5EA] font-mono uppercase"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-[#1C1C1E] mb-1">
+                    Aadhaar Number (12 digits) {kycRecord?.aadhaarNumberMasked && `(${kycRecord.aadhaarNumberMasked})`}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={12}
+                    value={kycAadhaar}
+                    onChange={e => setKycAadhaar(e.target.value.replace(/\D/g, ''))}
+                    placeholder="12 digit Aadhaar number"
+                    className="w-full p-2.5 rounded-xl border border-[#E5E5EA] font-mono"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={kycSaving}
+                  className="w-full py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 cursor-pointer shadow-sm"
+                >
+                  {kycSaving ? 'Submitting...' : 'Submit & Verify KYC'}
+                </button>
+              </form>
+
+              {/* Skills Badge */}
+              <div className="pt-3 border-t border-[#E5E5EA] space-y-2">
+                <span className="font-bold text-xs text-[#1C1C1E] block">Certified Categories</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {currentPartner.approvedCategories.map(cat => (
+                    <span key={cat} className="px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-bold">
+                      ✓ {cat.replace(/-/g, ' ').toUpperCase()}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
