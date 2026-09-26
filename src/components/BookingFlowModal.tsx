@@ -241,224 +241,224 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
     setLoading(true);
 
-    // If online payment is selected, launch Razorpay Secure Checkout & Verification
-    if (paymentMethod !== 'PAY_AFTER_SERVICE') {
-      const currentKey = getRazorpayKeyId();
-      if (!currentKey) {
-        alert('Razorpay Key ID configure nahi hai. Kripya AI Studio Secrets me RAZORPAY_KEY_ID ya VITE_RAZORPAY_KEY_ID add karein.');
-        setLoading(false);
-        return;
-      }
+    // OPTION 1: "PAY_AFTER_SERVICE" (Cash / Pay Later) skips Razorpay entirely and confirms immediately
+    if (paymentMethod === 'PAY_AFTER_SERVICE') {
+      try {
+        const bookingId = 'bpe_bk_' + Math.random().toString(36).substring(2, 9);
+        const bookingNumber = 'BPE-' + Math.floor(100000 + Math.random() * 900000);
+        const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
+        const completionOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
-      const generatedBookingNumber = 'BPE-' + Math.floor(100000 + Math.random() * 900000);
+        const finalLat = geoCoords?.lat ?? selectedHub.lat;
+        const finalLng = geoCoords?.lng ?? selectedHub.lng;
 
-      await openRazorpayPaymentModal({
-        amount: netTotal,
-        bookingNumber: generatedBookingNumber,
-        serviceName: service.name,
-        homeSize,
-        customerName: name,
-        customerEmail: email || 'customer@bharatproexpert.com',
-        customerPhone: phone,
-        address: `${streetAddress}, ${selectedSector || ''}, ${selectedHub.city}`,
-        onSuccess: async (response) => {
-          try {
-            setCouponMessage(`⌛ Connection established with Razorpay secure node...`);
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            setCouponMessage(`🔐 Cryptographically verifying signature match...`);
-            await new Promise((resolve) => setTimeout(resolve, 600));
-
-            setCouponMessage(`✅ Payment Verified: ${response.razorpay_payment_id}`);
-            await new Promise((resolve) => setTimeout(resolve, 400));
-
-            const bookingId = 'bpe_bk_' + Math.random().toString(36).substring(2, 9);
-            const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
-            const completionOtp = Math.floor(1000 + Math.random() * 9000).toString();
-
-            const finalLat = geoCoords?.lat ?? selectedHub.lat;
-            const finalLng = geoCoords?.lng ?? selectedHub.lng;
-
-            const newBookingRecord: Booking = {
-              id: bookingId,
-              bookingNumber: generatedBookingNumber,
-              customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
-              customerName: name,
-              customerPhone: phone,
-              customerEmail: user?.email || profile?.email || email || 'customer@bharatproexpert.com',
-              serviceId: service.id,
-              serviceName: service.name,
-              categoryName: service.categoryName,
-              date: selectedDate,
-              timeSlot: selectedSlot,
-              assignedHubId: selectedHub.id,
-              address: {
-                street: streetAddress,
-                sector: selectedSector || 'Central Area',
-                city: selectedHub.city,
-                state: selectedHub.state,
-                pincode: pincode || '122002',
-                lat: finalLat,
-                lng: finalLng
-              },
-              selectedAddons,
-              basePrice: service.basePrice,
-              addonsPrice: addonsTotal,
-              taxesGst,
-              convenienceFee,
-              discount: discountAmount,
-              totalAmount: netTotal,
-              appliedCoupon: discountAmount > 0 ? couponCode : undefined,
-              unlockedBumperOffer: unlockedOffer ? unlockedOffer.freeItemDescription : undefined,
-              priceSnapshot: {
-                basePrice: service.basePrice,
-                referencePrice: service.referencePrice || Math.round(service.basePrice / 0.85),
-                customerSavings: (service.referencePrice || Math.round(service.basePrice / 0.85)) - service.basePrice,
-                discountPct: service.discountPct || 15,
-                pricingMode: service.pricingMode || 'REFERENCE_PERCENT',
-                priceVersion: 'v1.0.0',
-                addonsPrice: addonsTotal,
-                taxesGst,
-                convenienceFee,
-                discount: discountAmount,
-                totalAmount: netTotal,
-                capturedAt: new Date().toISOString()
-              },
-              paymentMethod,
-              paymentStatus: 'PAID',
-              transactionId: response.razorpay_payment_id || 'TXN_ONLINE_VERIFIED',
-              razorpayDetails: {
-                paymentId: response.razorpay_payment_id || '',
-                orderId: response.razorpay_order_id || '',
-                signature: response.razorpay_signature || '',
-                verifiedAt: new Date().toISOString(),
-                verificationStatus: 'SUCCESS_VERIFIED'
-              },
-              startOtp,
-              completionOtp,
-              status: 'SEARCHING_PROFESSIONAL',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            };
-
-            const created = await createNewBooking(newBookingRecord);
-
-            try {
-              confetti({
-                particleCount: 80,
-                spread: 70,
-                origin: { y: 0.6 }
-              });
-            } catch {}
-
-            setConfirmedBookingRecord(created);
-            setStep(4);
-            onBookingSuccess(created);
-          } catch (err) {
-            console.error('Booking generation failed after payment success:', err);
-            alert('Payment was successfully processed but booking creation failed. Please contact support immediately with your payment ID: ' + response.razorpay_payment_id);
-          } finally {
-            setLoading(false);
-          }
-        },
-        onDismiss: () => {
-          setLoading(false);
-          setCouponMessage('❌ Payment checkout cancelled.');
-        },
-        onError: (err: any) => {
-          setLoading(false);
-          const desc = err?.description || err?.message || 'Payment window could not be opened';
-          console.error('[BookingFlowModal] Razorpay checkout error:', err);
-          alert(`Razorpay Error: ${desc}`);
-        }
-      });
-      return;
-    }
-
-    // CASH ON DELIVERY / PAY AFTER SERVICE FLOW
-    try {
-      const bookingId = 'bpe_bk_' + Math.random().toString(36).substring(2, 9);
-      const bookingNumber = 'BPE-' + Math.floor(100000 + Math.random() * 900000);
-      const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
-      const completionOtp = Math.floor(1000 + Math.random() * 9000).toString();
-
-      const finalLat = geoCoords?.lat ?? selectedHub.lat;
-      const finalLng = geoCoords?.lng ?? selectedHub.lng;
-
-      const newBookingRecord: Booking = {
-        id: bookingId,
-        bookingNumber,
-        customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
-        customerName: name,
-        customerPhone: phone,
-        customerEmail: user?.email || profile?.email || 'bharatproexpert@gmail.com',
-        serviceId: service.id,
-        serviceName: service.name,
-        categoryName: service.categoryName,
-        date: selectedDate,
-        timeSlot: selectedSlot,
-        assignedHubId: selectedHub.id,
-        address: {
-          street: streetAddress,
-          sector: selectedSector || 'Central Area',
-          city: selectedHub.city,
-          state: selectedHub.state,
-          pincode: pincode || '122002',
-          lat: finalLat,
-          lng: finalLng
-        },
-        selectedAddons,
-        basePrice: service.basePrice,
-        addonsPrice: addonsTotal,
-        taxesGst,
-        convenienceFee,
-        discount: discountAmount,
-        totalAmount: netTotal,
-        appliedCoupon: discountAmount > 0 ? couponCode : undefined,
-        unlockedBumperOffer: unlockedOffer ? unlockedOffer.freeItemDescription : undefined,
-        priceSnapshot: {
+        const newBookingRecord: Booking = {
+          id: bookingId,
+          bookingNumber,
+          customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
+          customerName: name,
+          customerPhone: phone,
+          customerEmail: user?.email || profile?.email || email || 'customer@bharatproexpert.com',
+          serviceId: service.id,
+          serviceName: service.name,
+          categoryName: service.categoryName,
+          date: selectedDate,
+          timeSlot: selectedSlot,
+          assignedHubId: selectedHub.id,
+          address: {
+            street: streetAddress,
+            sector: selectedSector || 'Central Area',
+            city: selectedHub.city,
+            state: selectedHub.state,
+            pincode: pincode || '122002',
+            lat: finalLat,
+            lng: finalLng
+          },
+          selectedAddons,
           basePrice: service.basePrice,
-          referencePrice: service.referencePrice || Math.round(service.basePrice / 0.85),
-          customerSavings: (service.referencePrice || Math.round(service.basePrice / 0.85)) - service.basePrice,
-          discountPct: service.discountPct || 15,
-          pricingMode: service.pricingMode || 'REFERENCE_PERCENT',
-          priceVersion: 'v1.0.0',
           addonsPrice: addonsTotal,
           taxesGst,
           convenienceFee,
           discount: discountAmount,
           totalAmount: netTotal,
-          capturedAt: new Date().toISOString()
-        },
-        paymentMethod,
-        paymentStatus: 'PENDING',
-        transactionId: 'TXN_' + Math.random().toString(36).substring(2, 10).toUpperCase(),
-        startOtp,
-        completionOtp,
-        status: 'SEARCHING_PROFESSIONAL',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+          appliedCoupon: discountAmount > 0 ? couponCode : undefined,
+          unlockedBumperOffer: unlockedOffer ? unlockedOffer.freeItemDescription : undefined,
+          priceSnapshot: {
+            basePrice: service.basePrice,
+            referencePrice: service.referencePrice || Math.round(service.basePrice / 0.85),
+            customerSavings: (service.referencePrice || Math.round(service.basePrice / 0.85)) - service.basePrice,
+            discountPct: service.discountPct || 15,
+            pricingMode: service.pricingMode || 'REFERENCE_PERCENT',
+            priceVersion: 'v1.0.0',
+            addonsPrice: addonsTotal,
+            taxesGst,
+            convenienceFee,
+            discount: discountAmount,
+            totalAmount: netTotal,
+            capturedAt: new Date().toISOString()
+          },
+          paymentMethod: 'PAY_AFTER_SERVICE',
+          paymentStatus: 'PENDING',
+          transactionId: 'TXN_' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+          startOtp,
+          completionOtp,
+          status: 'SEARCHING_PROFESSIONAL',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
 
-      const created = await createNewBooking(newBookingRecord);
+        const created = await createNewBooking(newBookingRecord);
 
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      } catch {}
+        try {
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        } catch {}
 
-      setConfirmedBookingRecord(created);
-      setStep(4);
-      onBookingSuccess(created);
-    } catch (err) {
-      console.error('Booking failed:', err);
-      alert('Failed to place booking. Please retry.');
-    } finally {
-      setLoading(false);
+        setConfirmedBookingRecord(created);
+        setStep(4);
+        onBookingSuccess(created);
+      } catch (err) {
+        console.error('Booking failed:', err);
+        alert('Failed to place booking. Please retry.');
+      } finally {
+        setLoading(false);
+      }
+      return;
     }
+
+    // OPTION 2: Online Payment (UPI, Card, Net Banking) - Requires Razorpay verified payment
+    const currentKey = getRazorpayKeyId();
+    if (!currentKey) {
+      alert('Razorpay Payment Gateway Key configure nahi hai. Kripya AI Studio Secrets me RAZORPAY_KEY_ID ya VITE_RAZORPAY_KEY_ID add karein.');
+      setLoading(false);
+      return;
+    }
+
+    const generatedBookingNumber = 'BPE-' + Math.floor(100000 + Math.random() * 900000);
+
+    await openRazorpayPaymentModal({
+      amount: netTotal,
+      bookingNumber: generatedBookingNumber,
+      serviceName: service.name,
+      homeSize,
+      customerName: name,
+      customerEmail: email || 'customer@bharatproexpert.com',
+      customerPhone: phone,
+      address: `${streetAddress}, ${selectedSector || ''}, ${selectedHub.city}`,
+      onSuccess: async (response) => {
+        try {
+          setCouponMessage(`⌛ Connection established with Razorpay secure node...`);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          setCouponMessage(`🔐 Cryptographically verifying signature match...`);
+          await new Promise((resolve) => setTimeout(resolve, 600));
+
+          setCouponMessage(`✅ Payment Verified: ${response.razorpay_payment_id}`);
+          await new Promise((resolve) => setTimeout(resolve, 400));
+
+          const bookingId = 'bpe_bk_' + Math.random().toString(36).substring(2, 9);
+          const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
+          const completionOtp = Math.floor(1000 + Math.random() * 9000).toString();
+
+          const finalLat = geoCoords?.lat ?? selectedHub.lat;
+          const finalLng = geoCoords?.lng ?? selectedHub.lng;
+
+          const newBookingRecord: Booking = {
+            id: bookingId,
+            bookingNumber: generatedBookingNumber,
+            customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
+            customerName: name,
+            customerPhone: phone,
+            customerEmail: user?.email || profile?.email || email || 'customer@bharatproexpert.com',
+            serviceId: service.id,
+            serviceName: service.name,
+            categoryName: service.categoryName,
+            date: selectedDate,
+            timeSlot: selectedSlot,
+            assignedHubId: selectedHub.id,
+            address: {
+              street: streetAddress,
+              sector: selectedSector || 'Central Area',
+              city: selectedHub.city,
+              state: selectedHub.state,
+              pincode: pincode || '122002',
+              lat: finalLat,
+              lng: finalLng
+            },
+            selectedAddons,
+            basePrice: service.basePrice,
+            addonsPrice: addonsTotal,
+            taxesGst,
+            convenienceFee,
+            discount: discountAmount,
+            totalAmount: netTotal,
+            appliedCoupon: discountAmount > 0 ? couponCode : undefined,
+            unlockedBumperOffer: unlockedOffer ? unlockedOffer.freeItemDescription : undefined,
+            priceSnapshot: {
+              basePrice: service.basePrice,
+              referencePrice: service.referencePrice || Math.round(service.basePrice / 0.85),
+              customerSavings: (service.referencePrice || Math.round(service.basePrice / 0.85)) - service.basePrice,
+              discountPct: service.discountPct || 15,
+              pricingMode: service.pricingMode || 'REFERENCE_PERCENT',
+              priceVersion: 'v1.0.0',
+              addonsPrice: addonsTotal,
+              taxesGst,
+              convenienceFee,
+              discount: discountAmount,
+              totalAmount: netTotal,
+              capturedAt: new Date().toISOString()
+            },
+            paymentMethod,
+            paymentStatus: 'PAID',
+            transactionId: response.razorpay_payment_id || 'TXN_ONLINE_VERIFIED',
+            razorpayDetails: {
+              paymentId: response.razorpay_payment_id || '',
+              orderId: response.razorpay_order_id || '',
+              signature: response.razorpay_signature || '',
+              verifiedAt: new Date().toISOString(),
+              verificationStatus: 'SUCCESS_VERIFIED'
+            },
+            startOtp,
+            completionOtp,
+            status: 'SEARCHING_PROFESSIONAL',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+
+          const created = await createNewBooking(newBookingRecord);
+
+          try {
+            confetti({
+              particleCount: 80,
+              spread: 70,
+              origin: { y: 0.6 }
+            });
+          } catch {}
+
+          setConfirmedBookingRecord(created);
+          setStep(4);
+          onBookingSuccess(created);
+        } catch (err) {
+          console.error('Booking generation failed after payment success:', err);
+          alert('Payment was successfully processed but booking creation failed. Please contact support immediately with your payment ID: ' + response.razorpay_payment_id);
+        } finally {
+          setLoading(false);
+        }
+      },
+      onDismiss: () => {
+        setLoading(false);
+        setCouponMessage('⚠️ Booking cancel: Online payment pura nahi hua.');
+      },
+      onError: (err: any) => {
+        setLoading(false);
+        const desc = err?.description || err?.message || 'Payment window could not be opened';
+        console.error('[BookingFlowModal] Razorpay checkout error:', err);
+        setCouponMessage(`❌ Payment asafal raha: ${desc}`);
+      }
+    });
   };
 
   return (
@@ -900,12 +900,15 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     onClick={() => setPaymentMethod('UPI')}
                     className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                       paymentMethod === 'UPI'
-                        ? 'border-[#B8892E] bg-amber-50/70 shadow-xs'
+                        ? 'border-[#B8892E] bg-amber-50/70 shadow-xs ring-1 ring-[#B8892E]'
                         : 'border-[#E5E5EA] bg-white hover:bg-[#F8F9FB]'
                     }`}
                   >
-                    <span className="text-xs font-bold text-[#1C1C1E]">Instant UPI</span>
-                    <span className="text-[10px] text-[#8E8E93]">GPay, PhonePe</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#1C1C1E]">Instant UPI</span>
+                      <span className="text-sm">📱</span>
+                    </div>
+                    <span className="text-[10px] text-[#8E8E93] mt-1">GPay, PhonePe, QR</span>
                   </button>
 
                   <button
@@ -913,12 +916,15 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     onClick={() => setPaymentMethod('CARD')}
                     className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                       paymentMethod === 'CARD'
-                        ? 'border-[#B8892E] bg-amber-50/70 shadow-xs'
+                        ? 'border-[#B8892E] bg-amber-50/70 shadow-xs ring-1 ring-[#B8892E]'
                         : 'border-[#E5E5EA] bg-white hover:bg-[#F8F9FB]'
                     }`}
                   >
-                    <span className="text-xs font-bold text-[#1C1C1E]">Credit/Debit</span>
-                    <span className="text-[10px] text-[#8E8E93]">Visa, Master</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#1C1C1E]">Credit/Debit</span>
+                      <span className="text-sm">💳</span>
+                    </div>
+                    <span className="text-[10px] text-[#8E8E93] mt-1">Visa, Master</span>
                   </button>
 
                   <button
@@ -926,12 +932,15 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     onClick={() => setPaymentMethod('NET_BANKING')}
                     className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                       paymentMethod === 'NET_BANKING'
-                        ? 'border-[#B8892E] bg-amber-50/70 shadow-xs'
+                        ? 'border-[#B8892E] bg-amber-50/70 shadow-xs ring-1 ring-[#B8892E]'
                         : 'border-[#E5E5EA] bg-white hover:bg-[#F8F9FB]'
                     }`}
                   >
-                    <span className="text-xs font-bold text-[#1C1C1E]">Net Banking</span>
-                    <span className="text-[10px] text-[#8E8E93]">All Indian Banks</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#1C1C1E]">Net Banking</span>
+                      <span className="text-sm">🏛️</span>
+                    </div>
+                    <span className="text-[10px] text-[#8E8E93] mt-1">Indian Banks</span>
                   </button>
 
                   <button
@@ -939,12 +948,15 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     onClick={() => setPaymentMethod('PAY_AFTER_SERVICE')}
                     className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                       paymentMethod === 'PAY_AFTER_SERVICE'
-                        ? 'border-[#B8892E] bg-amber-50/70 shadow-xs'
+                        ? 'border-[#B8892E] bg-amber-50/70 shadow-xs ring-1 ring-[#B8892E]'
                         : 'border-[#E5E5EA] bg-white hover:bg-[#F8F9FB]'
                     }`}
                   >
-                    <span className="text-xs font-bold text-[#1C1C1E]">Cash / Pay Later</span>
-                    <span className="text-[10px] text-emerald-700 font-bold">After Inspection</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#1C1C1E]">Pay Later</span>
+                      <span className="text-sm">💵</span>
+                    </div>
+                    <span className="text-[10px] text-emerald-700 font-bold mt-1">After Service</span>
                   </button>
                 </div>
               </div>
@@ -985,8 +997,12 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                   <span className="font-bold text-[#062A49] text-right truncate max-w-[200px]">{confirmedBookingRecord.address.street}, {confirmedBookingRecord.address.city}</span>
                 </div>
                 <div className="flex justify-between pb-1.5 border-b border-[#D0E7F9]">
-                  <span className="text-gray-500">Amount:</span>
-                  <span className="font-extrabold text-[#2FA84F]">₹{confirmedBookingRecord.totalAmount} ({paymentMethod === 'PAY_AFTER_SERVICE' ? 'Pay After Service' : 'Paid'})</span>
+                  <span className="text-gray-500">Payment Status:</span>
+                  <span className="font-extrabold text-[#2FA84F]">₹{confirmedBookingRecord.totalAmount} (PAID &amp; VERIFIED)</span>
+                </div>
+                <div className="flex justify-between pb-1.5 border-b border-[#D0E7F9]">
+                  <span className="text-gray-500">Razorpay TXN:</span>
+                  <span className="font-mono text-[11px] font-bold text-[#062A49]">{confirmedBookingRecord.transactionId}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Start Job OTP:</span>
@@ -1042,11 +1058,15 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Placing Order...</span>
+                      <span>Opening Secure Razorpay...</span>
                     </>
                   ) : (
                     <>
-                      <span>Confirm Booking (₹{netTotal})</span>
+                      <span>
+                        {paymentMethod === 'PAY_AFTER_SERVICE'
+                          ? `Confirm Booking (Pay Later • ₹${netTotal})`
+                          : `🔒 Pay Online & Confirm Booking (₹${netTotal})`}
+                      </span>
                       <ArrowRight className="w-4 h-4 text-[#F5A400]" />
                     </>
                   )}

@@ -7,13 +7,17 @@
 
 import { updateBookingStatus } from './dbService';
 
-// Dynamically read environment variables injected via AI Studio Secrets / .env
+// Active Live Razorpay API Credentials
+export const RAZORPAY_LIVE_KEY_ID = 'rzp_live_TgBbAEno4YT7iC';
+export const RAZORPAY_LIVE_KEY_SECRET = 'wof3iFxoRuHpl3J6Q8XFrNpe';
+
+// Dynamically read environment variables or fall back to active live credentials
 const getEnvKey = (): string => {
   const envKey = 
     (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 
     (import.meta as any).env?.RAZORPAY_KEY_ID || 
-    '';
-  return typeof envKey === 'string' ? envKey.trim() : '';
+    RAZORPAY_LIVE_KEY_ID;
+  return typeof envKey === 'string' && envKey.trim().length > 0 ? envKey.trim() : RAZORPAY_LIVE_KEY_ID;
 };
 
 /**
@@ -186,9 +190,12 @@ export const handlePayment = async (
       }
     });
 
+    // Visible browser alert to confirm code path reached
+    alert("Opening Razorpay checkout now");
     rzp.open();
-  } catch (err) {
+  } catch (err: any) {
     console.error('[RazorpayService] Failed to initialize Razorpay checkout:', err);
+    alert(`Razorpay checkout failed to open: ${err?.message || err}`);
     if (options?.onError) {
       options.onError(err);
     } else {

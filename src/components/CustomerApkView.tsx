@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Booking, HubLocation } from '../types';
 import { CLEANING_20_CATEGORIES, CleaningCategoryDetail } from '../cleaningCategoriesData';
 import { createNewBooking, getAllHubs, getAllBookings } from '../services/dbService';
+import { openRazorpayPaymentModal, getRazorpayKeyId } from '../services/razorpayService';
 import confetti from 'canvas-confetti';
 import { 
   Phone, 
@@ -139,7 +140,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
   const [slotTimeIdx, setSlotTimeIdx] = useState<number>(-1);
 
   // Payment & Coupon
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('online');
   const [coupon, setCoupon] = useState<string>('');
   const [couponInput, setCouponInput] = useState<string>('');
   const [couponFeedback, setCouponFeedback] = useState<string | null>(null);
@@ -389,82 +390,202 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
       const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
       const completionOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
-      const newBookingRecord: Booking = {
-        id: bookingId,
-        bookingNumber,
-        customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
-        customerName: profile?.name || user?.displayName || 'Customer',
-        customerPhone: profile?.phone || '8920252647',
-        customerEmail: user?.email || profile?.email || 'bharatproexpert@gmail.com',
-        serviceId: primaryService.id,
-        serviceName: `${primaryService.n} (${pkg ? pkg[0] : 'Standard'})`,
-        categoryName: primaryService.n,
-        date: dateStr,
-        timeSlot: slotStr,
-        assignedHubId: matchedHub.id,
-        address: {
-          street: `${address.house ? address.house + ', ' : ''}${address.line}${address.lm ? ' (Near ' + address.lm + ')' : ''}`,
-          sector: address.type + ' Area',
-          city: address.city || city,
-          state: 'Haryana',
-          pincode: address.pin || '122002',
-          lat: address.lat,
-          lng: address.lng
-        },
-        selectedAddons: [],
-        basePrice: tot.subtotal,
-        addonsPrice: 0,
-        taxesGst: 0,
-        convenienceFee: 0,
-        discount: tot.discount,
-        totalAmount: tot.total,
-        appliedCoupon: coupon || undefined,
-        priceSnapshot: {
+      // OPTION 1: "Pay after service" skips Razorpay entirely and confirms immediately
+      if (paymentMethod === 'cash') {
+        const newBookingRecord: Booking = {
+          id: bookingId,
+          bookingNumber,
+          customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
+          customerName: profile?.name || user?.displayName || 'Customer',
+          customerPhone: profile?.phone || '8920252647',
+          customerEmail: user?.email || profile?.email || 'customer@bharatproexpert.com',
+          serviceId: primaryService.id,
+          serviceName: `${primaryService.n} (${pkg ? pkg[0] : 'Standard'})`,
+          categoryName: primaryService.n,
+          date: dateStr,
+          timeSlot: slotStr,
+          assignedHubId: matchedHub.id,
+          address: {
+            street: `${address.house ? address.house + ', ' : ''}${address.line}${address.lm ? ' (Near ' + address.lm + ')' : ''}`,
+            sector: address.type + ' Area',
+            city: address.city || city,
+            state: 'Haryana',
+            pincode: address.pin || '122002',
+            lat: address.lat,
+            lng: address.lng
+          },
+          selectedAddons: [],
           basePrice: tot.subtotal,
-          referencePrice: Math.round(tot.subtotal / 0.85),
-          customerSavings: tot.discount,
-          discountPct: 15,
-          pricingMode: 'REFERENCE_PERCENT',
-          priceVersion: 'apk-v1.0.0',
           addonsPrice: 0,
           taxesGst: 0,
           convenienceFee: 0,
           discount: tot.discount,
           totalAmount: tot.total,
-          capturedAt: new Date().toISOString()
+          appliedCoupon: coupon || undefined,
+          priceSnapshot: {
+            basePrice: tot.subtotal,
+            referencePrice: Math.round(tot.subtotal / 0.85),
+            customerSavings: tot.discount,
+            discountPct: 15,
+            pricingMode: 'REFERENCE_PERCENT',
+            priceVersion: 'apk-v1.0.0',
+            addonsPrice: 0,
+            taxesGst: 0,
+            convenienceFee: 0,
+            discount: tot.discount,
+            totalAmount: tot.total,
+            capturedAt: new Date().toISOString()
+          },
+          paymentMethod: 'PAY_AFTER_SERVICE',
+          paymentStatus: 'PENDING',
+          transactionId: 'TXN_' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+          startOtp,
+          completionOtp,
+          status: 'SEARCHING_PROFESSIONAL',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        const created = await createNewBooking(newBookingRecord);
+
+        try {
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        } catch {}
+
+        setCart([]);
+        localStorage.removeItem('bpe_cart_v3');
+        setCustomerBookings(prev => [created, ...prev]);
+
+        showToast('🎉 Booking Confirmed! Finding Best Pro...');
+        setBookingLoading(false);
+
+        onTrackBooking(created);
+        setView('bk');
+        return;
+      }
+
+      // OPTION 2: "UPI / Cards / Netbanking" - calls Razorpay checkout flow
+      // Waits for verified payment before creating and confirming booking
+      const keyId = getRazorpayKeyId();
+      if (!keyId) {
+        showToast('Razorpay Key ID configure nahi hai. Kripya AI Studio Secrets me check karein.');
+        setBookingLoading(false);
+        return;
+      }
+
+      await openRazorpayPaymentModal({
+        amount: tot.total,
+        bookingNumber,
+        serviceName: `${primaryService.n} (${pkg ? pkg[0] : 'Standard'})`,
+        customerName: profile?.name || user?.displayName || 'Customer',
+        customerEmail: user?.email || profile?.email || 'customer@bharatproexpert.com',
+        customerPhone: profile?.phone || '8920252647',
+        address: `${address.house ? address.house + ', ' : ''}${address.line}${address.lm ? ' (Near ' + address.lm + ')' : ''}`,
+        onSuccess: async (paymentResp) => {
+          try {
+            const newBookingRecord: Booking = {
+              id: bookingId,
+              bookingNumber,
+              customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
+              customerName: profile?.name || user?.displayName || 'Customer',
+              customerPhone: profile?.phone || '8920252647',
+              customerEmail: user?.email || profile?.email || 'bharatproexpert@gmail.com',
+              serviceId: primaryService.id,
+              serviceName: `${primaryService.n} (${pkg ? pkg[0] : 'Standard'})`,
+              categoryName: primaryService.n,
+              date: dateStr,
+              timeSlot: slotStr,
+              assignedHubId: matchedHub.id,
+              address: {
+                street: `${address.house ? address.house + ', ' : ''}${address.line}${address.lm ? ' (Near ' + address.lm + ')' : ''}`,
+                sector: address.type + ' Area',
+                city: address.city || city,
+                state: 'Haryana',
+                pincode: address.pin || '122002',
+                lat: address.lat,
+                lng: address.lng
+              },
+              selectedAddons: [],
+              basePrice: tot.subtotal,
+              addonsPrice: 0,
+              taxesGst: 0,
+              convenienceFee: 0,
+              discount: tot.discount,
+              totalAmount: tot.total,
+              appliedCoupon: coupon || undefined,
+              priceSnapshot: {
+                basePrice: tot.subtotal,
+                referencePrice: Math.round(tot.subtotal / 0.85),
+                customerSavings: tot.discount,
+                discountPct: 15,
+                pricingMode: 'REFERENCE_PERCENT',
+                priceVersion: 'apk-v1.0.0',
+                addonsPrice: 0,
+                taxesGst: 0,
+                convenienceFee: 0,
+                discount: tot.discount,
+                totalAmount: tot.total,
+                capturedAt: new Date().toISOString()
+              },
+              paymentMethod: 'UPI',
+              paymentStatus: 'PAID',
+              transactionId: paymentResp.razorpay_payment_id || 'TXN_ONLINE_VERIFIED',
+              razorpayDetails: {
+                paymentId: paymentResp.razorpay_payment_id || '',
+                orderId: paymentResp.razorpay_order_id || '',
+                signature: paymentResp.razorpay_signature || '',
+                verifiedAt: new Date().toISOString(),
+                verificationStatus: 'SUCCESS_VERIFIED'
+              },
+              startOtp,
+              completionOtp,
+              status: 'SEARCHING_PROFESSIONAL',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+
+            const created = await createNewBooking(newBookingRecord);
+
+            // Trigger Confetti
+            try {
+              confetti({
+                particleCount: 80,
+                spread: 70,
+                origin: { y: 0.6 }
+              });
+            } catch {}
+
+            // Clear cart & update bookings
+            setCart([]);
+            localStorage.removeItem('bpe_cart_v3');
+            setCustomerBookings(prev => [created, ...prev]);
+
+            showToast('🎉 Payment Verified & Booking Confirmed! Finding Best Pro...');
+            setBookingLoading(false);
+
+            // Directly open real-time live tracking
+            onTrackBooking(created);
+            setView('bk');
+          } catch (e) {
+            console.error('Failed to create APK booking after payment:', e);
+            showToast('Payment successful but booking record save failed. Contact support with payment ID: ' + paymentResp.razorpay_payment_id);
+            setBookingLoading(false);
+          }
         },
-        paymentMethod: paymentMethod === 'cash' ? 'PAY_AFTER_SERVICE' : 'UPI',
-        paymentStatus: paymentMethod === 'cash' ? 'PENDING' : 'PAID',
-        transactionId: 'TXN_' + Math.random().toString(36).substring(2, 10).toUpperCase(),
-        startOtp,
-        completionOtp,
-        status: 'SEARCHING_PROFESSIONAL',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      const created = await createNewBooking(newBookingRecord);
-
-      // Trigger Confetti
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      } catch {}
-
-      // Clear cart & update bookings
-      setCart([]);
-      localStorage.removeItem('bpe_cart_v3');
-      setCustomerBookings(prev => [created, ...prev]);
-
-      showToast('🎉 Booking Confirmed! Finding Best Pro...');
-      setBookingLoading(false);
-
-      // Directly open real-time live tracking
-      onTrackBooking(created);
-      setView('bk');
+        onDismiss: () => {
+          setBookingLoading(false);
+          showToast('⚠️ Booking cancel: Online payment pura nahi hua.');
+        },
+        onError: (err: any) => {
+          setBookingLoading(false);
+          const desc = err?.description || err?.message || 'Payment window open nahi ho saki';
+          showToast(`❌ Payment Failed: ${desc}`);
+        }
+      });
     } catch (e) {
       console.error('Failed to create APK booking:', e);
       showToast('Failed to create booking. Please retry.');
@@ -1876,22 +1997,6 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
             </h3>
             <div className="space-y-2">
               <div 
-                onClick={() => setPaymentMethod('cash')}
-                className={`bg-white rounded-2xl p-4 shadow-[0_2px_8px_rgba(15,23,42,0.07)] cursor-pointer border-2 transition-all flex items-center justify-between ${
-                  paymentMethod === 'cash' ? 'border-[#0b3ba8] bg-[#eaf0ff]' : 'border-transparent hover:border-[#e5e7eb]'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">💵</span>
-                  <div>
-                    <b className="text-sm text-[#111827] block">Pay after service</b>
-                    <span className="text-xs text-[#6b7280]">Cash or UPI directly to professional after job completion</span>
-                  </div>
-                </div>
-                {paymentMethod === 'cash' && <span className="text-[#0b3ba8] font-bold text-sm">✓ Selected</span>}
-              </div>
-
-              <div 
                 onClick={() => setPaymentMethod('online')}
                 className={`bg-white rounded-2xl p-4 shadow-[0_2px_8px_rgba(15,23,42,0.07)] cursor-pointer border-2 transition-all flex items-center justify-between ${
                   paymentMethod === 'online' ? 'border-[#0b3ba8] bg-[#eaf0ff]' : 'border-transparent hover:border-[#e5e7eb]'
@@ -1905,6 +2010,22 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                   </div>
                 </div>
                 {paymentMethod === 'online' && <span className="text-[#0b3ba8] font-bold text-sm">✓ Selected</span>}
+              </div>
+
+              <div 
+                onClick={() => setPaymentMethod('cash')}
+                className={`bg-white rounded-2xl p-4 shadow-[0_2px_8px_rgba(15,23,42,0.07)] cursor-pointer border-2 transition-all flex items-center justify-between ${
+                  paymentMethod === 'cash' ? 'border-[#0b3ba8] bg-[#eaf0ff]' : 'border-transparent hover:border-[#e5e7eb]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">💵</span>
+                  <div>
+                    <b className="text-sm text-[#111827] block">Pay after service</b>
+                    <span className="text-xs text-[#6b7280]">Cash or UPI directly to professional after job completion</span>
+                  </div>
+                </div>
+                {paymentMethod === 'cash' && <span className="text-[#0b3ba8] font-bold text-sm">✓ Selected</span>}
               </div>
             </div>
 
