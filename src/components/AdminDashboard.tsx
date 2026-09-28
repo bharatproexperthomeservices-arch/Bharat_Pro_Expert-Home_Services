@@ -1,719 +1,226 @@
 import React, { useState, useEffect } from 'react';
-import { BharatProLogo } from './BharatProLogo';
-import { Booking, Partner, HubLocation, CleaningService, WhatsAppLog } from '../types';
-import { 
-  getAllBookings, 
-  getPartnersList, 
-  updateBookingStatusWithOtp, 
-  getWhatsAppLogs,
-  getAllServices,
-  assignPartnerManually,
-  getAllHubs,
-  saveAllHubs
-} from '../services/dbService';
-import { INITIAL_HUBS, INITIAL_SERVICES, BUMPER_OFFERS, WHATSAPP_NUMBER } from '../data';
-import { OWNER_EMAIL } from '../services/emailService';
-import { 
-  clearAdminSession, 
-  getAllAdminRequests, 
-  approveAdminLogin, 
-  rejectAdminLogin,
-  updateAdminActivity 
-} from '../services/adminAuthService';
-import { AdminLoginRequest } from '../types';
-import { AdminCatalogueTab } from './admin/AdminCatalogueTab';
-import { AdminPricingEngine } from './admin/AdminPricingEngine';
-import { AdminBookingsTab } from './admin/AdminBookingsTab';
-import { AdminHubOperations } from './admin/AdminHubOperations';
-import { AdminDispatchEngine } from './admin/AdminDispatchEngine';
-import { AdminPartnerSuite } from './admin/AdminPartnerSuite';
-import { AdminQualityAndTraining } from './admin/AdminQualityAndTraining';
-import { AdminInventorySupplies } from './admin/AdminInventorySupplies';
-import { AdminCustomerAndCMS } from './admin/AdminCustomerAndCMS';
-import { AdminGovernanceAndAudit } from './admin/AdminGovernanceAndAudit';
-import { AdminFinanceAndSettlementSuite } from './admin/AdminFinanceAndSettlementSuite';
-import { 
-  BarChart3, 
-  Users, 
-  Layers, 
-  MapPin, 
-  ShieldCheck, 
-  MessageSquare, 
-  CheckCircle2, 
-  AlertCircle, 
-  ArrowLeft, 
-  Key, 
-  DollarSign,
-  Briefcase,
-  Plus,
-  RefreshCw,
-  Search,
-  Filter,
-  Percent,
-  Receipt,
-  PiggyBank,
-  Zap,
-  GraduationCap,
-  Package,
-  Globe,
-  Tag,
-  Shield,
-  Sliders,
-  Database,
-  LogOut,
-  Clock,
-  UserCheck
-} from 'lucide-react';
 
-interface AdminDashboardProps {
-  onBackToCustomerSite: () => void;
-  onSignOut?: () => void;
+export interface DashboardBooking {
+  bookingId: string;
+  customerName: string;
+  customerMobile: string;
+  serviceTitle: string;
+  hubName: string;
+  finalAmount: number;
+  discountAmount: number;
+  status: 'PENDING_ASSIGNMENT' | 'ASSIGNED' | 'IN_TRANSIT' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  createdAt: string;
 }
 
-type AdminModuleTab = 
-  | 'OVERVIEW'
-  | 'HUBS'
-  | 'DISPATCH'
-  | 'PARTNERS'
-  | 'CATALOGUE'
-  | 'PRICING'
-  | 'QUALITY'
-  | 'INVENTORY'
-  | 'BOOKINGS'
-  | 'FINANCE'
-  | 'COUPONS'
-  | 'CUSTOMERS'
-  | 'CMS'
-  | 'GOVERNANCE';
+export interface DashboardPartner {
+  id: string;
+  fullName: string;
+  hubName: string;
+  status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'PROBATION' | 'SUSPENDED';
+  isOnline?: boolean;
+}
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  onBackToCustomerSite,
-  onSignOut 
-}) => {
-  const [activeTab, setActiveTab] = useState<AdminModuleTab>('OVERVIEW');
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [partners, setPartners] = useState<Partner[]>([]);
-  const [hubs, setHubs] = useState<HubLocation[]>(INITIAL_HUBS);
-  const [services, setServices] = useState<CleaningService[]>(INITIAL_SERVICES);
-  const [waLogs, setWaLogs] = useState<WhatsAppLog[]>([]);
-  const [adminRequests, setAdminRequests] = useState<AdminLoginRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Load Admin state
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [bks, prts, logs, srvs, loadedHubs, reqs] = await Promise.all([
-        getAllBookings(),
-        getPartnersList(),
-        getWhatsAppLogs(),
-        getAllServices(),
-        getAllHubs(),
-        getAllAdminRequests()
-      ]);
-      setBookings(bks);
-      setPartners(prts);
-      setWaLogs(logs);
-      setAdminRequests(reqs);
-      if (srvs && srvs.length > 0) {
-        setServices(srvs);
-      }
-      if (loadedHubs && loadedHubs.length > 0) {
-        setHubs(loadedHubs);
-      }
-    } catch (e) {
-      console.warn('Error loading admin data', e);
-    } finally {
-      setLoading(false);
-    }
-  };
+export const AdminDashboard: React.FC = () => {
+  const [bookings, setBookings] = useState<DashboardBooking[]>([]);
+  const [partners, setPartners] = useState<DashboardPartner[]>([]);
+  const [dateRange, setDateRange] = useState<'TODAY' | 'WEEK' | 'MONTH' | 'ALL'>('ALL');
 
   useEffect(() => {
-    loadData();
+    // Sync with real database transactions from localStorage
+    const savedBookings = localStorage.getItem('bharatpro_bookings');
+    const savedPartners = localStorage.getItem('bharatpro_partners');
+
+    if (savedBookings) {
+      setBookings(JSON.parse(savedBookings));
+    }
+    if (savedPartners) {
+      setPartners(JSON.parse(savedPartners));
+    }
   }, []);
 
-  // Inactivity auto-logout (15 minutes idle limit for enhanced security)
-  useEffect(() => {
-    let inactivityTimer: any;
-    const resetTimer = () => {
-      updateAdminActivity();
-      clearTimeout(inactivityTimer);
-      inactivityTimer = setTimeout(() => {
-        clearAdminSession();
-        onSignOut?.();
-      }, 15 * 60 * 1000);
-    };
+  // REAL AGGREGATED CALCULATIONS (Zero fake stats)
+  const completedBookings = bookings.filter((b) => b.status === 'COMPLETED');
+  const inProgressBookings = bookings.filter((b) => b.status === 'IN_PROGRESS' || b.status === 'IN_TRANSIT' || b.status === 'ASSIGNED');
+  const pendingBookings = bookings.filter((b) => b.status === 'PENDING_ASSIGNMENT');
+  const cancelledBookings = bookings.filter((b) => b.status === 'CANCELLED');
 
-    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
-    events.forEach(ev => window.addEventListener(ev, resetTimer, { passive: true }));
-    resetTimer();
+  // Total Real Revenue (GMV) from completed transactions
+  const totalGMV = completedBookings.reduce((sum, b) => sum + (b.finalAmount || 0), 0);
 
-    return () => {
-      clearTimeout(inactivityTimer);
-      events.forEach(ev => window.removeEventListener(ev, resetTimer));
-    };
-  }, [onSignOut]);
+  // Total Customer Discounts Applied
+  const totalDiscounts = bookings.reduce((sum, b) => sum + (b.discountAmount || 0), 0);
 
-  const pendingPartners = partners.filter(p => p.onboardingStatus === 'pending_approval');
-  const pendingAdminRequests = adminRequests.filter(r => r.status === 'PENDING');
+  // Partner Metrics
+  const activePartners = partners.filter((p) => p.status === 'ACTIVE');
+  const activeFleet = partners.filter((p) => p.status === 'ACTIVE' && p.isOnline);
+  const pendingKycCount = partners.filter((p) => p.status === 'PENDING_VERIFICATION').length;
 
-  const handleApproveAdminRequest = async (reqId: string) => {
-    const res = await approveAdminLogin(reqId, OWNER_EMAIL);
-    if (res.success) {
-      setAdminRequests(prev => prev.map(r => r.id === reqId ? res.request! : r));
-      alert(`Admin access approved for ${res.request?.requesterEmail}! Confirmation dispatched to ${OWNER_EMAIL}.`);
-    }
-  };
-
-  const handleRejectAdminRequest = async (reqId: string) => {
-    const reason = window.prompt('Reason for rejecting admin login:', 'Unauthorized external attempt');
-    if (!reason) return;
-    const res = await rejectAdminLogin(reqId, reason);
-    if (res.success) {
-      setAdminRequests(prev => prev.map(r => r.id === reqId ? res.request! : r));
-      alert(`Admin login request rejected. Alert dispatched to ${OWNER_EMAIL}.`);
-    }
-  };
-
-  const handleAuditLog = (action: string, targetId: string, details: string) => {
-    console.log(`[AUDIT] Action: ${action} | Target: ${targetId} | Details: ${details}`);
-  };
-
-  const handleManualAssign = async (bookingId: string, partnerId: string) => {
-    const res = await assignPartnerManually(bookingId, partnerId, 'admin_dispatch', 'Admin Manual Assignment');
-    if (res.success && res.booking) {
-      setBookings(prev => prev.map(b => b.id === bookingId ? res.booking! : b));
-      alert(`Success: Partner assigned to Booking #${res.booking.bookingNumber}! Customer has been updated in real time.`);
-    } else {
-      alert(`Assignment error: ${res.error || 'Could not assign partner'}`);
-    }
-  };
-
-  // Financial calculations
-  const totalRevenue = bookings
-    .filter(b => b.paymentStatus === 'PAID')
-    .reduce((sum, b) => sum + b.totalAmount, 0);
-
-  const totalCustomerSavings = bookings.reduce((sum, b) => {
-    return sum + (b.priceSnapshot?.customerSavings || Math.max(0, Math.round(b.basePrice / 0.85) - b.basePrice));
-  }, 0);
-
-  const totalGstCollected = bookings.reduce((sum, b) => sum + (b.taxesGst || Math.round(b.basePrice * 0.18)), 0);
-  const totalPlatformFees = bookings.reduce((sum, b) => sum + (b.convenienceFee || 49), 0);
-  const completedJobsCount = bookings.filter(b => b.status === 'COMPLETED').length;
-  const inProgressJobsCount = bookings.filter(b => b.status === 'IN_PROGRESS').length;
-  const pendingJobsCount = bookings.filter(b => b.status === 'CONFIRMED' || b.status === 'PARTNER_ASSIGNED').length;
+  // Hub-wise Partner Distribution
+  const hubPartnerCounts = activePartners.reduce((acc: Record<string, number>, p) => {
+    acc[p.hubName] = (acc[p.hubName] || 0) + 1;
+    return acc;
+  }, {});
 
   return (
-    <div className="min-h-screen bg-[#F2F2F7] text-[#1C1C1E] flex flex-col font-['Plus_Jakarta_Sans']">
-      {/* Top Admin Header */}
-      <header className="sticky top-0 z-30 liquid-glass bg-white/95 border-b border-[#E5E5EA] px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onBackToCustomerSite}
-            className="p-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] transition-all flex items-center gap-1.5 text-xs font-bold"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Customer Website</span>
-          </button>
-          <div className="h-6 w-px bg-[#E5E5EA]" />
-          <BharatProLogo size="md" />
-          <span className="px-2.5 py-0.5 rounded-md bg-[#1C1C1E] text-white text-[10px] font-mono uppercase font-bold tracking-widest">
-            SUPER ADMIN &bull; 22 MODULES
-          </span>
+    <div className="p-6 bg-slate-900 text-white min-h-screen space-y-6">
+      {/* Executive Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-amber-400">Executive Control Dashboard</h1>
+          <p className="text-slate-400 text-sm">Real-time Verified Database Aggregations & Operational Telemetry</p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs font-semibold">
-            <ShieldCheck className="w-4 h-4 text-amber-600" />
-            <span className="font-mono">{OWNER_EMAIL}</span>
-          </div>
-
-          <button
-            onClick={() => {
-              clearAdminSession();
-              if (onSignOut) {
-                onSignOut();
-              } else {
-                onBackToCustomerSite();
-              }
-            }}
-            className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-rose-200"
-            title="Sign out of Admin Session"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
-
-          <button
-            onClick={loadData}
-            className="p-2 rounded-xl bg-white border border-[#E5E5EA] hover:bg-[#F2F2F7] text-[#1C1C1E] transition-all cursor-pointer"
-            title="Reload live database metrics"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+        {/* Date Filter Bar */}
+        <div className="flex items-center gap-2 bg-slate-800 p-1.5 rounded-xl border border-slate-700">
+          {(['TODAY', 'WEEK', 'MONTH', 'ALL'] as const).map((range) => (
+            <button
+              key={range}
+              onClick={() => setDateRange(range)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                dateRange === range
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {range}
+            </button>
+          ))}
         </div>
-      </header>
+      </div>
 
-      {/* Main Admin Layout */}
-      <div className="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto p-4 sm:p-6 gap-6">
-        {/* Navigation Sidebar */}
-        <nav className="w-full md:w-64 shrink-0 space-y-4">
-          {/* Group 1: Operations Core */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-[#8E8E93] uppercase tracking-wider px-3">
-              Operations &amp; Dispatch
-            </span>
-            {[
-              { key: 'OVERVIEW', label: '01 Executive Dashboard', icon: BarChart3 },
-              { key: 'HUBS', label: '02-03 Hub Operations', icon: MapPin, count: hubs.length },
-              { key: 'DISPATCH', label: '07 Auto-Dispatch Engine', icon: Zap, count: bookings.filter(b => b.status === 'CONFIRMED').length },
-              { 
-                key: 'PARTNERS', 
-                label: '08-09 Partner Operations', 
-                icon: Users, 
-                count: partners.length,
-                pending: pendingPartners.length
-              }
-            ].map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-[#1C1C1E] text-white shadow-md'
-                      : 'bg-white hover:bg-white/80 text-[#48484A] border border-[#E5E5EA]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#D4A24E]' : 'text-[#8E8E93]'}`} />
-                    <span>{tab.label}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {tab.pending !== undefined && tab.pending > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950 animate-pulse">
-                        {tab.pending} wait
-                      </span>
-                    )}
-                    {tab.count !== undefined && tab.count > 0 && (
-                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-[#F2F2F7] text-[#8E8E93]'
-                      }`}>
-                        {tab.count}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+      {/* SYSTEM ALERTS / FLAGS SECTION */}
+      {(pendingBookings.length > 0 || pendingKycCount > 0) && (
+        <div className="bg-amber-950/30 border border-amber-500/40 rounded-2xl p-4 space-y-2">
+          <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            Operational Real-Time Flags & Action Triggers
+          </h3>
+          <div className="flex flex-wrap gap-4 text-xs">
+            {pendingBookings.length > 0 && (
+              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-lg font-medium">
+                ⚠️ <strong>{pendingBookings.length} Bookings</strong> awaiting partner assignment in queue.
+              </span>
+            )}
+            {pendingKycCount > 0 && (
+              <span className="bg-blue-500/20 text-blue-300 border border-blue-500/40 px-3 py-1.5 rounded-lg font-medium">
+                📄 <strong>{pendingKycCount} Partners</strong> pending KYC document review.
+              </span>
+            )}
           </div>
+        </div>
+      )}
 
-          {/* Group 2: Service, Quality & Training */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-[#8E8E93] uppercase tracking-wider px-3">
-              Service &amp; Quality
-            </span>
-            {[
-              { key: 'CATALOGUE', label: '04 Master Catalogue', icon: Layers, count: services.length },
-              { key: 'PRICING', label: '05 Pricing Engine (15%)', icon: Percent },
-              { key: 'QUALITY', label: '10-11 Quality SOP & Training', icon: GraduationCap },
-              { key: 'INVENTORY', label: '12 Inventory & Cleaning Kits', icon: Package }
-            ].map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-[#1C1C1E] text-white shadow-md'
-                      : 'bg-white hover:bg-white/80 text-[#48484A] border border-[#E5E5EA]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#D4A24E]' : 'text-[#8E8E93]'}`} />
-                    <span>{tab.label}</span>
-                  </div>
-                  {tab.count !== undefined && tab.count > 0 && (
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                      isActive ? 'bg-white/20 text-white' : 'bg-[#F2F2F7] text-[#8E8E93]'
-                    }`}>
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+      {/* CORE METRIC WIDGETS GRID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Total GMV / Revenue */}
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-2">
+          <span className="text-xs font-medium text-slate-400">Total Settled Revenue (GMV)</span>
+          <div className="text-3xl font-extrabold text-emerald-400">₹{totalGMV.toLocaleString('en-IN')}</div>
+          <p className="text-[11px] text-slate-400">Calculated strictly from completed bookings</p>
+        </div>
+
+        {/* Total Bookings Count */}
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-2">
+          <span className="text-xs font-medium text-slate-400">Total Bookings Executed</span>
+          <div className="text-3xl font-extrabold text-amber-400">{bookings.length}</div>
+          <div className="flex justify-between text-[11px] text-slate-300 pt-1 border-t border-slate-700/60">
+            <span className="text-emerald-400">✓ {completedBookings.length} Done</span>
+            <span className="text-amber-400">⚡ {pendingBookings.length} Pending</span>
+            <span className="text-red-400">✗ {cancelledBookings.length} Cancelled</span>
           </div>
+        </div>
 
-          {/* Group 3: Commerce, CRM & Finance */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-[#8E8E93] uppercase tracking-wider px-3">
-              Orders &amp; Finance
-            </span>
-            {[
-              { key: 'BOOKINGS', label: '06 Bookings & Snapshots', icon: ShieldCheck, count: bookings.length },
-              { key: 'FINANCE', label: '15 Finance & Settlements (5% GST)', icon: Receipt },
-              { key: 'COUPONS', label: '13, 14, 16 CRM, CMS & Offers', icon: Tag }
-            ].map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-[#1C1C1E] text-white shadow-md'
-                      : 'bg-white hover:bg-white/80 text-[#48484A] border border-[#E5E5EA]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#D4A24E]' : 'text-[#8E8E93]'}`} />
-                    <span>{tab.label}</span>
-                  </div>
-                  {tab.count !== undefined && tab.count > 0 && (
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                      isActive ? 'bg-white/20 text-white' : 'bg-[#F2F2F7] text-[#8E8E93]'
-                    }`}>
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        {/* Active Partners & Fleet */}
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-2">
+          <span className="text-xs font-medium text-slate-400">Active Pros & Fleet Status</span>
+          <div className="text-3xl font-extrabold text-white">{activePartners.length} <span className="text-xs text-slate-400 font-normal">Pros</span></div>
+          <p className="text-[11px] text-emerald-400 font-medium">🟢 {activeFleet.length} Currently Online & Available</p>
+        </div>
 
-          {/* Group 4: Governance, RBAC & Audit */}
-          <div className="space-y-1">
-            <span className="text-[10px] font-bold text-[#8E8E93] uppercase tracking-wider px-3">
-              Governance &amp; Security
-            </span>
-            {[
-              { key: 'GOVERNANCE', label: '17-22 RBAC & Audit Center', icon: Database }
-            ].map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-[#1C1C1E] text-white shadow-md'
-                      : 'bg-white hover:bg-white/80 text-[#48484A] border border-[#E5E5EA]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#D4A24E]' : 'text-[#8E8E93]'}`} />
-                    <span>{tab.label}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
+        {/* Total Discounts Issued */}
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-2">
+          <span className="text-xs font-medium text-slate-400">Customer Savings / Discounts</span>
+          <div className="text-3xl font-extrabold text-purple-400">₹{totalDiscounts.toLocaleString('en-IN')}</div>
+          <p className="text-[11px] text-slate-400">From real applied coupon promotions</p>
+        </div>
+      </div>
 
-        {/* Dynamic Admin Pane */}
-        <main className="flex-1 space-y-6">
-          {/* MODULE 01: EXECUTIVE OVERVIEW */}
-          {activeTab === 'OVERVIEW' && (
-            <div className="space-y-6">
-              
-              {/* URGENT OWNER APPROVAL ALERT BANNER */}
-              {(pendingPartners.length > 0 || pendingAdminRequests.length > 0) && (
-                <div className="p-5 rounded-3xl bg-amber-500/10 border-2 border-amber-400 text-amber-950 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-2xl bg-amber-500 text-slate-950 font-bold">
-                        <Clock className="w-5 h-5 animate-spin" style={{ animationDuration: '6s' }} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black text-[#1C1C1E] flex items-center gap-2">
-                          <span>Owner Approvals Required</span>
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 uppercase font-black">
-                            Action Needed
-                          </span>
-                        </h4>
-                        <p className="text-xs text-amber-900 mt-0.5">
-                          Target Account: <strong className="underline">{OWNER_EMAIL}</strong> &bull; Any partner registration or admin access requires your explicit sign-off.
-                        </p>
-                      </div>
-                    </div>
-
-                    {pendingPartners.length > 0 && (
-                      <button
-                        onClick={() => setActiveTab('PARTNERS')}
-                        className="px-4 py-2 bg-[#1C1C1E] hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-sm cursor-pointer shrink-0"
-                      >
-                        <Users className="w-4 h-4 text-[#D4A24E]" />
-                        <span>Review {pendingPartners.length} Partner Applications →</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {/* List of pending admin requests if any */}
-                  {pendingAdminRequests.length > 0 && (
-                    <div className="pt-2 border-t border-amber-300/60 space-y-2">
-                      <span className="text-xs font-bold text-amber-900 block">
-                        Admin Login Access Requests ({pendingAdminRequests.length}):
-                      </span>
-                      {pendingAdminRequests.map(req => (
-                        <div key={req.id} className="p-3 rounded-xl bg-white border border-amber-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-                          <div>
-                            <span className="font-bold text-[#1C1C1E]">{req.requesterEmail}</span>
-                            <span className="text-[11px] text-[#8E8E93] ml-2 font-mono">({new Date(req.requestedAt).toLocaleTimeString()})</span>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleApproveAdminRequest(req.id)}
-                              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer"
-                            >
-                              Approve Access
-                            </button>
-                            <button
-                              onClick={() => handleRejectAdminRequest(req.id)}
-                              className="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-medium cursor-pointer"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Stat Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm">
-                  <span className="text-xs text-[#8E8E93] font-medium block">Total Revenue (GMV)</span>
-                  <p className="text-2xl sm:text-3xl font-black text-[#1C1C1E] mt-1">
-                    ₹{totalRevenue.toLocaleString('en-IN')}
-                  </p>
-                  <span className="text-[11px] text-[#1F8A3B] font-bold mt-1 inline-flex items-center gap-1">
-                    100% Real Gateway Audited
+      {/* LOWER SPLIT GRID: Hub Breakdown & Live Booking Stream */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Hub-wise Partner Distribution (4 Columns) */}
+        <div className="lg:col-span-4 bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
+          <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider">Active Partners by Hub</h3>
+          {Object.keys(hubPartnerCounts).length === 0 ? (
+            <p className="text-xs text-slate-400 py-4 text-center">No active partner hub data available.</p>
+          ) : (
+            <div className="space-y-3">
+              {Object.entries(hubPartnerCounts).map(([hub, count]) => (
+                <div key={hub} className="bg-slate-900 p-3 rounded-xl border border-slate-700/60 flex justify-between items-center text-xs">
+                  <span className="font-medium text-slate-200">📍 {hub}</span>
+                  <span className="font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                    {count} Active Pros
                   </span>
                 </div>
-
-                <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm">
-                  <span className="text-xs text-[#8E8E93] font-medium block">Customer Savings (15%)</span>
-                  <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1">
-                    ₹{totalCustomerSavings.toLocaleString('en-IN')}
-                  </p>
-                  <span className="text-[11px] text-[#1F8A3B] font-bold mt-1 inline-flex items-center gap-1">
-                    Delivered via 15% Standard
-                  </span>
-                </div>
-
-                <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm">
-                  <span className="text-xs text-[#8E8E93] font-medium block">Total Bookings</span>
-                  <p className="text-2xl sm:text-3xl font-black text-[#1C1C1E] mt-1">
-                    {bookings.length}
-                  </p>
-                  <span className="text-[11px] text-[#B8892E] font-bold mt-1 inline-flex items-center gap-1">
-                    {inProgressJobsCount} In Progress &bull; {completedJobsCount} Done
-                  </span>
-                </div>
-
-                <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm">
-                  <span className="text-xs text-[#8E8E93] font-medium block">Active Cleaning Fleet</span>
-                  <p className="text-2xl sm:text-3xl font-black text-[#1C1C1E] mt-1">
-                    {partners.filter(p => p.isOnline).length} / {partners.length}
-                  </p>
-                  <span className="text-[11px] text-indigo-700 font-bold mt-1 block">
-                    {hubs.filter(h => h.active).length} Hubs Operational
-                  </span>
-                </div>
-              </div>
-
-              {/* Bumper Offers Overview */}
-              <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold font-['Outfit'] text-[#1C1C1E]">
-                    Active Bumper Combo Offers
-                  </h3>
-                  <span className="text-xs font-bold text-[#E07B1A] bg-[#FFF8F0] px-2.5 py-1 rounded-lg border border-[#E0B050]/40">
-                    Auto-Unlocked at Checkout
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {BUMPER_OFFERS.map((offer) => (
-                    <div key={offer.id} className="p-4 rounded-2xl bg-[#F8F9FB] border border-[#E0B050] space-y-2">
-                      <span className="px-2 py-0.5 rounded bg-[#E07B1A] text-white text-[10px] font-bold uppercase">
-                        {offer.badge}
-                      </span>
-                      <h4 className="text-sm font-bold text-[#1C1C1E]">{offer.headline}</h4>
-                      <p className="text-xs text-[#1F8A3B] font-semibold">{offer.freeItemDescription}</p>
-                      <span className="block text-[11px] text-[#8E8E93]">Worth ₹{offer.freeItemValue} free to customer</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Live Operational Status */}
-              <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold font-['Outfit'] text-[#1C1C1E]">
-                    Recent Live Bookings &amp; Service Pipeline
-                  </h3>
-                  <button 
-                    onClick={() => setActiveTab('BOOKINGS')}
-                    className="text-xs font-bold text-[#B8892E] hover:underline"
-                  >
-                    View All Bookings &rarr;
-                  </button>
-                </div>
-
-                {bookings.length === 0 ? (
-                  <div className="py-8 text-center text-[#8E8E93] text-sm">
-                    No bookings logged yet. Place a test booking on the customer site to see real-time pipeline tracking.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {bookings.slice(0, 5).map((b) => (
-                      <div 
-                        key={b.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] gap-3"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-[#1C1C1E]">#{b.bookingNumber}</span>
-                            <span className="text-xs font-semibold text-[#1C1C1E]">&bull; {b.customerName}</span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              b.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                            }`}>
-                              {b.status}
-                            </span>
-                          </div>
-                          <p className="text-xs text-[#8E8E93] mt-1">
-                            {b.serviceName} | {b.address.sector}, {b.address.city} | Slot: {b.timeSlot}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-black text-[#1C1C1E]">₹{b.totalAmount}</span>
-                          <span className="text-[11px] font-mono bg-white px-2 py-1 rounded border border-[#E5E5EA]">
-                            Start OTP: <strong>{b.startOtp}</strong>
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              ))}
             </div>
           )}
+        </div>
 
-          {/* MODULE 02-03: HUB OPERATIONS & MULTI-CLUSTER */}
-          {activeTab === 'HUBS' && (
-            <AdminHubOperations
-              hubs={hubs}
-              partners={partners}
-              onUpdateHubs={async (updated) => {
-                setHubs(updated);
-                await saveAllHubs(updated);
-              }}
-              onAuditLog={handleAuditLog}
-            />
-          )}
+        {/* Live Recent Bookings Feed (8 Columns) */}
+        <div className="lg:col-span-8 bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wider">Recent Live Bookings Feed</h3>
+            <span className="text-xs text-slate-400">Real-time Order Activity</span>
+          </div>
 
-          {/* MODULE 07: AUTO-DISPATCH ENGINE */}
-          {activeTab === 'DISPATCH' && (
-            <AdminDispatchEngine
-              bookings={bookings}
-              partners={partners}
-              hubs={hubs}
-              onManualAssign={handleManualAssign}
-              onAuditLog={handleAuditLog}
-            />
+          {bookings.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-xs bg-slate-900 rounded-xl border border-slate-700">
+              No live booking transactions recorded in system yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto bg-slate-900 rounded-xl border border-slate-700">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
+                  <tr>
+                    <th className="p-3">Booking ID</th>
+                    <th className="p-3">Customer</th>
+                    <th className="p-3">Service & Hub</th>
+                    <th className="p-3">Amount</th>
+                    <th className="p-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800 text-slate-200">
+                  {bookings.slice(0, 6).map((b) => (
+                    <tr key={b.bookingId} className="hover:bg-slate-850 transition">
+                      <td className="p-3 font-mono font-bold text-amber-400">{b.bookingId}</td>
+                      <td className="p-3 font-medium">{b.customerName}</td>
+                      <td className="p-3 text-slate-300">
+                        {b.serviceTitle}
+                        <div className="text-[10px] text-slate-400">📍 {b.hubName}</div>
+                      </td>
+                      <td className="p-3 font-bold text-white">₹{b.finalAmount}</td>
+                      <td className="p-3">
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                            b.status === 'COMPLETED'
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : b.status === 'PENDING_ASSIGNMENT'
+                              ? 'bg-amber-500/20 text-amber-400'
+                              : b.status === 'CANCELLED'
+                              ? 'bg-red-500/20 text-red-400'
+                              : 'bg-blue-500/20 text-blue-400'
+                          }`}
+                        >
+                          {b.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-
-          {/* MODULE 08-09: PARTNER SUITE & OPERATIONS */}
-          {activeTab === 'PARTNERS' && (
-            <AdminPartnerSuite
-              partners={partners}
-              hubs={hubs}
-              bookings={bookings}
-              onUpdatePartners={(updated) => setPartners(updated)}
-              onAuditLog={handleAuditLog}
-            />
-          )}
-
-          {/* MODULE 04: MASTER CATALOGUE */}
-          {activeTab === 'CATALOGUE' && (
-            <AdminCatalogueTab
-              services={services}
-              onRefresh={loadData}
-            />
-          )}
-
-          {/* MODULE 05: PRICING ENGINE */}
-          {activeTab === 'PRICING' && (
-            <AdminPricingEngine
-              services={services}
-              onServiceUpdated={loadData}
-            />
-          )}
-
-          {/* MODULE 10-11: QUALITY & TRAINING */}
-          {activeTab === 'QUALITY' && (
-            <AdminQualityAndTraining
-              partners={partners}
-              onAuditLog={handleAuditLog}
-            />
-          )}
-
-          {/* MODULE 12: INVENTORY & CLEANING KITS */}
-          {activeTab === 'INVENTORY' && (
-            <AdminInventorySupplies
-              hubs={hubs}
-              onAuditLog={handleAuditLog}
-            />
-          )}
-
-          {/* MODULE 06: BOOKINGS & FROZEN PRICE SNAPSHOTS */}
-          {activeTab === 'BOOKINGS' && (
-            <AdminBookingsTab
-              bookings={bookings}
-              partners={partners}
-              onRefresh={loadData}
-              onManualAssign={handleManualAssign}
-            />
-          )}
-
-          {/* MODULE 13, 14, 16: CRM, CMS & COUPONS */}
-          {activeTab === 'COUPONS' && (
-            <AdminCustomerAndCMS
-              hubs={hubs}
-              onAuditLog={handleAuditLog}
-            />
-          )}
-
-          {/* MODULE 15: FINANCE & SETTLEMENT ENGINE */}
-          {activeTab === 'FINANCE' && (
-            <AdminFinanceAndSettlementSuite
-              bookings={bookings}
-              partners={partners}
-              onAuditLog={handleAuditLog}
-            />
-          )}
-
-          {/* MODULE 17-22: GOVERNANCE, RBAC, COMPLAINTS, AUDIT */}
-          {activeTab === 'GOVERNANCE' && (
-            <AdminGovernanceAndAudit
-              bookings={bookings}
-              partners={partners}
-              hubs={hubs}
-              onAuditLog={handleAuditLog}
-            />
-          )}
-        </main>
+        </div>
       </div>
     </div>
   );

@@ -1,269 +1,127 @@
-import React, { useState } from 'react';
-import { InventoryItem, HubLocation } from '../../types';
-import { INITIAL_INVENTORY } from '../../data';
-import { 
-  Package, 
-  AlertTriangle, 
-  Plus, 
-  Search, 
-  Filter, 
-  CheckCircle2, 
-  Layers, 
-  Clock, 
-  ArrowDownToLine, 
-  ShoppingCart, 
-  RefreshCw,
-  Sparkles,
-  ShieldCheck,
-  Building2
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
-interface AdminInventorySuppliesProps {
-  hubs: HubLocation[];
-  onAuditLog?: (action: string, targetId: string, details: string) => void;
+export interface InventoryItem {
+  id: string;
+  itemName: string;
+  category: 'CHEMICAL' | 'MACHINE' | 'CONSUMABLE';
+  availableQty: number;
+  minThresholdAlert: number;
+  assignedHub: string;
 }
 
-export const AdminInventorySupplies: React.FC<AdminInventorySuppliesProps> = ({
-  hubs,
-  onAuditLog
-}) => {
-  const [inventory, setInventory] = useState<InventoryItem[]>(INITIAL_INVENTORY);
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [selectedHub, setSelectedHub] = useState<string>('ALL');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'STOCK_DIRECTORY' | 'LOW_STOCK_ALERTS' | 'PURCHASE_ORDERS'>('STOCK_DIRECTORY');
+const DEFAULT_INVENTORY: InventoryItem[] = [
+  { id: 'inv-1', itemName: 'Industrial Single-Disc Floor Scrubber', category: 'MACHINE', availableQty: 18, minThresholdAlert: 5, assignedHub: 'Sector 14 & 15 (Gurugram)' },
+  { id: 'inv-2', itemName: 'Taski R2 Hard Surface Sanitizer (5L)', category: 'CHEMICAL', availableQty: 8, minThresholdAlert: 10, assignedHub: 'DLF Phase 1-5 (Gurugram)' },
+  { id: 'inv-3', itemName: 'Dual-Motor Wet/Dry Vacuum Cleaner', category: 'MACHINE', availableQty: 25, minThresholdAlert: 6, assignedHub: 'Boring Road (Patna)' },
+];
 
-  // Filtered inventory
-  const filteredItems = inventory.filter(item => {
-    const matchesCat = selectedCategory === 'ALL' || item.category === selectedCategory;
-    const matchesHub = selectedHub === 'ALL' || item.hubId === selectedHub;
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.sku.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesHub && matchesSearch;
+export const AdminInventorySupplies: React.FC = () => {
+  const [items, setItems] = useState<InventoryItem[]>(() => {
+    const saved = localStorage.getItem('bharatpro_inventory');
+    return saved ? JSON.parse(saved) : DEFAULT_INVENTORY;
   });
 
-  const lowStockCount = inventory.filter(i => i.currentStock <= i.minThreshold).length;
+  const [newItemName, setNewItemName] = useState<string>('');
+  const [qtyInput, setQtyInput] = useState<number>(10);
 
-  // Reorder action
-  const handleReorder = (item: InventoryItem) => {
-    const qty = window.prompt(`Enter replenishment quantity for ${item.name}:`, "50");
-    if (!qty || isNaN(parseInt(qty))) return;
+  useEffect(() => {
+    localStorage.setItem('bharatpro_inventory', JSON.stringify(items));
+  }, [items]);
 
-    const updated = inventory.map(i => {
-      if (i.id === item.id) {
-        return {
-          ...i,
-          currentStock: i.currentStock + parseInt(qty)
-        };
-      }
-      return i;
-    });
+  const handleAddStock = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItemName.trim()) return;
 
-    setInventory(updated);
-    onAuditLog?.('REORDER_INVENTORY', item.id, `Replenished ${qty} units for ${item.name} at ${item.hubName}`);
-    alert(`Purchase Order Created: ${qty} units of ${item.name} dispatched to ${item.hubName}. Stock updated.`);
+    const newItem: InventoryItem = {
+      id: `inv-${Date.now()}`,
+      itemName: newItemName,
+      category: 'CHEMICAL',
+      availableQty: qtyInput,
+      minThresholdAlert: 5,
+      assignedHub: 'Central Hub',
+    };
+
+    setItems([...items, newItem]);
+    setNewItemName('');
+    setQtyInput(10);
+  };
+
+  const handleUpdateQty = (id: string, delta: number) => {
+    const updated = items.map((item) =>
+      item.id === id ? { ...item, availableQty: Math.max(0, item.availableQty + delta) } : item
+    );
+    setItems(updated);
   };
 
   return (
-    <div className="space-y-6 font-['Plus_Jakarta_Sans']">
-      {/* Top Banner */}
-      <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <div className="p-6 bg-slate-900 text-white min-h-screen space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold tracking-wider uppercase font-mono">
-              Module 12 &bull; Inventory &amp; Supplies
-            </span>
-            <span className="text-xs text-[#8E8E93]">Diversey Chemicals &amp; Professional Machinery</span>
-          </div>
-          <h3 className="text-xl font-black text-[#1C1C1E] mt-1 font-['Outfit']">
-            Cleaning Kit Stock &amp; Hub Asset Inventory
-          </h3>
-          <p className="text-xs text-[#8E8E93] mt-0.5 max-w-2xl">
-            Track industrial chemicals (Taski R2/R6/Suma), Karcher injection-extraction machines, 
-            microfiber bundles, PPE equipment, and partner kit replenishment across all operational hubs.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {lowStockCount > 0 && (
-            <div className="px-3.5 py-2 rounded-2xl bg-rose-50 border border-rose-200 flex items-center gap-2 text-rose-800 text-xs font-bold">
-              <AlertTriangle className="w-4 h-4 text-rose-600" />
-              <span>{lowStockCount} Items Below Threshold</span>
-            </div>
-          )}
+          <h1 className="text-2xl font-bold text-amber-400">Inventory & Cleaning Kit Stock</h1>
+          <p className="text-slate-400 text-sm">Chemical Chemicals Stock, Machines & Partner Kit Tracking</p>
         </div>
       </div>
 
-      {/* Sub Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#E5E5EA] pb-3">
-        {[
-          { id: 'STOCK_DIRECTORY', label: `Hub Inventory Stock (${inventory.length})`, icon: Package },
-          { id: 'LOW_STOCK_ALERTS', label: `Replenishment Alerts (${lowStockCount})`, icon: AlertTriangle },
-          { id: 'PURCHASE_ORDERS', label: 'Supplier Purchase Orders & Deliveries', icon: ShoppingCart }
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
-                isActive
-                  ? 'bg-[#1C1C1E] text-white shadow-sm'
-                  : 'bg-white hover:bg-[#F2F2F7] text-[#48484A] border border-[#E5E5EA]'
-              }`}
-            >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#D4A24E]' : 'text-[#8E8E93]'}`} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* TAB 1: STOCK DIRECTORY */}
-      {activeTab === 'STOCK_DIRECTORY' && (
-        <div className="space-y-4">
-          {/* Filters */}
-          <div className="p-4 rounded-2xl bg-white border border-[#E5E5EA] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-1">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="w-4 h-4 text-[#8E8E93] absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search chemical, machine, SKU..."
-                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
-                />
-              </div>
-
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl bg-[#F2F2F7] border border-transparent font-medium outline-none"
-              >
-                <option value="ALL">All Categories</option>
-                <option value="CHEMICAL">Chemicals (Taski/Suma)</option>
-                <option value="EQUIPMENT">Machinery &amp; Scrubbers</option>
-                <option value="CONSUMABLE">Consumables &amp; Cloths</option>
-                <option value="PPE">Safety Gear &amp; PPE</option>
-              </select>
-
-              <select
-                value={selectedHub}
-                onChange={(e) => setSelectedHub(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl bg-[#F2F2F7] border border-transparent font-medium outline-none"
-              >
-                <option value="ALL">All Hubs</option>
-                {hubs.map(h => (
-                  <option key={h.id} value={h.id}>{h.city} - {h.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredItems.map((item) => {
-              const isLowStock = item.currentStock <= item.minThreshold;
-              return (
-                <div key={item.id} className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-3.5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="px-2 py-0.5 rounded bg-neutral-100 font-mono text-[10px] font-bold text-[#1C1C1E]">
-                        {item.sku}
-                      </span>
-                      <h4 className="text-sm font-bold text-[#1C1C1E] mt-1">{item.name}</h4>
-                      <p className="text-xs text-[#8E8E93]">{item.category}</p>
-                    </div>
-
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      isLowStock ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-                    }`}>
-                      {isLowStock ? 'LOW STOCK' : 'IN STOCK'}
-                    </span>
-                  </div>
-
-                  <div className="p-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] text-xs space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-[#8E8E93]">Location:</span>
-                      <span className="font-semibold text-indigo-700 truncate max-w-[150px]">{item.hubName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#8E8E93]">Current Balance:</span>
-                      <span className="font-bold text-[#1C1C1E]">{item.currentStock} {item.unit}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#8E8E93]">Min Threshold:</span>
-                      <span className="font-mono text-[#8E8E93]">{item.minThreshold} {item.unit}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#8E8E93]">Unit Cost:</span>
-                      <span className="font-black text-[#1C1C1E]">₹{item.unitCost}</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-[#F2F2F7] flex items-center justify-between">
-                    <span className="text-[11px] text-[#8E8E93]">Supplier: Diversey India</span>
-                    <button
-                      onClick={() => handleReorder(item)}
-                      className="px-3 py-1.5 rounded-xl bg-[#1C1C1E] hover:bg-black text-white text-xs font-bold flex items-center gap-1 shadow-sm"
-                    >
-                      <Plus className="w-3.5 h-3.5 text-[#D4A24E]" />
-                      <span>Reorder Stock</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Restock Form */}
+      <form onSubmit={handleAddStock} className="bg-slate-800 border border-slate-700 rounded-2xl p-5 flex flex-col sm:flex-row gap-4 items-end">
+        <div className="flex-1">
+          <label className="block text-xs text-slate-300 mb-1">Item Name / Stock Asset *</label>
+          <input
+            type="text"
+            required
+            value={newItemName}
+            onChange={(e) => setNewItemName(e.target.value)}
+            placeholder="e.g. Steam Sanitizer Machine or Carpet Shampoo"
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white"
+          />
         </div>
-      )}
+        <div className="w-32">
+          <label className="block text-xs text-slate-300 mb-1">Quantity</label>
+          <input
+            type="number"
+            value={qtyInput}
+            onChange={(e) => setQtyInput(Number(e.target.value))}
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white"
+          />
+        </div>
+        <button type="submit" className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-6 py-2.5 rounded-lg text-sm shadow">
+          + Add Stock Item
+        </button>
+      </form>
 
-      {/* TAB 2: LOW STOCK ALERTS */}
-      {activeTab === 'LOW_STOCK_ALERTS' && (
-        <div className="bg-white rounded-3xl border border-[#E5E5EA] shadow-sm p-6 space-y-4">
-          <h4 className="text-base font-bold text-[#1C1C1E]">Replenishment Priority Queue</h4>
-          <div className="divide-y divide-[#F2F2F7]">
-            {inventory.filter(i => i.currentStock <= i.minThreshold).map(item => (
-              <div key={item.id} className="py-3.5 flex items-center justify-between text-xs">
-                <div>
-                  <span className="font-bold text-[#1C1C1E] block">{item.name}</span>
-                  <span className="text-rose-700 font-semibold">
-                    Current: {item.currentStock} {item.unit} (Below reorder point of {item.minThreshold}) &bull; {item.hubName}
+      {/* Inventory Table */}
+      <div className="overflow-x-auto bg-slate-800 border border-slate-700 rounded-2xl">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-slate-950 text-slate-400 border-b border-slate-700 uppercase">
+            <tr>
+              <th className="p-4">Item Name</th>
+              <th className="p-4">Category</th>
+              <th className="p-4">Assigned Hub</th>
+              <th className="p-4">Available Qty</th>
+              <th className="p-4 text-right">Quick Restock</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/60 text-slate-200">
+            {items.map((item) => (
+              <tr key={item.id}>
+                <td className="p-4 font-bold text-white">{item.itemName}</td>
+                <td className="p-4"><span className="bg-slate-900 border border-slate-700 px-2.5 py-1 rounded text-[10px] font-mono">{item.category}</span></td>
+                <td className="p-4 text-slate-400">{item.assignedHub}</td>
+                <td className="p-4">
+                  <span className={`font-bold text-sm ${item.availableQty <= item.minThresholdAlert ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
+                    {item.availableQty} Units
                   </span>
-                </div>
-                <button
-                  onClick={() => handleReorder(item)}
-                  className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
-                >
-                  Create Emergency PO
-                </button>
-              </div>
+                  {item.availableQty <= item.minThresholdAlert && <span className="text-[10px] block text-red-400">⚠️ Low Stock Alert</span>}
+                </td>
+                <td className="p-4 text-right space-x-2">
+                  <button onClick={() => handleUpdateQty(item.id, 5)} className="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-xs font-bold text-white">+5</button>
+                  <button onClick={() => handleUpdateQty(item.id, -1)} className="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-xs font-bold text-white">-1</button>
+                </td>
+              </tr>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: PURCHASE ORDERS */}
-      {activeTab === 'PURCHASE_ORDERS' && (
-        <div className="bg-white rounded-3xl border border-[#E5E5EA] shadow-sm p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="text-base font-bold text-[#1C1C1E]">Authorized Supplier Purchase Orders</h4>
-            <span className="text-xs text-[#8E8E93]">Direct Diversey &amp; Karcher Fulfillment</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] text-xs space-y-2">
-            <div className="flex justify-between font-bold text-[#1C1C1E]">
-              <span>PO-2026-BPE-881 &bull; Karcher Professional India</span>
-              <span className="text-emerald-700">DELIVERED &amp; STOCKED</span>
-            </div>
-            <p className="text-[#8E8E93]">
-              8x Karcher Puzzi 10/1 deep extraction machines allocated across Patna Central and Patna West hubs.
-            </p>
-          </div>
-        </div>
-      )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

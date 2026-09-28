@@ -1,667 +1,472 @@
-import React, { useState } from 'react';
-import { CleaningService, ServiceAddon } from '../../types';
-import { updateServicePricing, addNewService, toggleServiceActive } from '../../services/dbService';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit3, 
-  Copy, 
-  Eye, 
-  Check, 
-  X, 
-  Trash2, 
-  Clock, 
-  ShieldCheck, 
-  Sparkles,
-  Tag,
-  Percent,
-  CheckCircle2,
-  AlertCircle,
-  Smartphone
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
-interface AdminCatalogueTabProps {
-  services: CleaningService[];
-  onRefresh: () => void;
+export interface ServiceItem {
+  id: string;
+  category: string;
+  subCategory: string;
+  title: string;
+  sku: string;
+  price: number;
+  strikePrice: number;
+  gstPercent: number;
+  durationMinutes: number;
+  requiredPartners: number;
+  thumbnailUrl: string;
+  bannerUrl: string;
+  videoUrl: string;
+  description: string;
+  scopeOfWork: string[];
+  equipmentRequired: string[];
+  isActive: boolean;
 }
 
-export const AdminCatalogueTab: React.FC<AdminCatalogueTabProps> = ({
-  services,
-  onRefresh
-}) => {
-  const [activeCategory, setActiveCategory] = useState<string>('ALL');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  
-  // Modals state
-  const [editingService, setEditingService] = useState<CleaningService | null>(null);
-  const [previewService, setPreviewService] = useState<CleaningService | null>(null);
-  const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false);
+const DEFAULT_SERVICES: ServiceItem[] = [
+  {
+    id: 'srv-1',
+    category: 'Sofa Cleaning',
+    subCategory: 'Fabric Sofa',
+    title: '3-Seater Fabric Sofa Deep Cleaning',
+    sku: 'SOFA-3S-FAB',
+    price: 1499,
+    strikePrice: 1999,
+    gstPercent: 5,
+    durationMinutes: 90,
+    requiredPartners: 1,
+    thumbnailUrl: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=400&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80',
+    videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    description: 'Deep extraction vacuuming and injection scrubbing for 3 seater fabric sofa.',
+    scopeOfWork: ['Dry vacuuming', 'Stain treatment', 'Shampooing', 'Extraction drying'],
+    equipmentRequired: ['Extraction Vacuum', 'Foam Scrubbing Machine', 'Chemical Spray Kit'],
+    isActive: true,
+  },
+  {
+    id: 'srv-2',
+    category: 'Full Home Deep Cleaning',
+    subCategory: '2 BHK',
+    title: '2 BHK Complete Deep Cleaning Package',
+    sku: 'HOME-2BHK-DEEP',
+    price: 3499,
+    strikePrice: 4499,
+    gstPercent: 5,
+    durationMinutes: 240,
+    requiredPartners: 2,
+    thumbnailUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80',
+    videoUrl: '',
+    description: 'Complete deep cleaning of 2 Bedrooms, Kitchen, Bathrooms, and Living Room.',
+    scopeOfWork: ['Floor scrubbing', 'Kitchen degreasing', 'Bathroom descaling', 'Balcony wash'],
+    equipmentRequired: ['Single Disc Floor Scrubber', 'Industrial Vacuum', 'Steam Cleaner'],
+    isActive: true,
+  }
+];
 
-  // New service form state (Strictly manual - no AI auto-fill)
-  const [newName, setNewName] = useState('');
-  const [newCategoryId, setNewCategoryId] = useState('bathroom-cleaning');
-  const [newRefPrice, setNewRefPrice] = useState<number>(500);
-  const [newDiscountPct, setNewDiscountPct] = useState<number>(15);
-  const [newDuration, setNewDuration] = useState<number>(60);
-  const [newDesc, setNewDesc] = useState('');
-  const [newInclusions, setNewInclusions] = useState('');
-  const [newExclusions, setNewExclusions] = useState('');
-  const [newSteps, setNewSteps] = useState('');
-  const [newImageUrl, setNewImageUrl] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const categories = [
-    { id: 'ALL', label: 'All Cleaning (47)' },
-    { id: 'bathroom-cleaning', label: 'Bathroom Cleaning (10)' },
-    { id: 'kitchen-cleaning', label: 'Kitchen Cleaning (9)' },
-    { id: 'full-home-cleaning', label: 'Full Home Deep Cleaning (15)' },
-    { id: 'sofa-carpet-cleaning', label: 'Living, Sofa & Carpet (13)' }
-  ];
-
-  // Filtering
-  const filteredServices = services.filter(s => {
-    const matchesCat = activeCategory === 'ALL' || s.categoryId === activeCategory;
-    const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          s.shortDesc.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          s.categoryName.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesSearch;
+export const AdminCatalogueTab: React.FC = () => {
+  const [services, setServices] = useState<ServiceItem[]>(() => {
+    const saved = localStorage.getItem('bharatpro_catalog_services');
+    return saved ? JSON.parse(saved) : DEFAULT_SERVICES;
   });
 
-  // Toggle active
-  const handleToggleActive = async (srv: CleaningService) => {
-    const newActive = srv.active === false ? true : false;
-    await toggleServiceActive(srv.id, newActive);
-    onRefresh();
-  };
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [editingService, setEditingService] = useState<ServiceItem | null>(null);
 
-  // Duplicate service
-  const handleDuplicate = async (srv: CleaningService) => {
-    const dup: CleaningService = {
-      ...srv,
-      id: `${srv.id}-copy-${Date.now()}`,
-      name: `${srv.name} (Copy)`
-    };
-    await addNewService(dup);
-    onRefresh();
-  };
+  // Form State
+  const [formData, setFormData] = useState<Omit<ServiceItem, 'id'>>({
+    category: 'Sofa Cleaning',
+    subCategory: 'Fabric Sofa',
+    title: '',
+    sku: '',
+    price: 0,
+    strikePrice: 0,
+    gstPercent: 5,
+    durationMinutes: 60,
+    requiredPartners: 1,
+    thumbnailUrl: '',
+    bannerUrl: '',
+    videoUrl: '',
+    description: '',
+    scopeOfWork: [''],
+    equipmentRequired: [''],
+    isActive: true,
+  });
 
-  // Create new service submit
-  const handleCreateService = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName.trim()) return;
+  useEffect(() => {
+    localStorage.setItem('bharatpro_catalog_services', JSON.stringify(services));
+  }, [services]);
 
-    setIsSubmitting(true);
-    try {
-      const bpePrice = Math.round(newRefPrice * (1 - newDiscountPct / 100));
-      const categoryNames: Record<string, string> = {
-        'bathroom-cleaning': 'Bathroom Cleaning',
-        'kitchen-cleaning': 'Kitchen Cleaning',
-        'full-home-cleaning': 'Full Home Cleaning',
-        'sofa-carpet-cleaning': 'Living Room, Sofa & Carpet'
-      };
+  const categories = ['ALL', ...Array.from(new Set(services.map((s) => s.category)))];
 
-      const stepLines = newSteps.split('\n').filter(s => s.trim().length > 0);
-      const parsedSteps = stepLines.map((line, idx) => ({
-        order: idx + 1,
-        title: line.trim(),
-        description: `Step ${idx + 1}: ${line.trim()}`,
-        estimatedMinutes: Math.round(newDuration / Math.max(1, stepLines.length))
-      }));
+  const filteredServices = services.filter((srv) => {
+    const matchesCategory = selectedCategory === 'ALL' || srv.category === selectedCategory;
+    const matchesSearch =
+      srv.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      srv.sku.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
-      const newSrv: CleaningService = {
-        id: `srv-${newCategoryId}-${Date.now().toString(36)}`,
-        name: newName.trim(),
-        categoryId: newCategoryId,
-        categoryName: categoryNames[newCategoryId] || 'Cleaning',
-        shortDesc: newDesc.trim() || newName.trim(),
-        detailedDesc: newDesc.trim() || newName.trim(),
-        referencePrice: newRefPrice,
-        discountPct: newDiscountPct,
-        basePrice: bpePrice,
-        competitorPrice: newRefPrice,
-        pricingMode: 'REFERENCE_PERCENT',
-        priceVersion: 'v1.0.0',
-        estimatedMinutes: newDuration,
-        rating: 5.0,
-        reviewCount: 0,
-        imageUrl: newImageUrl.trim() || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
-        beforeAfterImage: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=600&q=80',
-        demoVideoBadge: 'Service Guide',
-        inclusions: newInclusions.split('\n').map(s => s.trim()).filter(Boolean),
-        exclusions: newExclusions.split('\n').map(s => s.trim()).filter(Boolean),
-        steps: parsedSteps,
-        addons: [],
-        active: true
-      };
-
-      await addNewService(newSrv);
-      setIsCreatingNew(false);
-      setNewName('');
-      setNewDesc('');
-      setNewInclusions('');
-      setNewExclusions('');
-      setNewSteps('');
-      setNewImageUrl('');
-      onRefresh();
-    } catch (err) {
-      console.error('Failed to create service', err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Quick edit save
-  const handleSaveEdit = async () => {
-    if (!editingService) return;
-    setIsSubmitting(true);
-    try {
-      const ref = editingService.referencePrice || Math.round(editingService.basePrice / 0.85);
-      const discount = editingService.discountPct || 15;
-      const bpePrice = editingService.pricingMode === 'MANUAL' 
-        ? editingService.basePrice 
-        : Math.round(ref * (1 - discount / 100));
-
-      await updateServicePricing(editingService.id, {
-        ...editingService,
-        basePrice: bpePrice,
-        competitorPrice: ref
+  const handleOpenModal = (service?: ServiceItem) => {
+    if (service) {
+      setEditingService(service);
+      setFormData({
+        category: service.category,
+        subCategory: service.subCategory,
+        title: service.title,
+        sku: service.sku,
+        price: service.price,
+        strikePrice: service.strikePrice,
+        gstPercent: service.gstPercent,
+        durationMinutes: service.durationMinutes,
+        requiredPartners: service.requiredPartners,
+        thumbnailUrl: service.thumbnailUrl,
+        bannerUrl: service.bannerUrl,
+        videoUrl: service.videoUrl,
+        description: service.description,
+        scopeOfWork: [...service.scopeOfWork],
+        equipmentRequired: [...service.equipmentRequired],
+        isActive: service.isActive,
       });
+    } else {
       setEditingService(null);
-      onRefresh();
-    } catch (err) {
-      console.error('Failed to update service', err);
-    } finally {
-      setIsSubmitting(false);
+      setFormData({
+        category: 'Sofa Cleaning',
+        subCategory: 'Standard',
+        title: '',
+        sku: `BP-${Date.now().toString().slice(-5)}`,
+        price: 999,
+        strikePrice: 1499,
+        gstPercent: 5,
+        durationMinutes: 60,
+        requiredPartners: 1,
+        thumbnailUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=80',
+        bannerUrl: '',
+        videoUrl: '',
+        description: '',
+        scopeOfWork: ['Standard cleaning process'],
+        equipmentRequired: ['Standard Cleaning Kit'],
+        isActive: true,
+      });
     }
+    setIsModalOpen(true);
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingService) {
+      const updated = services.map((s) =>
+        s.id === editingService.id ? { ...formData, id: editingService.id } : s
+      );
+      setServices(updated);
+    } else {
+      const newService: ServiceItem = {
+        ...formData,
+        id: `srv-${Date.now()}`,
+      };
+      setServices([newService, ...services]);
+    }
+    setIsModalOpen(false);
+  };
+
+  const handleDelete = (id: string) => {
+    if (window.confirm('Kya aap sach me is service ko catalogue se hatana chahte hain?')) {
+      const updated = services.filter((s) => s.id !== id);
+      setServices(updated);
+    }
+  };
+
+  const handleToggleStatus = (id: string) => {
+    const updated = services.map((s) =>
+      s.id === id ? { ...s, isActive: !s.isActive } : s
+    );
+    setServices(updated);
   };
 
   return (
-    <div className="space-y-6" id="admin-catalogue-tab">
-      {/* Top Controls Bar */}
-      <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold tracking-wider uppercase">
-              Master Catalogue
-            </span>
-            <span className="text-xs text-[#8E8E93]">Cleaning Marketplace Only</span>
-          </div>
-          <h2 className="text-lg font-bold font-['Outfit'] text-[#1C1C1E]">
-            Services &amp; Standard Operating Procedures (SOP)
-          </h2>
+    <div className="p-6 bg-slate-900 text-white min-h-screen">
+      {/* Header Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-amber-400">Master Service Catalogue</h1>
+          <p className="text-slate-400 text-sm">Add, Edit, Modify Pricing, Upload Media, and Manage Active Services</p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setIsCreatingNew(true)}
-            className="px-4 py-2.5 rounded-xl bg-[#E07B1A] hover:bg-[#c96c14] text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create New Cleaning Service</span>
-          </button>
-        </div>
+        <button
+          onClick={() => handleOpenModal()}
+          className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold px-5 py-2.5 rounded-lg shadow transition"
+        >
+          + Add New Service
+        </button>
       </div>
 
-      {/* Categories & Search Filter Bar */}
-      <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                activeCategory === cat.id
-                  ? 'bg-[#1C1C1E] text-white shadow-sm'
-                  : 'bg-white border border-[#E5E5EA] text-[#48484A] hover:bg-[#F2F2F7]'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative">
-          <Search className="w-4 h-4 text-[#8E8E93] absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search by cleaning service title, category, or description..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-[#D1D1D6] bg-white text-xs text-[#1C1C1E] focus:outline-none focus:ring-2 focus:ring-[#E07B1A]"
-          />
+      {/* Filter and Search */}
+      <div className="flex flex-wrap items-center gap-4 mb-6 bg-slate-800 p-4 rounded-xl border border-slate-700">
+        <input
+          type="text"
+          placeholder="Search by Title or SKU..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="bg-slate-900 text-white px-4 py-2 rounded-lg border border-slate-700 flex-1 min-w-[200px] focus:outline-none focus:border-amber-500"
+        />
+        <div className="flex items-center gap-2">
+          <label className="text-slate-400 text-sm">Category:</label>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 focus:outline-none focus:border-amber-500"
+          >
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       {/* Services Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filteredServices.map((srv) => {
-          const refPrice = srv.referencePrice || Math.round(srv.basePrice / 0.85);
-          const savings = refPrice - srv.basePrice;
-          const isActive = srv.active !== false;
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredServices.map((service) => (
+          <div
+            key={service.id}
+            className={`bg-slate-800 rounded-xl overflow-hidden border ${
+              service.isActive ? 'border-slate-700' : 'border-red-900/50 opacity-60'
+            } flex flex-col justify-between`}
+          >
+            <div>
+              <div className="relative h-48 bg-slate-950">
+                <img
+                  src={service.thumbnailUrl || 'https://via.placeholder.com/400x300?text=No+Image'}
+                  alt={service.title}
+                  className="w-full h-full object-cover"
+                />
+                <span className="absolute top-3 left-3 bg-slate-950/80 text-amber-400 text-xs px-2.5 py-1 rounded-full border border-amber-500/30 font-medium">
+                  {service.category}
+                </span>
+                <span
+                  className={`absolute top-3 right-3 text-xs px-2.5 py-1 rounded-full font-bold ${
+                    service.isActive ? 'bg-emerald-500 text-slate-950' : 'bg-red-500 text-white'
+                  }`}
+                >
+                  {service.isActive ? 'LIVE' : 'DISABLED'}
+                </span>
+              </div>
 
-          return (
-            <div 
-              key={srv.id} 
-              className={`p-5 rounded-3xl bg-white border transition-all flex flex-col justify-between space-y-4 shadow-sm ${
-                isActive ? 'border-[#E5E5EA]' : 'border-neutral-300 opacity-60 bg-neutral-50'
-              }`}
-            >
-              <div className="space-y-3">
-                {/* Header Badge */}
-                <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded-md bg-[#D4A24E]/10 text-[#B8892E] font-bold text-[10px] uppercase tracking-wider">
-                    {srv.categoryName}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    {srv.popular && (
-                      <span className="px-2 py-0.5 rounded bg-[#E07B1A]/10 text-[#E07B1A] font-bold text-[10px]">
-                        Popular Choice
-                      </span>
-                    )}
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-200 text-neutral-600'
-                    }`}>
-                      {isActive ? 'ACTIVE' : 'INACTIVE'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Title & Desc */}
-                <div>
-                  <h3 className="text-sm font-bold text-[#1C1C1E] line-clamp-1">{srv.name}</h3>
-                  <p className="text-xs text-[#8E8E93] line-clamp-2 mt-1">{srv.shortDesc}</p>
-                </div>
-
-                {/* Pricing Block */}
-                <div className="p-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] flex items-center justify-between">
+              <div className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
                   <div>
-                    <span className="text-[10px] text-[#8E8E93] block font-medium">Bharat Pro Price</span>
-                    <span className="text-base font-black text-[#1C1C1E]">₹{srv.basePrice}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-[#8E8E93] line-through block">₹{refPrice} (Benchmark)</span>
-                    <span className="text-xs font-bold text-emerald-600">Save ₹{savings} ({srv.discountPct || 15}% off)</span>
+                    <h3 className="font-semibold text-lg text-white leading-snug">{service.title}</h3>
+                    <p className="text-xs text-slate-400">SKU: {service.sku} | {service.subCategory}</p>
                   </div>
                 </div>
 
-                {/* Specs */}
-                <div className="flex items-center justify-between text-[11px] text-[#8E8E93]">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-[#8E8E93]" /> {srv.estimatedMinutes} mins
-                  </span>
-                  <span>{srv.steps.length} SOP checklist steps</span>
-                  <span>{srv.addons?.length || 0} add-ons</span>
-                </div>
-              </div>
+                <p className="text-slate-300 text-xs line-clamp-2">{service.description}</p>
 
-              {/* Action Buttons */}
-              <div className="pt-3 border-t border-[#E5E5EA] flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewService(srv)}
-                    title="Customer Card Preview"
-                    className="p-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] transition-all"
-                  >
-                    <Smartphone className="w-4 h-4 text-[#48484A]" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDuplicate(srv)}
-                    title="Duplicate Service"
-                    className="p-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] transition-all"
-                  >
-                    <Copy className="w-4 h-4 text-[#48484A]" />
-                  </button>
+                <div className="flex items-baseline gap-2 pt-1">
+                  <span className="text-xl font-bold text-amber-400">₹{service.price}</span>
+                  {service.strikePrice > service.price && (
+                    <span className="text-sm text-slate-500 line-through">₹{service.strikePrice}</span>
+                  )}
+                  <span className="text-xs text-slate-400 ml-auto">+ {service.gstPercent}% GST</span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleActive(srv)}
-                    className="px-2.5 py-1.5 rounded-xl border border-[#D1D1D6] text-[11px] font-bold text-[#48484A] hover:bg-neutral-100 transition-all"
-                  >
-                    {isActive ? 'Deactivate' : 'Activate'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditingService({ ...srv })}
-                    className="px-3 py-1.5 rounded-xl bg-[#1C1C1E] hover:bg-black text-white text-[11px] font-bold flex items-center gap-1 transition-all"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>Edit</span>
-                  </button>
+                <div className="flex items-center gap-4 text-xs text-slate-400 pt-2 border-t border-slate-700/50">
+                  <span>⏱ {service.durationMinutes} Mins</span>
+                  <span>👤 {service.requiredPartners} Pro(s)</span>
+                  {service.videoUrl && <span className="text-amber-400">🎥 Video Guide</span>}
                 </div>
               </div>
             </div>
-          );
-        })}
-      </div>
 
-      {/* MODAL 1: Customer Card Preview Modal */}
-      {previewService && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-3xl bg-[#F8F9FB] border border-[#E5E5EA] p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-[#E5E5EA]">
-              <div className="flex items-center gap-1.5">
-                <Smartphone className="w-4 h-4 text-[#E07B1A]" />
-                <span className="text-xs font-bold text-[#1C1C1E]">Customer Card Live Preview</span>
-              </div>
+            {/* Action Buttons */}
+            <div className="p-4 bg-slate-850 border-t border-slate-700/60 flex items-center justify-between gap-2">
               <button
-                onClick={() => setPreviewService(null)}
-                className="p-1.5 rounded-full hover:bg-[#E5E5EA]"
+                onClick={() => handleToggleStatus(service.id)}
+                className={`text-xs px-3 py-1.5 rounded font-medium transition ${
+                  service.isActive
+                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
+                    : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
+                }`}
               >
-                <X className="w-4 h-4 text-[#8E8E93]" />
+                {service.isActive ? 'Disable' : 'Enable'}
               </button>
-            </div>
 
-            {/* Mock Customer Card */}
-            <div className="rounded-2xl bg-white border border-[#E5E5EA] p-4 shadow-sm space-y-3">
-              <div className="flex justify-between items-start">
-                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                  15% Transparent Savings
-                </span>
-                <span className="text-[11px] text-[#8E8E93] flex items-center gap-1">
-                  ★ {previewService.rating} ({previewService.reviewCount})
-                </span>
-              </div>
-
-              <div>
-                <h4 className="text-sm font-bold text-[#1C1C1E]">{previewService.name}</h4>
-                <p className="text-xs text-[#8E8E93] line-clamp-2 mt-1">{previewService.shortDesc}</p>
-              </div>
-
-              <div className="flex items-baseline justify-between pt-2 border-t border-[#F2F2F7]">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-lg font-black text-[#1C1C1E]">₹{previewService.basePrice}</span>
-                  <span className="text-xs text-[#8E8E93] line-through">
-                    ₹{previewService.referencePrice || Math.round(previewService.basePrice / 0.85)}
-                  </span>
-                </div>
-                <button className="px-3 py-1.5 rounded-xl bg-[#E07B1A] text-white text-xs font-bold">
-                  Book Now
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleOpenModal(service)}
+                  className="bg-slate-700 hover:bg-slate-600 text-white text-xs px-3 py-1.5 rounded transition"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(service.id)}
+                  className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/30 text-xs px-3 py-1.5 rounded transition"
+                >
+                  Delete
                 </button>
               </div>
             </div>
-
-            <p className="text-[11px] text-center text-[#8E8E93]">
-              Rendered according to Bharat Pro Expert transparent pricing standard.
-            </p>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
 
-      {/* MODAL 2: Edit Service & Pricing Modal */}
-      {editingService && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="w-full max-w-lg rounded-3xl bg-white border border-[#E5E5EA] p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
-              <h3 className="text-base font-bold text-[#1C1C1E]">Edit Cleaning Service</h3>
-              <button onClick={() => setEditingService(null)} className="p-1 rounded-full hover:bg-[#F2F2F7]">
-                <X className="w-4 h-4 text-[#8E8E93]" />
-              </button>
-            </div>
-
-            <div className="space-y-3.5 max-h-[70vh] overflow-y-auto pr-1">
-              <div>
-                <label className="text-xs font-bold text-[#48484A] block mb-1">Service Title</label>
-                <input
-                  type="text"
-                  value={editingService.name}
-                  onChange={(e) => setEditingService({ ...editingService, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold text-[#1C1C1E]"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-[#48484A] block mb-1">Description</label>
-                <textarea
-                  rows={2}
-                  value={editingService.shortDesc}
-                  onChange={(e) => setEditingService({ ...editingService, shortDesc: e.target.value, detailedDesc: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs text-[#1C1C1E]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-[#48484A] block mb-1">Market Benchmark (₹)</label>
-                  <input
-                    type="number"
-                    value={editingService.referencePrice || Math.round(editingService.basePrice / 0.85)}
-                    onChange={(e) => {
-                      const ref = Number(e.target.value);
-                      const disc = editingService.discountPct || 15;
-                      setEditingService({
-                        ...editingService,
-                        referencePrice: ref,
-                        basePrice: Math.round(ref * (1 - disc / 100))
-                      });
-                    }}
-                    className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#48484A] block mb-1">Discount (%)</label>
-                  <input
-                    type="number"
-                    value={editingService.discountPct || 15}
-                    onChange={(e) => {
-                      const disc = Number(e.target.value);
-                      const ref = editingService.referencePrice || Math.round(editingService.basePrice / 0.85);
-                      setEditingService({
-                        ...editingService,
-                        discountPct: disc,
-                        basePrice: Math.round(ref * (1 - disc / 100))
-                      });
-                    }}
-                    className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-[#FFF8F0] border border-[#E0B050] text-xs flex justify-between items-center">
-                <span className="font-bold text-[#1C1C1E]">Calculated Bharat Pro Price:</span>
-                <span className="text-base font-black text-[#E07B1A]">₹{editingService.basePrice}</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-[#48484A] block mb-1">Duration (Mins)</label>
-                  <input
-                    type="number"
-                    value={editingService.estimatedMinutes}
-                    onChange={(e) => setEditingService({ ...editingService, estimatedMinutes: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#48484A] block mb-1">Pricing Mode</label>
-                  <select
-                    value={editingService.pricingMode || 'REFERENCE_PERCENT'}
-                    onChange={(e) => setEditingService({ ...editingService, pricingMode: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold"
-                  >
-                    <option value="REFERENCE_PERCENT">Formula (Reference × 0.85)</option>
-                    <option value="MANUAL">Manual Override</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-3 border-t border-[#E5E5EA]">
+      {/* Add/Edit Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-700 pb-4">
+              <h2 className="text-xl font-bold text-amber-400">
+                {editingService ? 'Edit Service Listing' : 'Add New Cleaning Service'}
+              </h2>
               <button
-                type="button"
-                onClick={() => setEditingService(null)}
-                className="px-4 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold text-[#48484A]"
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-white text-2xl font-bold"
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveEdit}
-                disabled={isSubmitting}
-                className="px-5 py-2 rounded-xl bg-[#E07B1A] text-white text-xs font-bold hover:bg-[#c96c14]"
-              >
-                {isSubmitting ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 3: Create New Cleaning Service Modal */}
-      {isCreatingNew && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <form onSubmit={handleCreateService} className="w-full max-w-lg rounded-3xl bg-white border border-[#E5E5EA] p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E5E5EA]">
-              <h3 className="text-base font-bold text-[#1C1C1E]">Add New Cleaning Service</h3>
-              <button type="button" onClick={() => setIsCreatingNew(false)} className="p-1 rounded-full hover:bg-[#F2F2F7]">
-                <X className="w-4 h-4 text-[#8E8E93]" />
+                &times;
               </button>
             </div>
 
-            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-              <div>
-                <label className="text-xs font-bold text-[#48484A] block mb-1">Department</label>
-                <select
-                  value={newCategoryId}
-                  onChange={(e) => setNewCategoryId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold"
-                >
-                  <option value="bathroom-cleaning">Bathroom Cleaning</option>
-                  <option value="kitchen-cleaning">Kitchen Cleaning</option>
-                  <option value="full-home-cleaning">Full Home Cleaning</option>
-                  <option value="sofa-carpet-cleaning">Living Room, Sofa &amp; Carpet</option>
-                </select>
+            <form onSubmit={handleSave} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-slate-300 font-medium mb-1">Service Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                    placeholder="e.g. 3 BHK Deep Cleaning"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-300 font-medium mb-1">SKU Code *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.sku}
+                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-300 font-medium mb-1">Category *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                    placeholder="e.g. Sofa Cleaning"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-300 font-medium mb-1">Sub-Category *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.subCategory}
+                    onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                    placeholder="e.g. Fabric / L-Shape"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-300 font-medium mb-1">Selling Price (INR) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-300 font-medium mb-1">Strike-through Price (INR)</label>
+                  <input
+                    type="number"
+                    value={formData.strikePrice}
+                    onChange={(e) => setFormData({ ...formData, strikePrice: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-300 font-medium mb-1">Est. Duration (Minutes)</label>
+                  <input
+                    type="number"
+                    value={formData.durationMinutes}
+                    onChange={(e) => setFormData({ ...formData, durationMinutes: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-300 font-medium mb-1">Required Partners Count</label>
+                  <input
+                    type="number"
+                    value={formData.requiredPartners}
+                    onChange={(e) => setFormData({ ...formData, requiredPartners: Number(e.target.value) })}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-[#48484A] block mb-1">Service Title *</label>
+                <label className="block text-xs text-slate-300 font-medium mb-1">Thumbnail Image URL *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g., 3BHK Full Home Deep Scrubbing"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold"
+                  value={formData.thumbnailUrl}
+                  onChange={(e) => setFormData({ ...formData, thumbnailUrl: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  placeholder="https://..."
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-[#48484A] block mb-1">Service Description</label>
-                <textarea
-                  rows={2}
-                  placeholder="Describe the service..."
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-[#48484A] block mb-1">Market Benchmark (₹)</label>
-                  <input
-                    type="number"
-                    value={newRefPrice}
-                    onChange={(e) => setNewRefPrice(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#48484A] block mb-1">Discount (%)</label>
-                  <input
-                    type="number"
-                    value={newDiscountPct}
-                    onChange={(e) => setNewDiscountPct(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-[#FFF8F0] border border-[#E0B050] text-xs flex justify-between items-center">
-                <span className="font-bold text-[#1C1C1E]">Calculated Bharat Pro Price:</span>
-                <span className="text-base font-black text-[#E07B1A]">
-                  ₹{Math.round(newRefPrice * (1 - newDiscountPct / 100))}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-[#48484A] block mb-1">Estimated Duration (Mins)</label>
-                  <input
-                    type="number"
-                    value={newDuration}
-                    onChange={(e) => setNewDuration(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#48484A] block mb-1">Image URL (Optional)</label>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-[#48484A] block mb-1">What's Included (1 item per line)</label>
-                <textarea
-                  rows={2}
-                  value={newInclusions}
-                  onChange={(e) => setNewInclusions(e.target.value)}
-                  placeholder="e.g. Floor scrubbing&#10;Tile descaling&#10;Mirror wiping"
-                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs"
+                <label className="block text-xs text-slate-300 font-medium mb-1">Video Guide / Explainer URL</label>
+                <input
+                  type="text"
+                  value={formData.videoUrl}
+                  onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                  placeholder="YouTube Embed URL or MP4 Link"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-[#48484A] block mb-1">What's Excluded (1 item per line)</label>
+                <label className="block text-xs text-slate-300 font-medium mb-1">Service Description *</label>
                 <textarea
-                  rows={2}
-                  value={newExclusions}
-                  onChange={(e) => setNewExclusions(e.target.value)}
-                  placeholder="e.g. Wall painting&#10;Ceiling repair"
-                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-[#48484A] block mb-1">Standard Operating Procedure (SOP Steps - 1 per line)</label>
-                <textarea
+                  required
                   rows={3}
-                  value={newSteps}
-                  onChange={(e) => setNewSteps(e.target.value)}
-                  placeholder="Enter step by step cleaning process..."
-                  className="w-full px-3 py-2 rounded-xl border border-[#D1D1D6] text-xs font-mono"
-                />
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                ></textarea>
               </div>
-            </div>
 
-            <div className="flex justify-end gap-3 pt-3 border-t border-[#E5E5EA]">
-              <button
-                type="button"
-                onClick={() => setIsCreatingNew(false)}
-                className="px-4 py-2 rounded-xl border border-[#D1D1D6] text-xs font-bold text-[#48484A]"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-5 py-2 rounded-xl bg-[#E07B1A] text-white text-xs font-bold hover:bg-[#c96c14]"
-              >
-                {isSubmitting ? 'Creating...' : 'Create & Publish'}
-              </button>
-            </div>
-          </form>
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-white font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg text-sm font-bold shadow"
+                >
+                  Save Service
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

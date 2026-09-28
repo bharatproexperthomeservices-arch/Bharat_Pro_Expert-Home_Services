@@ -6,6 +6,7 @@ import {
   getDoc, 
   getDocs, 
   updateDoc, 
+  deleteDoc,
   query, 
   where, 
   orderBy,
@@ -36,8 +37,10 @@ const STORAGE_SERVICES_SYNCED_KEY = 'bharat_pro_services_synced_v6_longpolling';
 
 export const initializeDatabaseDefaults = async () => {
   try {
-    // Always ensure local storage has the latest services immediately (zero network delay)
-    localStorage.setItem(STORAGE_SERVICES_KEY, JSON.stringify(INITIAL_SERVICES));
+    // Only seed local storage if not already initialized, preserving admin edits/deletions
+    if (!localStorage.getItem(STORAGE_SERVICES_KEY)) {
+      localStorage.setItem(STORAGE_SERVICES_KEY, JSON.stringify(INITIAL_SERVICES));
+    }
     if (!localStorage.getItem(STORAGE_HUBS_KEY)) {
       localStorage.setItem(STORAGE_HUBS_KEY, JSON.stringify(INITIAL_HUBS));
     }
@@ -604,40 +607,120 @@ export const getAllServices = async (): Promise<CleaningService[]> => {
   return INITIAL_SERVICES;
 };
 
-// Update service pricing & formula settings
+// Update service pricing & all fields (Full Editability)
 export const updateServicePricing = async (
   serviceId: string, 
   pricingData: Partial<CleaningService>
 ): Promise<boolean> => {
-  try {
-    const serviceRef = doc(db, 'services', serviceId);
-    await withTimeout(setDoc(serviceRef, pricingData, { merge: true }), 2000);
-  } catch (err) {
-    console.warn('Firestore pricing update fallback:', err);
-  }
-
-  // Update in local cache
+  // Update in local cache immediately
   const stored: CleaningService[] = JSON.parse(localStorage.getItem(STORAGE_SERVICES_KEY) || JSON.stringify(INITIAL_SERVICES));
   const idx = stored.findIndex(s => s.id === serviceId);
   if (idx !== -1) {
     stored[idx] = { ...stored[idx], ...pricingData };
+  } else {
+    stored.push({ id: serviceId, ...pricingData } as CleaningService);
   }
   localStorage.setItem(STORAGE_SERVICES_KEY, JSON.stringify(stored));
+
+  // Sync to Firestore
+  try {
+    const serviceRef = doc(db, 'services', serviceId);
+    await withTimeout(setDoc(serviceRef, pricingData, { merge: true }), 3000);
+  } catch (err) {
+    console.warn('Firestore pricing update fallback:', err);
+  }
+
+  // Dispatch event so live website/modals/catalogue update immediately
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bharatpro_services_updated', {
+      detail: { serviceId, updated: pricingData, services: stored }
+    }));
+  }
+  return true;
+};
+
+// Delete service from catalogue with confirmation
+export const deleteService = async (serviceId: string): Promise<boolean> => {
+  // Remove from local cache immediately
+  const stored: CleaningService[] = JSON.parse(localStorage.getItem(STORAGE_SERVICES_KEY) || JSON.stringify(INITIAL_SERVICES));
+  const filtered = stored.filter(s => s.id !== serviceId);
+  localStorage.setItem(STORAGE_SERVICES_KEY, JSON.stringify(filtered));
+
+  // Delete from Firestore
+  try {
+    const serviceRef = doc(db, 'services', serviceId);
+    await withTimeout(deleteDoc(serviceRef), 3000);
+  } catch (err) {
+    console.warn('Firestore delete service fallback:', err);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bharatpro_services_updated', {
+      detail: { serviceId, deleted: true, services: filtered }
+    }));
+  }
   return true;
 };
 
 // Add new service to catalogue
 export const addNewService = async (service: CleaningService): Promise<boolean> => {
+  const stored: CleaningService[] = JSON.parse(localStorage.getItem(STORAGE_SERVICES_KEY) || JSON.stringify(INITIAL_SERVICES));
+  stored.unshift(service);
+  localStorage.setItem(STORAGE_SERVICES_KEY, JSON.stringify(stored));
+
   try {
-    await withTimeout(setDoc(doc(db, 'services', service.id), service), 2000);
+    await withTimeout(setDoc(doc(db, 'services', service.id), service), 3000);
   } catch (err) {
     console.warn('Firestore add service fallback:', err);
   }
 
-  const stored: CleaningService[] = JSON.parse(localStorage.getItem(STORAGE_SERVICES_KEY) || JSON.stringify(INITIAL_SERVICES));
-  stored.unshift(service);
-  localStorage.setItem(STORAGE_SERVICES_KEY, JSON.stringify(stored));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bharatpro_services_updated', {
+      detail: { serviceId: service.id, added: true, services: stored }
+    }));
+  }
   return true;
+};
+
+// Bulk percentage increase or decrease across services (Module 04 Bulk Action)
+export const bulkUpdateServicePrices = async (
+  percentChange: number,
+  categoryFilter?: string
+): Promise<{ success: boolean; updatedCount: number }> => {
+  const stored: CleaningService[] = JSON.parse(localStorage.getItem(STORAGE_SERVICES_KEY) || JSON.stringify(INITIAL_SERVICES));
+  let count = 0;
+  const updated = stored.map(s => {
+    if (!categoryFilter || categoryFilter === 'ALL' || s.categoryId === categoryFilter) {
+      count++;
+      const multiplier = 1 + (percentChange / 100);
+      const newBase = Math.round(s.basePrice * multiplier);
+      const newRef = s.referencePrice ? Math.round(s.referencePrice * multiplier) : Math.round(newBase / 0.85);
+      return {
+        ...s,
+        basePrice: newBase,
+        referencePrice: newRef,
+        competitorPrice: newRef
+      };
+    }
+    return s;
+  });
+
+  localStorage.setItem(STORAGE_SERVICES_KEY, JSON.stringify(updated));
+
+  try {
+    for (const s of updated) {
+      setDoc(doc(db, 'services', s.id), s, { merge: true }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn('Firestore bulk price update fallback:', err);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bharatpro_services_updated', {
+      detail: { services: updated }
+    }));
+  }
+  return { success: true, updatedCount: count };
 };
 
 // Toggle service active status

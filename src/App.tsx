@@ -21,7 +21,7 @@ import {
   WHATSAPP_NUMBER 
 } from './data';
 import { CleaningService, Booking } from './types';
-import { initializeDatabaseDefaults, getAllBookings } from './services/dbService';
+import { initializeDatabaseDefaults, getAllBookings, getAllServices } from './services/dbService';
 import { 
   getAdminSession, 
   isOwnerEmail, 
@@ -59,6 +59,28 @@ function AppContent() {
   const [selectedService, setSelectedService] = useState<CleaningService | null>(null);
   const [bookingService, setBookingService] = useState<CleaningService | null>(null);
   const [activeTrackingBooking, setActiveTrackingBooking] = useState<Booking | null>(null);
+  const [liveServices, setLiveServices] = useState<CleaningService[]>(INITIAL_SERVICES);
+
+  // Load and sync live services from database
+  useEffect(() => {
+    const fetchServices = async () => {
+      const srvs = await getAllServices();
+      if (srvs && srvs.length > 0) {
+        setLiveServices(srvs);
+      }
+    };
+    fetchServices();
+
+    const handleServicesUpdated = (e: any) => {
+      if (e.detail?.services) {
+        setLiveServices(e.detail.services);
+      } else {
+        fetchServices();
+      }
+    };
+    window.addEventListener('bharatpro_services_updated', handleServicesUpdated);
+    return () => window.removeEventListener('bharatpro_services_updated', handleServicesUpdated);
+  }, []);
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
 
@@ -321,7 +343,7 @@ function AppContent() {
       {/* Urban Company Cleaning Marketplace View */}
       <UrbanCompanyCleaningView
         categories={INITIAL_CATEGORIES}
-        services={INITIAL_SERVICES}
+        services={liveServices}
         selectedCity={selectedCity}
         onSelectServiceDetails={(srv) => setSelectedService(srv)}
         onProceedToBooking={(srv) => setBookingService(srv)}
