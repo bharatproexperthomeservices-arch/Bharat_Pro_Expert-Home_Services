@@ -5,8 +5,7 @@ import {
   resendAdminOtp,
   getAdminLockoutStatus,
   getAdminSession,
-  resetFailedAttempts,
-  registerAdminAccount
+  resetFailedAttempts
 } from '../services/adminAuthService';
 import { BharatProLogo } from './BharatProLogo';
 import { 
@@ -23,12 +22,7 @@ import {
   ShieldAlert,
   Eye,
   EyeOff,
-  User,
-  UserPlus,
-  LogIn,
   ArrowRight,
-  Phone,
-  Briefcase,
   Check
 } from 'lucide-react';
 
@@ -41,9 +35,6 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
   onAuthorized,
   onBackToCustomerSite
 }) => {
-  // Mode: Sign In vs Sign Up
-  const [authMode, setAuthMode] = useState<'SIGN_IN' | 'SIGN_UP'>('SIGN_IN');
-
   // Sign In Flow Sub-steps: EMAIL -> PASSWORD -> OTP -> SUCCESS
   const [signInStep, setSignInStep] = useState<'EMAIL' | 'PASSWORD' | 'OTP' | 'SUCCESS'>('EMAIL');
   
@@ -51,15 +42,6 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
   const [email, setEmail] = useState('');
   const [passphrase, setPassphrase] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  
-  // Sign Up Form State
-  const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPhone, setRegPhone] = useState('');
-  const [regRole, setRegRole] = useState('Operations Manager');
-  const [regPassphrase, setRegPassphrase] = useState('');
-  const [regConfirmPass, setRegConfirmPass] = useState('');
-  const [regShowPass, setRegShowPass] = useState(false);
 
   // OTP Verification
   const [otp, setOtp] = useState('');
@@ -150,7 +132,7 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
 
     const cleanEmail = email.trim();
     if (!cleanEmail) {
-      setErrorMsg('Please enter your admin email address.');
+      setErrorMsg('Please enter your Owner Admin email address.');
       return;
     }
     if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
@@ -180,12 +162,12 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
 
     const cleanEmail = email.trim();
     if (!cleanEmail) {
-      setErrorMsg('Please enter your admin email address.');
+      setErrorMsg('Please enter your Owner Admin email address.');
       setSignInStep('EMAIL');
       return;
     }
     if (!passphrase.trim()) {
-      setErrorMsg('Please enter your admin security key / passphrase.');
+      setErrorMsg('Please enter your Owner Admin security passphrase.');
       return;
     }
 
@@ -206,7 +188,6 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
           }
         } catch {}
       } else {
-        // Uniform error response (user enumeration prevention)
         setErrorMsg(res.error || res.displayMessage || 'Invalid administrative credentials.');
         const status = getAdminLockoutStatus();
         if (status.isLocked) {
@@ -263,55 +244,6 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
     }
   };
 
-  // 4. Sign Up Handler (Register New Admin)
-  const handleSignUpAdmin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setInfoMsg(null);
-
-    if (!regName.trim()) {
-      setErrorMsg('Please enter your full name.');
-      return;
-    }
-    if (!regEmail.trim()) {
-      setErrorMsg('Please enter your admin email address.');
-      return;
-    }
-    if (!regPassphrase.trim() || regPassphrase.length < 6) {
-      setErrorMsg('Security passphrase must be at least 6 characters long.');
-      return;
-    }
-    if (regPassphrase !== regConfirmPass) {
-      setErrorMsg('Passphrase and Confirm Passphrase do not match.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await registerAdminAccount({
-        name: regName,
-        email: regEmail,
-        phone: regPhone,
-        role: regRole,
-        passphrase: regPassphrase
-      });
-
-      if (res.success) {
-        setInfoMsg(res.message);
-        setEmail(regEmail.trim());
-        setPassphrase(regPassphrase.trim());
-        setAuthMode('SIGN_IN');
-        setSignInStep('PASSWORD');
-      } else {
-        setErrorMsg(res.error || 'Failed to register admin account.');
-      }
-    } catch {
-      setErrorMsg('Registration service error. Please retry.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Resend OTP
   const handleResend = async () => {
     if (resendCooldown > 0 || loading || lockoutSeconds > 0) return;
@@ -320,97 +252,67 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
     try {
       const res = await resendAdminOtp(email, passphrase);
       if (res.success) {
-        setOtp('');
-        setOtpExpirySeconds(300);
-        setResendCooldown(60);
         setInfoMsg(res.message);
+        setResendCooldown(60);
+        setOtpExpirySeconds(300);
+        try {
+          const stored = sessionStorage.getItem('bharat_pro_active_admin_otp_v2');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed.otp) setDispatchedOtp(parsed.otp);
+          }
+        } catch {}
       } else {
-        setErrorMsg(res.error || 'Failed to resend verification code.');
+        setErrorMsg(res.error || 'Failed to resend code.');
       }
     } catch {
-      setErrorMsg('Network error while resending code.');
+      setErrorMsg('Service error. Please retry.');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatTimer = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  // Format mm:ss timer helper
+  const formatTimer = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
-    <div className="min-h-screen bg-[#071321] text-slate-100 flex flex-col justify-center items-center p-4 selection:bg-blue-600 font-['Inter',sans-serif]">
-      
-      {/* Top Header Bar */}
-      <div className="w-full max-w-md mb-5 flex items-center justify-between">
-        <button
-          onClick={onBackToCustomerSite}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Customer Website</span>
-        </button>
-        <span className="text-[11px] font-mono text-blue-400 bg-blue-950/80 border border-blue-800/60 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-          Restricted Security Gateway
-        </span>
-      </div>
+    <div className="min-h-screen bg-[#070D19] flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      {/* Dynamic Background Glows */}
+      <div className="absolute top-1/4 -left-20 w-80 h-80 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none" />
 
       {/* Main Card */}
-      <div className="w-full max-w-md bg-slate-900/95 border border-slate-800 rounded-3xl shadow-2xl p-6 sm:p-8 backdrop-blur-2xl relative overflow-hidden">
+      <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 animate-in fade-in zoom-in-95 duration-200">
         
-        {/* Ambient Glows */}
-        <div className="absolute -top-24 -right-24 w-52 h-52 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute -bottom-24 -left-24 w-52 h-52 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
+        {/* Back Link */}
+        <button
+          type="button"
+          onClick={onBackToCustomerSite}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors mb-6 cursor-pointer group"
+        >
+          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+          <span>Return to Customer Site</span>
+        </button>
 
         {/* Branding & Header */}
-        <div className="text-center mb-5">
-          <div className="inline-flex p-3 bg-blue-600/15 border border-blue-500/30 rounded-2xl mb-3 text-blue-400 shadow-inner">
-            <ShieldCheck className="w-8 h-8" />
+        <div className="text-center mb-6">
+          <div className="flex justify-center mb-3">
+            <BharatProLogo size="lg" theme="dark" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
-            Bharat Pro Expert <span className="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded font-mono uppercase tracking-wider font-bold">Portal</span>
-          </h1>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[11px] font-mono uppercase tracking-wider font-bold mb-1.5">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Admin Management Portal</span>
+          </div>
+          <h2 className="text-xl font-black text-white tracking-tight">
+            Owner Admin Sign In
+          </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Layered Security &bull; Multi-Factor Administrator Authentication
+            Restricted access &bull; Single Owner Admin credentials only
           </p>
-        </div>
-
-        {/* TOP TABS: SIGN IN vs SIGN UP */}
-        <div className="mb-5 bg-slate-950/90 p-1 rounded-2xl border border-slate-800 flex text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMode('SIGN_IN');
-              setErrorMsg(null);
-            }}
-            className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              authMode === 'SIGN_IN'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <LogIn className="w-3.5 h-3.5" />
-            <span>Sign In (Login)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setAuthMode('SIGN_UP');
-              setErrorMsg(null);
-            }}
-            className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              authMode === 'SIGN_UP'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Sign Up (Register)</span>
-          </button>
         </div>
 
         {/* Security Lockout Banner */}
@@ -459,426 +361,238 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
         )}
 
         {/* ========================================================= */}
-        {/* MODE 1: SIGN IN FLOW */}
+        {/* SIGN IN ONLY FLOW */}
         {/* ========================================================= */}
-        {authMode === 'SIGN_IN' && (
-          <div>
-            {/* STEP 1A: PEHLE MAIL ID DAALNE KA OPTION */}
-            {signInStep === 'EMAIL' && (
-              <form onSubmit={handleProceedWithEmail} className="space-y-4 animate-in fade-in">
-                <div className="text-left pb-1">
-                  <span className="text-xs font-bold text-slate-200 block">
-                    Step 1: Admin Account Email
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    Pehle apna registered Admin Email ID enter karein
-                  </span>
-                </div>
+        <div>
+          {/* STEP 1: OWNER EMAIL INPUT */}
+          {signInStep === 'EMAIL' && (
+            <form onSubmit={handleProceedWithEmail} className="space-y-4 animate-in fade-in">
+              <div className="text-left pb-1">
+                <span className="text-xs font-bold text-slate-200 block">
+                  Step 1: Owner Admin Email
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Enter authorized Owner Admin email ID to proceed
+                </span>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Admin Email ID
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      required
-                      autoFocus
-                      disabled={lockoutSeconds > 0 || loading}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter Admin Email ID"
-                      className="w-full bg-slate-950/80 border border-slate-700 focus:border-blue-500 rounded-xl pl-10 pr-3.5 py-3 text-xs text-white placeholder-slate-500 outline-none font-medium transition-all disabled:opacity-50"
-                      autoComplete="email"
-                    />
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Authorized account access strictly monitored &bull; IP logged
-                  </p>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Owner Admin Email ID
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    autoFocus
+                    disabled={lockoutSeconds > 0 || loading}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter Owner Admin Email ID"
+                    className="w-full bg-slate-950/80 border border-slate-700 focus:border-blue-500 rounded-xl pl-10 pr-3.5 py-3 text-xs text-white placeholder-slate-500 outline-none font-medium transition-all disabled:opacity-50"
+                    autoComplete="email"
+                  />
                 </div>
+                <p className="text-[10px] text-slate-500 mt-1.5 flex items-center gap-1.5">
+                  <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span>Authorized owner credentials only &bull; Access audited</span>
+                </p>
+              </div>
 
+              <button
+                type="submit"
+                disabled={loading || !email.trim() || lockoutSeconds > 0}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <span>Continue to Password / Key</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          )}
+
+          {/* STEP 2: ENTER PASSWORD / PASSPHRASE */}
+          {signInStep === 'PASSWORD' && (
+            <form onSubmit={handleSubmitCredentials} className="space-y-4 animate-in fade-in">
+              {/* Active Email Badge */}
+              <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span className="font-mono text-slate-200 truncate">{email}</span>
+                </div>
                 <button
-                  type="submit"
-                  disabled={loading || !email.trim() || lockoutSeconds > 0}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  type="button"
+                  onClick={() => setSignInStep('EMAIL')}
+                  className="text-blue-400 hover:text-blue-300 text-[11px] font-bold cursor-pointer shrink-0 ml-2"
                 >
-                  <span>Continue to Password / Key</span>
-                  <ArrowRight className="w-4 h-4" />
+                  Change
                 </button>
+              </div>
 
-                <div className="pt-2 text-center text-xs text-slate-400 border-t border-slate-800">
-                  <span>Don't have an admin account? </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('SIGN_UP');
-                      setErrorMsg(null);
-                    }}
-                    className="text-blue-400 hover:text-blue-300 font-bold cursor-pointer"
-                  >
-                    Sign Up here
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* STEP 1B: ENTER PASSWORD / PASSPHRASE */}
-            {signInStep === 'PASSWORD' && (
-              <form onSubmit={handleSubmitCredentials} className="space-y-4 animate-in fade-in">
-                {/* Active Email Badge */}
-                <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                    <span className="font-mono text-slate-200 truncate">{email}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSignInStep('EMAIL')}
-                    className="text-blue-400 hover:text-blue-300 text-[11px] font-bold cursor-pointer shrink-0 ml-2"
-                  >
-                    Change
-                  </button>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-semibold text-slate-300">
-                      Admin Security Key / Passphrase
-                    </label>
-                  </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      autoFocus
-                      disabled={lockoutSeconds > 0 || loading}
-                      value={passphrase}
-                      onChange={(e) => setPassphrase(e.target.value)}
-                      placeholder="Enter Security Key"
-                      className="w-full bg-slate-950/80 border border-slate-700 focus:border-blue-500 rounded-xl pl-10 pr-10 py-3 text-xs text-white placeholder-slate-500 outline-none font-medium transition-all disabled:opacity-50"
-                      autoComplete="current-password"
-                    />
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSignInStep('EMAIL')}
-                    className="py-3 px-4 rounded-xl border border-slate-700 hover:bg-slate-800 text-xs font-bold text-slate-300 transition-colors cursor-pointer"
-                  >
-                    ← Back
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={loading || lockoutSeconds > 0}
-                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Verifying...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        <span>Proceed to 2FA Verification</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* STEP 2: REAL 6-DIGIT EMAIL OTP VERIFICATION */}
-            {signInStep === 'OTP' && (
-              <form onSubmit={handleVerifyOtp} className="space-y-4 animate-in fade-in">
-                <div className="text-center py-1">
-                  <span className="text-xs text-slate-300 block">
-                    Two-Factor Security Verification
-                  </span>
-                  <div className="flex items-center justify-center gap-1.5 text-xs text-blue-400 mt-1 font-mono font-bold">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>Code expires in: {formatTimer(otpExpirySeconds)}</span>
-                  </div>
-                </div>
-
-                {/* If OTP notification was dispatched to owner */}
-                {dispatchedOtp && (
-                  <div className="p-3 bg-blue-950/70 border border-blue-600/60 rounded-xl text-xs text-blue-200 flex items-center justify-between animate-in fade-in">
-                    <div>
-                      <span className="text-[10px] text-blue-400 font-bold block uppercase tracking-wider">
-                        Dispatched Owner Token:
-                      </span>
-                      <span className="font-mono text-sm font-bold text-white tracking-widest">{dispatchedOtp}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setOtp(dispatchedOtp)}
-                      className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg cursor-pointer transition-colors shadow-xs"
-                    >
-                      Auto-Fill
-                    </button>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 text-center">
-                    Enter 6-Digit Email OTP
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-300">
+                    Owner Security Key / Passphrase
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      disabled={loading || lockoutSeconds > 0}
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="• • • • • •"
-                      className="w-full bg-slate-950 border border-slate-700 focus:border-blue-500 rounded-xl py-3.5 text-center text-xl font-mono font-bold tracking-widest text-white outline-none shadow-inner"
-                      autoFocus
-                    />
-                  </div>
-                  <p className="text-[10px] text-slate-400 text-center mt-1.5">
-                    Single-use security token valid for 5 minutes.
-                  </p>
+                  <span className="text-[10px] text-slate-500 font-mono">Master Key</span>
                 </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoFocus
+                    disabled={lockoutSeconds > 0 || loading}
+                    value={passphrase}
+                    onChange={(e) => setPassphrase(e.target.value)}
+                    placeholder="Enter Owner Security Passphrase"
+                    className="w-full bg-slate-950/80 border border-slate-700 focus:border-blue-500 rounded-xl pl-10 pr-10 py-3 text-xs text-white placeholder-slate-500 outline-none font-medium transition-all disabled:opacity-50"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
 
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setSignInStep('EMAIL')}
+                  className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  Back
+                </button>
                 <button
                   type="submit"
-                  disabled={loading || otp.length < 6 || lockoutSeconds > 0}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  disabled={loading || !passphrase.trim() || lockoutSeconds > 0}
+                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {loading ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Authorizing Session...</span>
+                      <span>Verifying Credentials...</span>
                     </>
                   ) : (
                     <>
-                      <KeyRound className="w-4 h-4" />
-                      <span>Verify OTP &amp; Authorize Access</span>
+                      <span>Verify &amp; Send 2FA Code</span>
+                      <Send className="w-3.5 h-3.5" />
                     </>
                   )}
                 </button>
-
-                {/* Change Credentials / Resend */}
-                <div className="pt-2 flex items-center justify-between text-xs border-t border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSignInStep('PASSWORD');
-                      setOtp('');
-                      setErrorMsg(null);
-                      setInfoMsg(null);
-                    }}
-                    className="text-slate-400 hover:text-white cursor-pointer"
-                  >
-                    ← Back to Key
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleResend}
-                    disabled={resendCooldown > 0 || loading || lockoutSeconds > 0}
-                    className="text-blue-400 hover:text-blue-300 font-semibold cursor-pointer disabled:opacity-40"
-                  >
-                    {resendCooldown > 0 ? `Resend Code in ${resendCooldown}s` : 'Resend Code'}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* STEP 3: SUCCESS */}
-            {signInStep === 'SUCCESS' && (
-              <div className="text-center py-6 space-y-3 animate-in zoom-in-95">
-                <div className="w-14 h-14 bg-emerald-500/20 border border-emerald-500/40 rounded-full flex items-center justify-center text-emerald-400 mx-auto animate-bounce">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                <h2 className="text-base font-bold text-white">
-                  Identity Verified &bull; Session Authorized
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Decrypting management dashboard and synchronization modules...
-                </p>
-                <div className="w-36 h-1 bg-slate-800 rounded-full mx-auto overflow-hidden">
-                  <div className="w-full h-full bg-emerald-500 animate-pulse"></div>
-                </div>
               </div>
-            )}
-          </div>
-        )}
+            </form>
+          )}
 
-        {/* ========================================================= */}
-        {/* MODE 2: SIGN UP FLOW (REGISTER NEW ADMIN) */}
-        {/* ========================================================= */}
-        {authMode === 'SIGN_UP' && (
-          <form onSubmit={handleSignUpAdmin} className="space-y-3.5 animate-in fade-in">
-            <div className="text-left pb-1">
-              <span className="text-xs font-bold text-slate-200 block">
-                Create Admin Portal Account
-              </span>
-              <span className="text-[11px] text-slate-400">
-                Register administrative credentials for portal access
-              </span>
-            </div>
+          {/* STEP 3: OTP VERIFICATION (5-MINUTE EXPIRY) */}
+          {signInStep === 'OTP' && (
+            <form onSubmit={handleVerifyOtp} className="space-y-4 animate-in fade-in">
+              <div className="p-3 rounded-2xl bg-blue-950/40 border border-blue-900/60 text-xs">
+                <div className="flex items-center justify-between text-blue-200 mb-1">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="w-4 h-4 text-blue-400" />
+                    <span className="font-bold">Step 2: Two-Factor Authentication</span>
+                  </div>
+                  <div className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    otpExpirySeconds <= 60 
+                      ? 'bg-red-900/60 text-red-300 border border-red-700/50 animate-pulse' 
+                      : 'bg-blue-900/60 text-blue-300'
+                  }`}>
+                    {formatTimer(otpExpirySeconds)}
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  A single-use 6-digit security code was dispatched to your Owner Admin email.
+                </p>
+                {dispatchedOtp && (
+                  <div className="mt-2.5 p-2 bg-slate-900/90 rounded-xl border border-blue-800/80 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">Dispatched Owner Token:</span>
+                    <span className="font-mono text-sm font-black tracking-widest text-emerald-400 select-all">{dispatchedOtp}</span>
+                  </div>
+                )}
+              </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Full Name
-              </label>
-              <div className="relative">
-                <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  6-Digit Verification Code
+                </label>
                 <input
                   type="text"
+                  maxLength={6}
                   required
-                  value={regName}
-                  onChange={(e) => setRegName(e.target.value)}
-                  placeholder="e.g. Vikram Sharma"
-                  className="w-full bg-slate-950/80 border border-slate-700 focus:border-blue-500 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none font-medium"
+                  autoFocus
+                  disabled={lockoutSeconds > 0 || loading}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  className="w-full bg-slate-950/90 border border-slate-700 focus:border-blue-500 rounded-xl text-center py-3.5 text-xl tracking-[0.5em] font-mono font-bold text-white placeholder-slate-700 outline-none transition-all disabled:opacity-50"
+                  autoComplete="one-time-code"
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Admin Email Address
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  value={regEmail}
-                  onChange={(e) => setRegEmail(e.target.value)}
-                  placeholder="e.g. admin@bharatproexpert.com"
-                  className="w-full bg-slate-950/80 border border-slate-700 focus:border-blue-500 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none font-medium"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Mobile Number
-                </label>
-                <div className="relative">
-                  <Phone className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="tel"
-                    value={regPhone}
-                    onChange={(e) => setRegPhone(e.target.value)}
-                    placeholder="9876543210"
-                    className="w-full bg-slate-950/80 border border-slate-700 focus:border-blue-500 rounded-xl pl-8 pr-2.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none font-medium"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Admin Role
-                </label>
-                <select
-                  value={regRole}
-                  onChange={(e) => setRegRole(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-blue-500 rounded-xl px-2.5 py-2.5 text-xs text-white outline-none font-medium cursor-pointer"
-                >
-                  <option value="Operations Manager">Operations Manager</option>
-                  <option value="Master Administrator">Master Admin</option>
-                  <option value="Quality Supervisor">Quality Supervisor</option>
-                  <option value="Dispatch Head">Dispatch Head</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Create Security Passphrase
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type={regShowPass ? 'text' : 'password'}
-                  required
-                  value={regPassphrase}
-                  onChange={(e) => setRegPassphrase(e.target.value)}
-                  placeholder="Min 6 characters"
-                  className="w-full bg-slate-950/80 border border-slate-700 focus:border-blue-500 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 outline-none font-medium"
-                />
+              <div className="flex items-center justify-between text-xs pt-1">
                 <button
                   type="button"
-                  tabIndex={-1}
-                  onClick={() => setRegShowPass(!regShowPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
+                  onClick={() => {
+                    setSignInStep('PASSWORD');
+                    setOtp('');
+                    setErrorMsg(null);
+                  }}
+                  className="text-slate-400 hover:text-white transition-colors cursor-pointer"
                 >
-                  {regShowPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  &larr; Re-enter Key
+                </button>
+                <button
+                  type="button"
+                  disabled={resendCooldown > 0 || loading || lockoutSeconds > 0}
+                  onClick={handleResend}
+                  className="text-blue-400 hover:text-blue-300 font-semibold cursor-pointer disabled:text-slate-600 disabled:cursor-not-allowed flex items-center gap-1.5"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                  <span>{resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : 'Resend Code'}</span>
                 </button>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Confirm Passphrase
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type={regShowPass ? 'text' : 'password'}
-                  required
-                  value={regConfirmPass}
-                  onChange={(e) => setRegConfirmPass(e.target.value)}
-                  placeholder="Re-enter passphrase"
-                  className="w-full bg-slate-950/80 border border-slate-700 focus:border-blue-500 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none font-medium"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
-            >
-              {loading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Registering Account...</span>
-                </>
-              ) : (
-                <>
-                  <UserPlus className="w-4 h-4" />
-                  <span>Complete Admin Sign Up</span>
-                </>
-              )}
-            </button>
-
-            <div className="pt-2 text-center text-xs text-slate-400 border-t border-slate-800">
-              <span>Already registered as Admin? </span>
               <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('SIGN_IN');
-                  setErrorMsg(null);
-                }}
-                className="text-blue-400 hover:text-blue-300 font-bold cursor-pointer"
+                type="submit"
+                disabled={loading || otp.trim().length !== 6 || lockoutSeconds > 0}
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                Sign In
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Verifying Code...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Authorize &amp; Access Control Panel</span>
+                  </>
+                )}
               </button>
+            </form>
+          )}
+
+          {/* STEP 4: SUCCESS */}
+          {signInStep === 'SUCCESS' && (
+            <div className="py-8 text-center space-y-3 animate-in fade-in zoom-in-95">
+              <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/10">
+                <Check className="w-7 h-7" />
+              </div>
+              <h3 className="text-base font-bold text-white">Owner Authorization Verified</h3>
+              <p className="text-xs text-slate-400">Loading central operations management...</p>
             </div>
-          </form>
-        )}
+          )}
+        </div>
 
       </div>
     </div>
   );
 };
+
+export default AdminLoginGate;

@@ -71,15 +71,19 @@ export const CustomerDashboardModal: React.FC<CustomerDashboardModalProps> = ({
       >
         {/* Top Header */}
         <div className="p-4 px-6 border-b border-[#E2E8F0] flex items-center justify-between bg-white shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#0B2A4A] text-white flex items-center justify-center font-bold text-sm">
-              {profile?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-[#0B2A4A]">
-                {profile?.name || user?.email?.split('@')[0] || 'Customer Account'}
-              </h3>
-              <span className="text-[11px] text-gray-500">{user?.email || 'bharatproexpert@gmail.com'}</span>
+          <div className="flex items-center gap-4">
+            <BharatProLogo size="md" />
+            <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
+            <div className="hidden sm:flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-[#0B2A4A] text-white flex items-center justify-center font-bold text-xs">
+                {profile?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-[#0B2A4A]">
+                  {profile?.name || user?.email?.split('@')[0] || 'Customer Account'}
+                </h3>
+                <span className="text-[10px] text-gray-500">{user?.email || 'bharatproexpert@gmail.com'}</span>
+              </div>
             </div>
           </div>
 

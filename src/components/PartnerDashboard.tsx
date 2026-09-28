@@ -853,7 +853,7 @@ export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCust
             <span className="hidden sm:inline">Back to Customer Site</span>
           </button>
           <div className="h-6 w-px bg-[#E5E5EA]" />
-          <BharatProLogo size="sm" variant="horizontal" />
+          <BharatProLogo size="md" />
           <span className="px-2.5 py-0.5 rounded-md bg-[#B8892E] text-white text-[10px] font-mono uppercase font-bold tracking-wider">
             PARTNER DASHBOARD
           </span>

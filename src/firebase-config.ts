@@ -7,7 +7,10 @@ import {
   getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  User as FirebaseUser
+  User as FirebaseUser,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  type ConfirmationResult
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -25,6 +28,9 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import firebaseConfigJson from '../firebase-applet-config.json';
+
+// ReCAPTCHA Enterprise / Firebase Phone Auth Site Key
+export const reCaptchaSiteKey = "6LdnC9MtAAAAAAAAEDe0ll5X9OF9jRunXjRedGaq-k_";
 
 // Initialize Firebase App
 export const firebaseConfig = {
@@ -116,6 +122,8 @@ export {
   getRedirectResult,
   firebaseSignOut,
   onAuthStateChanged,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
   collection,
   doc,
   setDoc,
@@ -129,4 +137,4 @@ export {
   onSnapshot
 };
 
-export type { FirebaseUser };
+export type { FirebaseUser, ConfirmationResult };

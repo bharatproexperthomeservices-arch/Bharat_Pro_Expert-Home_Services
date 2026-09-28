@@ -17,7 +17,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPartner, onOpenHelp, onOpe
           
           {/* Brand Info */}
           <div className="space-y-4">
-            <BharatProLogo size="md" variant="horizontal" />
+            <BharatProLogo size="lg" />
             <p className="text-xs text-slate-400 leading-relaxed">
               India's premier technology-driven home deep cleaning &amp; sanitization platform. 100% verified professionals, Diversey hospital-grade eco-certified solutions, and upfront transparent pricing.
             </p>

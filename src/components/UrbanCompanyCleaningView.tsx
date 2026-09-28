@@ -158,8 +158,13 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
 
             {/* Quality Guarantee Mini Card */}
             <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] self-start md:self-auto">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center shrink-0 p-1 border border-amber-500/20 shadow-xs">
+                <img 
+                  src="/BharatProExpert.jpg" 
+                  alt="Bharat Pro Service Guarantee" 
+                  className="w-8 h-8 object-contain rounded-md"
+                  referrerPolicy="no-referrer"
+                />
               </div>
               <div className="text-xs">
                 <span className="font-bold text-[#1C1C1E] block">100% Service Guarantee</span>
@@ -226,9 +231,17 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
 
             {/* UC Promise Box */}
             <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-2xs space-y-3">
-              <h4 className="font-bold text-xs text-[#1C1C1E] uppercase tracking-wider">
-                The Bharat Pro Standard
-              </h4>
+              <div className="flex items-center gap-2">
+                <img 
+                  src="/BharatProExpert.jpg" 
+                  alt="The Bharat Pro Standard Logo" 
+                  className="w-5 h-5 object-contain rounded-xs"
+                  referrerPolicy="no-referrer"
+                />
+                <h4 className="font-bold text-xs text-[#1C1C1E] uppercase tracking-wider">
+                  The Bharat Pro Standard
+                </h4>
+              </div>
               <ul className="text-xs text-[#636366] space-y-2">
                 <li className="flex items-start gap-2">
                   <Check className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
@@ -511,7 +524,15 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
           <div className="max-w-4xl mx-auto bg-white rounded-3xl border border-[#E5E5EA] overflow-hidden shadow-2xs">
             <div className="grid grid-cols-12 bg-[#F8F9FB] p-4 text-xs font-bold text-[#1C1C1E] border-b border-[#E5E5EA]">
               <div className="col-span-6 sm:col-span-5">Feature &amp; Standard</div>
-              <div className="col-span-3 sm:col-span-3 text-center text-blue-700 font-black">Bharat Pro Expert</div>
+              <div className="col-span-3 sm:col-span-3 flex items-center justify-center gap-1.5 text-blue-700 font-black">
+                <img 
+                  src="/BharatProExpert.jpg" 
+                  alt="Bharat Pro Expert Logo" 
+                  className="w-4 h-4 object-contain rounded-xs"
+                  referrerPolicy="no-referrer"
+                />
+                <span>Bharat Pro Expert</span>
+              </div>
               <div className="col-span-3 sm:col-span-4 text-center text-[#8E8E93]">Local Maid / Vendor</div>
             </div>
 

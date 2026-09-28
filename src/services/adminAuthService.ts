@@ -23,8 +23,22 @@ const STORAGE_LOCKOUT_EXPIRY_KEY = 'bharat_pro_admin_lockout_until';
 const STORAGE_REGISTERED_ADMINS_KEY = 'bharat_pro_registered_admins_v1';
 
 // Production Master Security Key (Step 1 Credential)
-// Kept secure and strictly checked on verification
-const ADMIN_MASTER_PASSPHRASE = 'BharatPro@Security2026';
+// Strictly enforced for the single Owner Admin account
+export const ADMIN_MASTER_PASSPHRASE = 'BharatPro@Security2026';
+
+// Authorized Owner Admin Email Addresses
+export const AUTHORIZED_OWNER_EMAILS = [
+  'bharatproexperthomeservices@gmail.com',
+  'bharatproexpert@gmail.com'
+];
+
+/**
+ * Verify if email matches the authorized Owner Admin
+ */
+export const isOwnerEmail = (email: string): boolean => {
+  const clean = email.trim().toLowerCase();
+  return AUTHORIZED_OWNER_EMAILS.includes(clean);
+};
 
 export interface AdminAccount {
   name: string;
@@ -33,70 +47,67 @@ export interface AdminAccount {
   role: string;
   passphrase: string;
   registeredAt: string;
-  status: 'ACTIVE' | 'PENDING';
+  status: 'ACTIVE' | 'DISABLED';
 }
 
 /**
- * Get all registered admin accounts
+ * Get registered admin accounts - strictly returns only the active Owner Admin account
  */
 export const getRegisteredAdmins = (): AdminAccount[] => {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_REGISTERED_ADMINS_KEY) || '[]');
-  } catch {
-    return [];
-  }
+  return [
+    {
+      name: 'Owner & Super Administrator',
+      email: 'bharatproexperthomeservices@gmail.com',
+      phone: '8920252647',
+      role: 'Owner & Super Administrator',
+      passphrase: ADMIN_MASTER_PASSPHRASE,
+      registeredAt: '2026-01-01T00:00:00.000Z',
+      status: 'ACTIVE'
+    }
+  ];
 };
 
 /**
- * Register a new Admin Account
+ * Database & Storage Cleanup:
+ * Removes / permanently disables any non-owner admin accounts
+ * Ensuring ONLY the Owner Admin account remains active.
  */
-export const registerAdminAccount = async (payload: {
-  name: string;
-  email: string;
-  phone: string;
-  role?: string;
-  passphrase: string;
-}): Promise<{ success: boolean; message: string; error?: string }> => {
-  const cleanEmail = payload.email.trim().toLowerCase();
-  const cleanPass = payload.passphrase.trim();
-  
-  if (!cleanEmail || !cleanPass) {
-    return { success: false, message: '', error: 'Email and passphrase are required.' };
-  }
-
-  const existing = getRegisteredAdmins();
-  if (existing.some(a => a.email.toLowerCase() === cleanEmail)) {
-    return { success: false, message: '', error: 'An admin account with this email already exists. Please Sign In.' };
-  }
-
-  const newAdmin: AdminAccount = {
-    name: payload.name.trim() || 'Admin User',
-    email: cleanEmail,
-    phone: payload.phone.trim() || '',
-    role: payload.role || (isOwnerEmail(cleanEmail) ? 'Master Administrator' : 'Operations Supervisor'),
-    passphrase: cleanPass,
-    registeredAt: new Date().toISOString(),
-    status: 'ACTIVE'
-  };
-
-  existing.push(newAdmin);
+export const enforceSingleOwnerAdminOnly = async (): Promise<void> => {
   try {
-    localStorage.setItem(STORAGE_REGISTERED_ADMINS_KEY, JSON.stringify(existing));
-    await setDoc(doc(db, 'admin_users', cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')), newAdmin);
-  } catch {}
+    // 1. Purge legacy local storage registered admins
+    localStorage.removeItem(STORAGE_REGISTERED_ADMINS_KEY);
+    localStorage.setItem(STORAGE_REGISTERED_ADMINS_KEY, JSON.stringify(getRegisteredAdmins()));
 
-  // Alert Owner
-  sendOwnerEmailNotification({
-    type: 'ADMIN_LOGIN_REQUEST',
-    subject: `👤 [Bharat Pro] New Admin User Registered: ${newAdmin.email}`,
-    body: `A new administrative user has been registered:\nName: ${newAdmin.name}\nEmail: ${newAdmin.email}\nPhone: ${newAdmin.phone}\nRole: ${newAdmin.role}`
-  }).catch(() => {});
+    // 2. Scan and disable any non-owner documents in Firestore 'admin_users'
+    const snap = await getDocs(collection(db, 'admin_users'));
+    for (const docSnap of snap.docs) {
+      const data = docSnap.data();
+      const docEmail = (data.email || '').trim().toLowerCase();
+      if (!isOwnerEmail(docEmail)) {
+        await updateDoc(doc(db, 'admin_users', docSnap.id), {
+          status: 'DISABLED',
+          disabledReason: 'Non-owner administrative accounts permanently disabled by Owner policy',
+          disabledAt: new Date().toISOString()
+        }).catch(() => {});
+      }
+    }
 
-  return { 
-    success: true, 
-    message: 'Admin account registered successfully! You can now sign in with your email.' 
-  };
+    // 3. Ensure Owner Admin record is active in Firestore
+    await setDoc(doc(db, 'admin_users', 'owner_admin_primary'), {
+      name: 'Owner & Super Administrator',
+      email: 'bharatproexperthomeservices@gmail.com',
+      phone: '8920252647',
+      role: 'Owner & Super Administrator',
+      status: 'ACTIVE',
+      lastVerified: new Date().toISOString()
+    }, { merge: true }).catch(() => {});
+  } catch (err) {
+    console.warn('Enforce single owner admin cleanup notice:', err);
+  }
 };
+
+// Run cleanup immediately on service load
+enforceSingleOwnerAdminOnly().catch(() => {});
 
 // Lockout configuration (Brute-force protection)
 const MAX_FAILED_ATTEMPTS = 4;
@@ -176,15 +187,8 @@ export const resetFailedAttempts = () => {
 };
 
 /**
- * Verify if email matches the authorized owner (without exposing it to client)
- */
-export const isOwnerEmail = (email: string): boolean => {
-  return email.trim().toLowerCase() === OWNER_EMAIL.toLowerCase();
-};
-
-/**
  * Step 1: Initiate Admin Login with Email + Password
- * Prevents user enumeration by returning a generic status message regardless of email existence.
+ * Strictly allows ONLY the fixed Owner Admin credentials. No other user can log in.
  */
 export const initiateAdminLoginStep1 = async (
   email: string,
@@ -211,67 +215,70 @@ export const initiateAdminLoginStep1 = async (
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = passphrase.trim();
 
-  // Validate credentials against authorized owner or registered admin
-  const registered = getRegisteredAdmins();
-  const foundAccount = registered.find(a => a.email.toLowerCase() === cleanEmail);
-  const passwordMatches = cleanPass === ADMIN_MASTER_PASSPHRASE || (foundAccount && foundAccount.passphrase === cleanPass);
-
-  const isAuthorized = (isOwnerEmail(cleanEmail) || !!foundAccount) && passwordMatches;
-
-  if (isAuthorized) {
-    // Generate secure 6-digit OTP
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + OTP_EXPIRY_DURATION_MS).toISOString(); // Strictly 5 minutes
-
-    const otpPayload = {
-      otp: generatedOtp,
-      createdAt: new Date().toISOString(),
-      expiresAt,
-      isUsed: false
-    };
-
-    // Store in Firestore and Session
-    try {
-      await setDoc(doc(db, 'admin_otps', 'latest_admin_otp'), otpPayload);
-    } catch (err) {
-      console.warn('Firestore admin otp write notice:', err);
-    }
-
-    sessionStorage.setItem(STORAGE_ACTIVE_OTP_KEY, JSON.stringify(otpPayload));
-
-    // Send real email to authorized owner
-    try {
-      await sendAdminLoginOtpEmail(generatedOtp);
-    } catch (err) {
-      console.warn('Email dispatch notice:', err);
-    }
-
+  // STRICT REQUIREMENT: Only the single fixed Owner Admin email is permitted.
+  if (!isOwnerEmail(cleanEmail)) {
+    await recordFailedAttempt();
     return {
-      success: true,
-      requiresOtp: true,
-      displayMessage: 'If this email is registered, a 6-digit verification code has been dispatched.'
+      success: false,
+      requiresOtp: false,
+      displayMessage: '',
+      error: 'Access Denied: Only the verified Owner Admin account is authorized to log in.'
     };
-  } else {
-    // Record failed attempt
+  }
+
+  // STRICT REQUIREMENT: Verify fixed Owner Admin Master Security Key
+  const passwordMatches = cleanPass === ADMIN_MASTER_PASSPHRASE;
+  if (!passwordMatches) {
     const res = await recordFailedAttempt();
     if (res.lockedNow) {
       return {
         success: false,
         requiresOtp: false,
         displayMessage: '',
-        error: `Security Lockout: Maximum attempts exceeded. Portal locked for 15 minutes.`
+        error: 'Security Lockout: Maximum failed attempts exceeded. Portal locked for 15 minutes.'
       };
     }
-
-    // Generic response to prevent user enumeration
-    // Still advance to OTP screen or inform user generically so attackers cannot discern if email exists
     return {
       success: false,
       requiresOtp: false,
-      displayMessage: 'Invalid admin credentials or security passphrase. Please try again.',
-      error: 'Invalid admin credentials or security passphrase.'
+      displayMessage: '',
+      error: 'Invalid Owner Admin security key / passphrase. Please try again.'
     };
   }
+
+  // Generate secure 6-digit OTP
+  const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + OTP_EXPIRY_DURATION_MS).toISOString(); // Strictly 5 minutes
+
+  const otpPayload = {
+    otp: generatedOtp,
+    createdAt: new Date().toISOString(),
+    expiresAt,
+    isUsed: false,
+    ownerEmail: cleanEmail
+  };
+
+  // Store in Firestore and Session
+  try {
+    await setDoc(doc(db, 'admin_otps', 'latest_admin_otp'), otpPayload);
+  } catch (err) {
+    console.warn('Firestore admin otp write notice:', err);
+  }
+
+  sessionStorage.setItem(STORAGE_ACTIVE_OTP_KEY, JSON.stringify(otpPayload));
+
+  // Send real email to authorized owner
+  try {
+    await sendAdminLoginOtpEmail(generatedOtp);
+  } catch (err) {
+    console.warn('Email dispatch notice:', err);
+  }
+
+  return {
+    success: true,
+    requiresOtp: true,
+    displayMessage: `A 6-digit 2FA verification code has been dispatched to ${cleanEmail}.`
+  };
 };
 
 /**
@@ -289,11 +296,7 @@ export const resendAdminOtp = async (
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = passphrase.trim();
 
-  const registered = getRegisteredAdmins();
-  const foundAccount = registered.find(a => a.email.toLowerCase() === cleanEmail);
-  const passwordMatches = cleanPass === ADMIN_MASTER_PASSPHRASE || (foundAccount && foundAccount.passphrase === cleanPass);
-
-  if ((isOwnerEmail(cleanEmail) || !!foundAccount) && passwordMatches) {
+  if (isOwnerEmail(cleanEmail) && cleanPass === ADMIN_MASTER_PASSPHRASE) {
     // Generate new OTP, invalidating previous
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_DURATION_MS).toISOString();
@@ -302,7 +305,8 @@ export const resendAdminOtp = async (
       otp: newOtp,
       createdAt: new Date().toISOString(),
       expiresAt,
-      isUsed: false
+      isUsed: false,
+      ownerEmail: cleanEmail
     };
 
     try {
@@ -314,14 +318,14 @@ export const resendAdminOtp = async (
 
     return {
       success: true,
-      message: 'A fresh verification code has been dispatched to the registered email.'
+      message: 'A fresh verification code has been dispatched to the registered Owner email.'
     };
   }
 
   return {
     success: false,
     message: '',
-    error: 'Unable to resend OTP. Please re-enter credentials.'
+    error: 'Access Denied: Only the verified Owner Admin account can request an OTP.'
   };
 };
 

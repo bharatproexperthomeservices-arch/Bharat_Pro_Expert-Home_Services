@@ -245,10 +245,10 @@ function AppContent() {
           <div className="flex items-center gap-6">
             <button 
               onClick={() => setCustomerViewMode('apk')}
-              className="cursor-pointer"
+              className="cursor-pointer transition-transform hover:opacity-95"
               title="Bharat Pro Expert"
             >
-              <BharatProLogo size="md" variant="horizontal" />
+              <BharatProLogo size="md" />
             </button>
 
             {/* City Selector */}

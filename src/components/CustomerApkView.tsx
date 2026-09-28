@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BharatProLogo } from './BharatProLogo';
 import { useAuth } from '../context/AuthContext';
 import { Booking, HubLocation } from '../types';
 import { CLEANING_20_CATEGORIES, CleaningCategoryDetail } from '../cleaningCategoriesData';
@@ -505,11 +506,11 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
     <div className="min-h-screen bg-[#f6f8fc] text-[#111827] font-['Inter',sans-serif] pb-28 antialiased selection:bg-[#0b3ba8]/20 selection:text-[#0b3ba8]">
       
       {/* Top Bar for Customer Brand & Web Portal Switch */}
-      <div className="bg-[#0b3ba8] text-white text-xs px-4 py-2 flex items-center justify-between border-b border-blue-900 shadow-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-extrabold tracking-wide font-['Outfit'] text-sm">BharatProExpert</span>
-          <span className="bg-blue-800 text-[10px] px-2 py-0.5 rounded font-mono">
-            APK / Web App
+      <div className="bg-[#071739] text-white text-xs px-4 py-2 flex items-center justify-between border-b border-blue-900 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <BharatProLogo size="sm" />
+          <span className="hidden sm:inline-block bg-blue-950/80 border border-blue-800/80 text-[10px] px-2 py-0.5 rounded font-mono text-blue-300">
+            Official App
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -2348,10 +2349,9 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
           <div className="relative w-80 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col justify-between z-10 animate-in slide-in-from-left duration-200">
             <div>
               {/* Drawer Header */}
-              <div className="bg-[#0b3ba8] text-white p-5 flex items-center justify-between">
+              <div className="bg-[#071739] text-white p-5 flex items-center justify-between border-b border-blue-900">
                 <div>
-                  <h2 className="text-lg font-black font-['Outfit']">Bharat Pro Expert</h2>
-                  <p className="text-xs text-blue-200 mt-0.5">Trusted Home Cleaning Services</p>
+                  <BharatProLogo size="lg" />
                 </div>
                 <button
                   onClick={() => setDrawerOpen(false)}

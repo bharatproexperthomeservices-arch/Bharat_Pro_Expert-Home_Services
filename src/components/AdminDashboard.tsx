@@ -217,7 +217,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span className="hidden sm:inline">Customer Website</span>
           </button>
           <div className="h-6 w-px bg-[#E5E5EA]" />
-          <BharatProLogo size="sm" variant="horizontal" />
+          <BharatProLogo size="md" />
           <span className="px-2.5 py-0.5 rounded-md bg-[#1C1C1E] text-white text-[10px] font-mono uppercase font-bold tracking-widest">
             SUPER ADMIN &bull; 22 MODULES
           </span>

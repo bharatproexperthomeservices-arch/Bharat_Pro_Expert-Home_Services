@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BharatProLogo } from './BharatProLogo';
 import { useAuth } from '../context/AuthContext';
+import { PhoneLogin } from './PhoneLogin';
 import { 
   User, 
   ShieldCheck, 
@@ -33,11 +34,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     requestEmailOtp 
   } = useAuth();
   
+  const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
   const [authTab, setAuthTab] = useState<'login' | 'forgot'>('login');
 
   React.useEffect(() => {
     if (isOpen) {
       setAuthTab('login');
+      setLoginMethod('phone');
     }
   }, [isOpen]);
   const [selectedRole, setSelectedRole] = useState<'customer' | 'partner'>(defaultRole);
@@ -114,7 +117,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       >
         {/* Top Header */}
         <div className="p-5 border-b border-[#E2E8F0] flex items-center justify-between bg-white">
-          <BharatProLogo size="sm" variant="horizontal" />
+          <BharatProLogo size="md" />
           <button
             onClick={onClose}
             className="p-1.5 rounded-full text-gray-400 hover:text-[#0B2A4A] hover:bg-gray-100 transition-colors cursor-pointer"
@@ -151,28 +154,50 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         </div>
 
-        {/* Tab Selection */}
-        <div className="flex border-b border-[#E2E8F0] px-5 mt-4 text-xs font-bold text-[#0B2A4A]">
+        {/* Login Method Toggle */}
+        <div className="flex border-b border-[#E2E8F0] px-5 mt-4 text-xs font-bold">
           <button
-            onClick={() => { setAuthTab('login'); setError(null); }}
-            className={`pb-2 mr-6 transition-all cursor-pointer ${
-              authTab === 'login' ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' : 'text-gray-400'
+            onClick={() => { setLoginMethod('phone'); setError(null); }}
+            className={`pb-2 mr-6 transition-all flex items-center gap-1.5 cursor-pointer ${
+              loginMethod === 'phone' ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
-            Sign In
+            <Phone className="w-3.5 h-3.5" />
+            <span>मोबाइल OTP लॉगिन</span>
           </button>
           <button
-            onClick={() => { setAuthTab('forgot'); setError(null); }}
-            className={`pb-2 transition-all cursor-pointer ${
-              authTab === 'forgot' ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' : 'text-gray-400'
+            onClick={() => { setLoginMethod('email'); setError(null); }}
+            className={`pb-2 mr-6 transition-all flex items-center gap-1.5 cursor-pointer ${
+              loginMethod === 'email' && authTab === 'login' ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
-            Forgot Password
+            <Mail className="w-3.5 h-3.5" />
+            <span>Google / Email</span>
           </button>
+          {loginMethod === 'email' && (
+            <button
+              onClick={() => { setAuthTab('forgot'); setError(null); }}
+              className={`pb-2 ml-auto transition-all cursor-pointer ${
+                authTab === 'forgot' ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              Forgot?
+            </button>
+          )}
         </div>
 
         {/* Form Body */}
-        <div className="p-5 space-y-4">
+        {loginMethod === 'phone' ? (
+          <div className="p-4 sm:p-5">
+            <PhoneLogin 
+              role={selectedRole} 
+              onSuccess={() => onClose()} 
+              onCancel={onClose} 
+              showLogo={false} 
+            />
+          </div>
+        ) : (
+          <div className="p-5 space-y-4">
           {error && (
             <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -284,6 +309,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );
