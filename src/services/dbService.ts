@@ -55,14 +55,14 @@ export const initializeDatabaseDefaults = async () => {
     // Run non-blocking sync in background
     setTimeout(async () => {
       try {
-        const hubsSnap = await withTimeout(getDocs(collection(db, 'hubs')), 3000);
+        const hubsSnap = await withTimeout(getDocs(collection(db, 'hubs')), 8000);
         if (hubsSnap.empty) {
           for (const hub of INITIAL_HUBS) {
             await setDoc(doc(db, 'hubs', hub.id), hub);
           }
         }
 
-        const partnerSnap = await withTimeout(getDocs(collection(db, 'partners')), 3000);
+        const partnerSnap = await withTimeout(getDocs(collection(db, 'partners')), 8000);
         if (partnerSnap.empty) {
           for (const p of INITIAL_PARTNERS) {
             await setDoc(doc(db, 'partners', p.id), p);
@@ -72,7 +72,7 @@ export const initializeDatabaseDefaults = async () => {
         // Fallback store is active; silently handle network delay/offline state
         console.warn('Initial cloud sync deferred to local cache:', err);
       }
-    }, 200);
+    }, 1200);
   } catch (err) {
     console.warn('Local storage init notice:', err);
   }

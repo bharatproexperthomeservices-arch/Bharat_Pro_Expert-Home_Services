@@ -4,6 +4,7 @@ import { Booking, HubLocation } from '../types';
 import { CLEANING_20_CATEGORIES, CleaningCategoryDetail } from '../cleaningCategoriesData';
 import { createNewBooking, getAllHubs, getAllBookings } from '../services/dbService';
 import { openRazorpayPaymentModal, getRazorpayKeyId } from '../services/razorpayService';
+import { useRazorpayBooking, BookingPayload } from '../hooks/useRazorpayBooking';
 import confetti from 'canvas-confetti';
 import { 
   Phone, 
@@ -146,6 +147,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
   const [couponFeedback, setCouponFeedback] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const { processBooking } = useRazorpayBooking();
 
   // Customer Bookings
   const [customerBookings, setCustomerBookings] = useState<Booking[]>([]);
@@ -390,200 +392,78 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
       const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
       const completionOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
-      // OPTION 1: "Pay after service" skips Razorpay entirely and confirms immediately
-      if (paymentMethod === 'cash') {
-        const newBookingRecord: Booking = {
-          id: bookingId,
-          bookingNumber,
-          customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
-          customerName: profile?.name || user?.displayName || 'Customer',
-          customerPhone: profile?.phone || '8920252647',
-          customerEmail: user?.email || profile?.email || 'customer@bharatproexpert.com',
-          serviceId: primaryService.id,
-          serviceName: `${primaryService.n} (${pkg ? pkg[0] : 'Standard'})`,
-          categoryName: primaryService.n,
-          date: dateStr,
-          timeSlot: slotStr,
-          assignedHubId: matchedHub.id,
-          address: {
-            street: `${address.house ? address.house + ', ' : ''}${address.line}${address.lm ? ' (Near ' + address.lm + ')' : ''}`,
-            sector: address.type + ' Area',
-            city: address.city || city,
-            state: 'Haryana',
-            pincode: address.pin || '122002',
-            lat: address.lat,
-            lng: address.lng
-          },
-          selectedAddons: [],
+      const bookingPayload: BookingPayload = {
+        bookingId,
+        bookingNumber,
+        customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
+        customerName: profile?.name || user?.displayName || 'Customer',
+        customerPhone: profile?.phone || '8920252647',
+        customerEmail: user?.email || profile?.email || 'customer@bharatproexpert.com',
+        serviceId: primaryService.id,
+        serviceName: `${primaryService.n} (${pkg ? pkg[0] : 'Standard'})`,
+        categoryName: primaryService.n,
+        date: dateStr,
+        timeSlot: slotStr,
+        assignedHubId: matchedHub.id,
+        address: {
+          street: `${address.house ? address.house + ', ' : ''}${address.line}${address.lm ? ' (Near ' + address.lm + ')' : ''}`,
+          sector: address.type + ' Area',
+          city: address.city || city,
+          state: 'Haryana',
+          pincode: address.pin || '122002',
+          lat: address.lat,
+          lng: address.lng
+        },
+        selectedAddons: [],
+        basePrice: tot.subtotal,
+        addonsPrice: 0,
+        taxesGst: 0,
+        convenienceFee: 0,
+        discount: tot.discount,
+        totalAmount: tot.total,
+        appliedCoupon: coupon || undefined,
+        priceSnapshot: {
           basePrice: tot.subtotal,
+          referencePrice: Math.round(tot.subtotal / 0.85),
+          customerSavings: tot.discount,
+          discountPct: 15,
+          pricingMode: 'REFERENCE_PERCENT',
+          priceVersion: 'apk-v1.0.0',
           addonsPrice: 0,
           taxesGst: 0,
           convenienceFee: 0,
           discount: tot.discount,
           totalAmount: tot.total,
-          appliedCoupon: coupon || undefined,
-          priceSnapshot: {
-            basePrice: tot.subtotal,
-            referencePrice: Math.round(tot.subtotal / 0.85),
-            customerSavings: tot.discount,
-            discountPct: 15,
-            pricingMode: 'REFERENCE_PERCENT',
-            priceVersion: 'apk-v1.0.0',
-            addonsPrice: 0,
-            taxesGst: 0,
-            convenienceFee: 0,
-            discount: tot.discount,
-            totalAmount: tot.total,
-            capturedAt: new Date().toISOString()
-          },
-          paymentMethod: 'PAY_AFTER_SERVICE',
-          paymentStatus: 'PENDING',
-          transactionId: 'TXN_' + Math.random().toString(36).substring(2, 10).toUpperCase(),
-          startOtp,
-          completionOtp,
-          status: 'SEARCHING_PROFESSIONAL',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
+          capturedAt: new Date().toISOString()
+        },
+        startOtp,
+        completionOtp
+      };
 
-        const created = await createNewBooking(newBookingRecord);
-
-        try {
-          confetti({
-            particleCount: 80,
-            spread: 70,
-            origin: { y: 0.6 }
-          });
-        } catch {}
-
-        setCart([]);
-        localStorage.removeItem('bpe_cart_v3');
-        setCustomerBookings(prev => [created, ...prev]);
-
-        showToast('🎉 Booking Confirmed! Finding Best Pro...');
-        setBookingLoading(false);
-
-        onTrackBooking(created);
-        setView('bk');
-        return;
-      }
-
-      // OPTION 2: "UPI / Cards / Netbanking" - calls Razorpay checkout flow
-      // Waits for verified payment before creating and confirming booking
-      const keyId = getRazorpayKeyId();
-      if (!keyId) {
-        showToast('Razorpay Key ID configure nahi hai. Kripya AI Studio Secrets me check karein.');
-        setBookingLoading(false);
-        return;
-      }
-
-      await openRazorpayPaymentModal({
-        amount: tot.total,
-        bookingNumber,
-        serviceName: `${primaryService.n} (${pkg ? pkg[0] : 'Standard'})`,
-        customerName: profile?.name || user?.displayName || 'Customer',
-        customerEmail: user?.email || profile?.email || 'customer@bharatproexpert.com',
-        customerPhone: profile?.phone || '8920252647',
-        address: `${address.house ? address.house + ', ' : ''}${address.line}${address.lm ? ' (Near ' + address.lm + ')' : ''}`,
-        onSuccess: async (paymentResp) => {
-          try {
-            const newBookingRecord: Booking = {
-              id: bookingId,
-              bookingNumber,
-              customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
-              customerName: profile?.name || user?.displayName || 'Customer',
-              customerPhone: profile?.phone || '8920252647',
-              customerEmail: user?.email || profile?.email || 'bharatproexpert@gmail.com',
-              serviceId: primaryService.id,
-              serviceName: `${primaryService.n} (${pkg ? pkg[0] : 'Standard'})`,
-              categoryName: primaryService.n,
-              date: dateStr,
-              timeSlot: slotStr,
-              assignedHubId: matchedHub.id,
-              address: {
-                street: `${address.house ? address.house + ', ' : ''}${address.line}${address.lm ? ' (Near ' + address.lm + ')' : ''}`,
-                sector: address.type + ' Area',
-                city: address.city || city,
-                state: 'Haryana',
-                pincode: address.pin || '122002',
-                lat: address.lat,
-                lng: address.lng
-              },
-              selectedAddons: [],
-              basePrice: tot.subtotal,
-              addonsPrice: 0,
-              taxesGst: 0,
-              convenienceFee: 0,
-              discount: tot.discount,
-              totalAmount: tot.total,
-              appliedCoupon: coupon || undefined,
-              priceSnapshot: {
-                basePrice: tot.subtotal,
-                referencePrice: Math.round(tot.subtotal / 0.85),
-                customerSavings: tot.discount,
-                discountPct: 15,
-                pricingMode: 'REFERENCE_PERCENT',
-                priceVersion: 'apk-v1.0.0',
-                addonsPrice: 0,
-                taxesGst: 0,
-                convenienceFee: 0,
-                discount: tot.discount,
-                totalAmount: tot.total,
-                capturedAt: new Date().toISOString()
-              },
-              paymentMethod: 'UPI',
-              paymentStatus: 'PAID',
-              transactionId: paymentResp.razorpay_payment_id || 'TXN_ONLINE_VERIFIED',
-              razorpayDetails: {
-                paymentId: paymentResp.razorpay_payment_id || '',
-                orderId: paymentResp.razorpay_order_id || '',
-                signature: paymentResp.razorpay_signature || '',
-                verifiedAt: new Date().toISOString(),
-                verificationStatus: 'SUCCESS_VERIFIED'
-              },
-              startOtp,
-              completionOtp,
-              status: 'SEARCHING_PROFESSIONAL',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            };
-
-            const created = await createNewBooking(newBookingRecord);
-
-            // Trigger Confetti
-            try {
-              confetti({
-                particleCount: 80,
-                spread: 70,
-                origin: { y: 0.6 }
-              });
-            } catch {}
-
-            // Clear cart & update bookings
-            setCart([]);
-            localStorage.removeItem('bpe_cart_v3');
-            setCustomerBookings(prev => [created, ...prev]);
-
-            showToast('🎉 Payment Verified & Booking Confirmed! Finding Best Pro...');
-            setBookingLoading(false);
-
-            // Directly open real-time live tracking
-            onTrackBooking(created);
-            setView('bk');
-          } catch (e) {
-            console.error('Failed to create APK booking after payment:', e);
-            showToast('Payment successful but booking record save failed. Contact support with payment ID: ' + paymentResp.razorpay_payment_id);
-            setBookingLoading(false);
-          }
+      // Execute via API hook:
+      // - Explicitly triggers Razorpay only after validating 'UPI / Cards / Netbanking' selection
+      // - Ensures Firestore booking creation ONLY occurs inside handler.success callback
+      // - Prevents premature booking creation or confirmation
+      await processBooking(bookingPayload, paymentMethod, {
+        onSuccess: async (savedBooking) => {
+          setCart([]);
+          localStorage.removeItem('bpe_cart_v3');
+          setCustomerBookings(prev => [savedBooking, ...prev]);
+          showToast(paymentMethod === 'cash' 
+            ? '🎉 Booking Confirmed! Finding Best Pro...' 
+            : '🎉 Payment Verified & Booking Confirmed! Finding Best Pro...'
+          );
+          setBookingLoading(false);
+          onTrackBooking(savedBooking);
+          setView('bk');
         },
         onDismiss: () => {
           setBookingLoading(false);
           showToast('⚠️ Booking cancel: Online payment pura nahi hua.');
         },
-        onError: (err: any) => {
+        onError: (errMsg) => {
           setBookingLoading(false);
-          const desc = err?.description || err?.message || 'Payment window open nahi ho saki';
-          showToast(`❌ Payment Failed: ${desc}`);
+          showToast(`❌ ${errMsg}`);
         }
       });
     } catch (e) {
@@ -624,38 +504,23 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
   return (
     <div className="min-h-screen bg-[#f6f8fc] text-[#111827] font-['Inter',sans-serif] pb-28 antialiased selection:bg-[#0b3ba8]/20 selection:text-[#0b3ba8]">
       
-      {/* Top Bar for Admin & Partner Portals Toggle */}
+      {/* Top Bar for Customer Brand & Web Portal Switch */}
       <div className="bg-[#0b3ba8] text-white text-xs px-4 py-2 flex items-center justify-between border-b border-blue-900 shadow-xs">
         <div className="flex items-center gap-2">
           <span className="font-extrabold tracking-wide font-['Outfit'] text-sm">BharatProExpert</span>
-          <span className="hidden sm:inline-block bg-blue-800 text-[10px] px-2 py-0.5 rounded font-mono">
+          <span className="bg-blue-800 text-[10px] px-2 py-0.5 rounded font-mono">
             APK / Web App
-          </span>
-          <span className="text-blue-200 text-[11px] hidden md:inline">
-            Helpline: 8920252647
           </span>
         </div>
         <div className="flex items-center gap-2">
           {onToggleCatalog && (
             <button
               onClick={onToggleCatalog}
-              className="px-2.5 py-1 rounded bg-blue-900 hover:bg-blue-800 text-amber-300 font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+              className="px-2.5 py-1 rounded bg-blue-900 hover:bg-blue-800 text-white font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-2xs border border-blue-700/50"
             >
               <span>🌐 Website Portal</span>
             </button>
           )}
-          <button
-            onClick={onOpenPartner}
-            className="px-2.5 py-1 rounded bg-blue-800 hover:bg-blue-700 text-white font-semibold text-[11px] transition-colors cursor-pointer"
-          >
-            Partner Portal
-          </button>
-          <button
-            onClick={onOpenAdmin}
-            className="px-2.5 py-1 rounded bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-[11px] transition-colors cursor-pointer"
-          >
-            Admin Panel
-          </button>
         </div>
       </div>
 
@@ -1227,13 +1092,24 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
             </div>
 
             {/* Bottom Contact Footnote */}
-            <div className="text-center pt-4 text-xs text-[#6b7280] space-y-1">
+            <div className="text-center pt-6 pb-4 text-xs text-[#6b7280] space-y-2 border-t border-slate-200 mt-6">
               <p>
                 © BharatProExpert.com · Phone: <b>8920252647</b> · Email: <b>bharatproexpert@gmail.com</b>
               </p>
-              <p className="text-[11px]">
-                Terms · Privacy · Refund Guarantee · 100% Verified Cleaners
-              </p>
+              <div className="flex items-center justify-center gap-3 text-[11px] text-[#6b7280] flex-wrap">
+                <span>Terms</span>
+                <span>&bull;</span>
+                <span>Privacy</span>
+                <span>&bull;</span>
+                <span>Refund Guarantee</span>
+                <span>&bull;</span>
+                <button
+                  onClick={() => onOpenAdmin()}
+                  className="font-bold text-[#0b3ba8] hover:text-blue-900 inline-flex items-center gap-1 cursor-pointer bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200 transition-colors"
+                >
+                  🔒 Admin Panel
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -2312,14 +2188,14 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 onClick={onOpenPartner}
                 className="p-3.5 flex justify-between items-center cursor-pointer hover:bg-slate-50 text-[#0b3ba8]"
               >
-                <span className="flex items-center gap-2">🛵 Partner Portal (Field Ops)</span>
+                <span className="flex items-center gap-2">🛵 Partner with Us (Service Professional)</span>
                 <span>→</span>
               </div>
               <div 
                 onClick={onOpenAdmin}
-                className="p-3.5 flex justify-between items-center cursor-pointer hover:bg-slate-50 text-amber-800"
+                className="p-3.5 flex justify-between items-center cursor-pointer hover:bg-blue-50 text-[#0b3ba8] bg-blue-50/40"
               >
-                <span className="flex items-center gap-2">🛡️ Admin Control Panel</span>
+                <span className="flex items-center gap-2">🛡️ Admin Panel Login</span>
                 <span>→</span>
               </div>
             </div>
@@ -2349,9 +2225,9 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
             ) : (
               <button
                 onClick={() => onOpenAuth('customer')}
-                className="w-full py-3 rounded-xl bg-[#0b3ba8] text-white font-bold text-xs hover:bg-blue-800 cursor-pointer"
+                className="w-full py-3 rounded-xl bg-[#0b3ba8] text-white font-bold text-xs hover:bg-blue-800 cursor-pointer text-center shadow-xs"
               >
-                Login / Register with Mobile OTP
+                Login / Sign In with Mobile OTP
               </button>
             )}
           </div>
@@ -2498,6 +2374,16 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                   <span className="text-[11px] text-[#6b7280]">
                     {user?.phoneNumber || user?.email || 'Logged in via Mobile'}
                   </span>
+                  {!user && !profile && (
+                    <div className="mt-1.5">
+                      <button
+                        onClick={() => { setDrawerOpen(false); onOpenAuth('customer'); }}
+                        className="px-3 py-1 rounded bg-[#0b3ba8] text-white text-[10px] font-bold hover:bg-blue-800 cursor-pointer"
+                      >
+                        Login
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2562,15 +2448,15 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                   className="w-full text-left p-2.5 rounded-xl hover:bg-blue-50 text-[#0b3ba8] flex items-center gap-3 cursor-pointer"
                 >
                   <span className="text-lg">💼</span>
-                  <span>Partner Service Portal</span>
+                  <span>Partner with Us (Join as Expert)</span>
                 </button>
 
                 <button
                   onClick={() => { onOpenAdmin(); setDrawerOpen(false); }}
-                  className="w-full text-left p-2.5 rounded-xl hover:bg-amber-50 text-amber-800 flex items-center gap-3 cursor-pointer font-bold"
+                  className="w-full text-left p-2.5 rounded-xl hover:bg-blue-50 text-blue-900 flex items-center gap-3 cursor-pointer font-medium"
                 >
-                  <span className="text-lg">⚙️</span>
-                  <span>Admin Control Center</span>
+                  <span className="text-lg">🛡️</span>
+                  <span>Admin Panel Portal</span>
                 </button>
               </div>
             </div>

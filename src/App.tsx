@@ -13,6 +13,8 @@ import { CustomerApkView } from './components/CustomerApkView';
 import { UrbanCompanyCleaningView } from './components/UrbanCompanyCleaningView';
 import { CustomerDashboardModal } from './components/CustomerDashboardModal';
 import { BumperOfferBanner } from './components/BumperOfferBanner';
+import { HelpSupportModal } from './components/HelpSupportModal';
+import { Footer } from './components/Footer';
 import { 
   INITIAL_CATEGORIES, 
   INITIAL_SERVICES, 
@@ -36,7 +38,8 @@ import {
   CheckCircle2, 
   Smartphone,
   ChevronDown,
-  ArrowRight
+  ArrowRight,
+  HelpCircle
 } from 'lucide-react';
 
 function AppContent() {
@@ -49,6 +52,7 @@ function AppContent() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalDefaultRole, setAuthModalDefaultRole] = useState<'customer' | 'partner'>('customer');
   const [customerDashboardOpen, setCustomerDashboardOpen] = useState(false);
+  const [helpModalOpen, setHelpModalOpen] = useState(false);
   
   // Selected City & Hub
   const [selectedCity, setSelectedCity] = useState('Gurugram');
@@ -57,6 +61,42 @@ function AppContent() {
   const [activeTrackingBooking, setActiveTrackingBooking] = useState<Booking | null>(null);
   const [myBookings, setMyBookings] = useState<Booking[]>([]);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+
+  // Check URL routes & hashes for secure direct access (#admin-gateway, #partner)
+  useEffect(() => {
+    const handleRouteCheck = () => {
+      const hash = window.location.hash;
+      const path = window.location.pathname;
+
+      if (hash === '#admin-gateway' || hash === '#bpe-admin' || path === '/bpe-admin-gateway') {
+        setIsAdminView(true);
+        setIsPartnerView(false);
+      } else if (hash === '#partner' || path === '/partner') {
+        setIsPartnerView(true);
+        setIsAdminView(false);
+      }
+    };
+
+    handleRouteCheck();
+    window.addEventListener('hashchange', handleRouteCheck);
+    window.addEventListener('popstate', handleRouteCheck);
+
+    // Keyboard shortcut for administrator: Ctrl+Shift+A (or Cmd+Shift+A)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        window.location.hash = '#admin-gateway';
+        setIsAdminView(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('hashchange', handleRouteCheck);
+      window.removeEventListener('popstate', handleRouteCheck);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Check admin session
   useEffect(() => {
@@ -93,30 +133,44 @@ function AppContent() {
     setActiveTrackingBooking(newBooking);
   };
 
+  const handleExitAdmin = () => {
+    if (window.location.hash.includes('admin')) {
+      window.location.hash = '';
+    }
+    setIsAdminView(false);
+  };
+
+  const handleExitPartner = () => {
+    if (window.location.hash.includes('partner')) {
+      window.location.hash = '';
+    }
+    setIsPartnerView(false);
+  };
+
   if (isAdminView) {
     if (!isAdminAuthenticated) {
       return (
         <AdminLoginGate
           onAuthorized={() => setIsAdminAuthenticated(true)}
-          onBackToCustomerSite={() => setIsAdminView(false)}
+          onBackToCustomerSite={handleExitAdmin}
         />
       );
     }
 
     return (
       <AdminDashboard 
-        onBackToCustomerSite={() => setIsAdminView(false)} 
+        onBackToCustomerSite={handleExitAdmin} 
         onSignOut={() => {
           clearAdminSession();
           setIsAdminAuthenticated(false);
-          setIsAdminView(false);
+          handleExitAdmin();
         }}
       />
     );
   }
 
   if (isPartnerView) {
-    return <PartnerDashboard onBackToCustomerSite={() => setIsPartnerView(false)} />;
+    return <PartnerDashboard onBackToCustomerSite={handleExitPartner} />;
   }
 
   // Native-feel Mobile APK View (Default Original View)
@@ -124,8 +178,14 @@ function AppContent() {
     return (
       <div className="relative">
         <CustomerApkView
-          onOpenAdmin={() => setIsAdminView(true)}
-          onOpenPartner={() => setIsPartnerView(true)}
+          onOpenAdmin={() => {
+            window.location.hash = '#admin-gateway';
+            setIsAdminView(true);
+          }}
+          onOpenPartner={() => {
+            window.location.hash = '#partner';
+            setIsPartnerView(true);
+          }}
           onOpenAuth={(role) => handleOpenAuth(role)}
           onTrackBooking={(bk) => setActiveTrackingBooking(bk)}
           onToggleCatalog={() => setCustomerViewMode('catalog')}
@@ -156,27 +216,23 @@ function AppContent() {
   // Web Marketplace View
   return (
     <div className="relative min-h-screen bg-[#F8F9FB] flex flex-col font-['Inter',sans-serif]">
-      {/* Top Announcement Bar */}
-      <div className="bg-[#1C1C1E] text-white text-xs py-2 px-4 border-b border-[#2C2C2E]">
+      {/* Top Announcement Bar - Clean & Professional without phone numbers */}
+      <div className="bg-[#071321] text-white text-xs py-2 px-4 border-b border-slate-800">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="bg-[#B8892E] text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
-              Festive Offer
+            <span className="bg-blue-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+              ISO Certified
             </span>
-            <span className="text-[#D4A24E] font-medium hidden sm:inline">
-              Flat 15% Savings automatically applied to all Diversey Hospital-Grade Sanitization services!
+            <span className="text-blue-100 font-medium hidden sm:inline">
+              100% Hospital-Grade Diversey &amp; Taski sanitization standards across Delhi-NCR, Mumbai &amp; Bengaluru
             </span>
           </div>
-          <div className="flex items-center gap-4 text-[#8E8E93] text-[11px]">
-            <a href="tel:8920252647" className="hover:text-white transition-colors flex items-center gap-1">
-              <Phone className="w-3 h-3 text-[#B8892E]" />
-              <span>24/7 Helpline: 8920252647</span>
-            </a>
+          <div className="flex items-center gap-4 text-slate-400 text-[11px]">
             <button
               onClick={() => setCustomerViewMode('apk')}
-              className="text-[#B8892E] hover:text-[#D4A24E] font-bold flex items-center gap-1 cursor-pointer"
+              className="text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 cursor-pointer transition-colors"
             >
-              <Smartphone className="w-3 h-3" />
+              <Smartphone className="w-3.5 h-3.5" />
               <span>📱 Switch to App View</span>
             </button>
           </div>
@@ -197,7 +253,7 @@ function AppContent() {
 
             {/* City Selector */}
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F8F9FB] border border-[#E5E5EA] text-xs font-semibold text-[#1C1C1E]">
-              <MapPin className="w-3.5 h-3.5 text-[#B8892E]" />
+              <MapPin className="w-3.5 h-3.5 text-blue-600" />
               <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
@@ -218,42 +274,36 @@ function AppContent() {
               onClick={() => setCustomerViewMode('apk')}
               className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-xs font-bold text-[#1C1C1E] transition-all cursor-pointer"
             >
-              <Smartphone className="w-3.5 h-3.5 text-[#B8892E]" />
+              <Smartphone className="w-3.5 h-3.5 text-blue-600" />
               <span>Mobile App View</span>
             </button>
 
             <button
-              onClick={() => setIsPartnerView(true)}
-              className="px-3 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-xs font-semibold text-[#1C1C1E] transition-all cursor-pointer"
+              onClick={() => setHelpModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-xs font-semibold text-[#1C1C1E] transition-all cursor-pointer"
             >
-              Partner Portal
-            </button>
-
-            <button
-              onClick={() => setIsAdminView(true)}
-              className="px-3 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-xs font-bold text-amber-900 transition-all cursor-pointer"
-            >
-              Admin Desk
+              <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
+              <span>Help &amp; Support</span>
             </button>
 
             {/* User Account / Login */}
             {user || profile ? (
               <button
                 onClick={() => setCustomerDashboardOpen(true)}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#1C1C1E] text-white text-xs font-bold hover:bg-[#2C2C2E] transition-all cursor-pointer"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-all cursor-pointer shadow-xs"
               >
-                <User className="w-3.5 h-3.5 text-[#B8892E]" />
+                <User className="w-3.5 h-3.5 text-white" />
                 <span className="hidden sm:inline">{profile?.name || user?.displayName || 'My Account'}</span>
                 {myBookings.length > 0 && (
-                  <span className="w-2 h-2 rounded-full bg-[#1F8A3B]" />
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
                 )}
               </button>
             ) : (
               <button
                 onClick={() => handleOpenAuth('customer')}
-                className="px-4 py-2 rounded-xl bg-[#1C1C1E] text-white text-xs font-bold hover:bg-[#2C2C2E] transition-all cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-all cursor-pointer shadow-xs"
               >
-                Sign In
+                Login
               </button>
             )}
           </div>
@@ -277,8 +327,27 @@ function AppContent() {
         onProceedToBooking={(srv) => setBookingService(srv)}
       />
 
+      {/* Professional Footer */}
+      <Footer 
+        onOpenPartner={() => {
+          window.location.hash = '#partner';
+          setIsPartnerView(true);
+        }} 
+        onOpenAdmin={() => {
+          window.location.hash = '#admin-gateway';
+          setIsAdminView(true);
+        }}
+        onOpenHelp={() => setHelpModalOpen(true)} 
+      />
+
       {/* Floating WhatsApp Widget */}
       <WhatsAppFloatingWidget />
+
+      {/* Help & Support Modal */}
+      <HelpSupportModal
+        isOpen={helpModalOpen}
+        onClose={() => setHelpModalOpen(false)}
+      />
 
       {/* Auth Modal */}
       <AuthModal

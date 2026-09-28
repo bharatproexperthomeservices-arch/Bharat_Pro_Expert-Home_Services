@@ -21,8 +21,6 @@ interface AuthModalProps {
   defaultRole?: 'customer' | 'partner';
 }
 
-const DEFAULT_USER_EMAIL = 'bharatproexpert@gmail.com';
-
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
@@ -35,11 +33,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     requestEmailOtp 
   } = useAuth();
   
-  const [authTab, setAuthTab] = useState<'login' | 'signup' | 'forgot'>('login');
+  const [authTab, setAuthTab] = useState<'login' | 'forgot'>('login');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setAuthTab('login');
+    }
+  }, [isOpen]);
   const [selectedRole, setSelectedRole] = useState<'customer' | 'partner'>(defaultRole);
   const [email, setEmail] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -105,20 +107,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleInstantDemoLogin = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      await signInDirect(DEFAULT_USER_EMAIL, fullName || 'BharatPro Member', selectedRole);
-      setSuccessMsg('Signed in instantly!');
-      setTimeout(() => onClose(), 400);
-    } catch (err: any) {
-      setError(err?.message || 'Demo login failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md overflow-y-auto">
       <div 
@@ -174,14 +162,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             Sign In
           </button>
           <button
-            onClick={() => { setAuthTab('signup'); setError(null); }}
-            className={`pb-2 mr-6 transition-all cursor-pointer ${
-              authTab === 'signup' ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' : 'text-gray-400'
-            }`}
-          >
-            Create Account
-          </button>
-          <button
             onClick={() => { setAuthTab('forgot'); setError(null); }}
             className={`pb-2 transition-all cursor-pointer ${
               authTab === 'forgot' ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' : 'text-gray-400'
@@ -232,38 +212,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* Form based on Tab */}
           {!otpSent ? (
             <form onSubmit={handleSendOtp} className="space-y-3">
-              {authTab === 'signup' && (
-                <div>
-                  <label className="text-[11px] font-bold text-[#0B2A4A] block mb-1">Full Name</label>
-                  <div className="relative">
-                    <User className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3" />
-                    <input
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="e.g. Vikram Sharma"
-                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-300 text-xs font-medium outline-none focus:border-[#0B2A4A]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {authTab === 'signup' && (
-                <div>
-                  <label className="text-[11px] font-bold text-[#0B2A4A] block mb-1">Mobile Number</label>
-                  <div className="relative">
-                    <Phone className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-3" />
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="e.g. 9876543210"
-                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-300 text-xs font-medium outline-none focus:border-[#0B2A4A]"
-                    />
-                  </div>
-                </div>
-              )}
-
               <div>
                 <label className="text-[11px] font-bold text-[#0B2A4A] block mb-1">Email Address</label>
                 <div className="relative">
@@ -323,17 +271,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </form>
           )}
 
-          {/* Quick Demo Access */}
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-400">Quick Pro / Customer access:</span>
-            <button
-              type="button"
-              onClick={handleInstantDemoLogin}
-              className="text-[#0B2A4A] font-bold hover:underline cursor-pointer"
-            >
-              1-Click Demo Login →
-            </button>
-          </div>
+          {/* Footer (Only for Forgot Password return) */}
+          {authTab === 'forgot' && (
+            <div className="pt-2 border-t border-gray-100 text-center text-xs text-gray-500">
+              <button
+                type="button"
+                onClick={() => { setAuthTab('login'); setError(null); }}
+                className="text-[#0B2A4A] font-bold hover:underline cursor-pointer"
+              >
+                ← Back to Sign In
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

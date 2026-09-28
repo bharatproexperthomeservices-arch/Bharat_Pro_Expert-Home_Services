@@ -370,7 +370,7 @@ export interface Booking {
   appliedCoupon?: string;
   unlockedBumperOffer?: string;
   priceSnapshot?: BookingPriceSnapshot;
-  paymentMethod: 'UPI' | 'CARD' | 'NET_BANKING' | 'PAY_AFTER_SERVICE';
+  paymentMethod: 'UPI' | 'CARD' | 'NET_BANKING' | 'PAY_AFTER_SERVICE' | 'UPI / Cards / Netbanking' | 'Pay after service';
   paymentStatus: 'PAID' | 'PENDING' | 'REFUNDED';
   transactionId?: string;
   

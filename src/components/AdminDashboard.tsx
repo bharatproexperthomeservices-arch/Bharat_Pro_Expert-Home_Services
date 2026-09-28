@@ -17,7 +17,8 @@ import {
   clearAdminSession, 
   getAllAdminRequests, 
   approveAdminLogin, 
-  rejectAdminLogin 
+  rejectAdminLogin,
+  updateAdminActivity 
 } from '../services/adminAuthService';
 import { AdminLoginRequest } from '../types';
 import { AdminCatalogueTab } from './admin/AdminCatalogueTab';
@@ -130,6 +131,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     loadData();
   }, []);
+
+  // Inactivity auto-logout (15 minutes idle limit for enhanced security)
+  useEffect(() => {
+    let inactivityTimer: any;
+    const resetTimer = () => {
+      updateAdminActivity();
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        clearAdminSession();
+        onSignOut?.();
+      }, 15 * 60 * 1000);
+    };
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(ev => window.addEventListener(ev, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      clearTimeout(inactivityTimer);
+      events.forEach(ev => window.removeEventListener(ev, resetTimer));
+    };
+  }, [onSignOut]);
 
   const pendingPartners = partners.filter(p => p.onboardingStatus === 'pending_approval');
   const pendingAdminRequests = adminRequests.filter(r => r.status === 'PENDING');

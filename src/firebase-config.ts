@@ -10,8 +10,8 @@ import {
   User as FirebaseUser
 } from 'firebase/auth';
 import { 
-  initializeFirestore,
   getFirestore, 
+  setLogLevel,
   collection, 
   doc, 
   setDoc, 
@@ -39,18 +39,14 @@ export const firebaseConfig = {
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Use initializeFirestore with experimentalForceLongPolling and useFetchStreams: false
-// to eliminate WebChannel streaming errors in sandboxed/iframe preview environments
-let dbInstance;
-try {
-  dbInstance = initializeFirestore(app, {
-    experimentalForceLongPolling: true
-  }, firebaseConfigJson.firestoreDatabaseId);
-} catch {
-  dbInstance = getFirestore(app, firebaseConfigJson.firestoreDatabaseId);
-}
+// Initialize Firestore with databaseId exactly according to Firebase Integration Skill
+export const db = getFirestore(app, firebaseConfigJson.firestoreDatabaseId);
 
-export const db = dbInstance;
+// Suppress transient initial connection retry warnings
+try {
+  setLogLevel('error');
+} catch {}
+
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
@@ -58,15 +54,13 @@ googleProvider.setCustomParameters({ prompt: 'select_account' });
 if (typeof window !== 'undefined') {
   setTimeout(async () => {
     try {
-      // Non-blocking ping with timeout
-      await Promise.race([
-        getDoc(doc(db, 'test', 'connection')),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
-      ]);
-    } catch {
-      // Resilient silent fallback - application continues in seamless offline/local storage mode
+      await getDocFromServer(doc(db, 'test', 'connection'));
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('the client is offline')) {
+        console.warn("Firestore operates in offline/local-cache mode until connection is established.");
+      }
     }
-  }, 1500);
+  }, 2000);
 }
 
 export enum OperationType {

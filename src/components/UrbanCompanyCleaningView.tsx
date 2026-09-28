@@ -139,7 +139,7 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <span className="text-xs uppercase font-extrabold tracking-wider text-[#B8892E]">
+              <span className="text-xs uppercase font-extrabold tracking-wider text-blue-600">
                 Bharat Pro Expert Cleaning
               </span>
               <h1 className="text-2xl sm:text-3xl font-black font-['Outfit'] text-[#1C1C1E] mt-0.5">
@@ -147,7 +147,7 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
               </h1>
               <p className="text-xs sm:text-sm text-[#636366] mt-1 flex items-center gap-2">
                 <span className="flex items-center gap-1 font-bold text-[#1C1C1E]">
-                  <Star className="w-3.5 h-3.5 fill-[#B8892E] text-[#B8892E]" /> 4.84
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" /> 4.84
                 </span>
                 <span>&bull;</span>
                 <span>Over 145,000+ homes deep cleaned</span>
@@ -158,8 +158,8 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
 
             {/* Quality Guarantee Mini Card */}
             <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] self-start md:self-auto">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-5 h-5 text-[#B8892E]" />
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5 text-blue-600" />
               </div>
               <div className="text-xs">
                 <span className="font-bold text-[#1C1C1E] block">100% Service Guarantee</span>
@@ -213,12 +213,12 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
                     onClick={() => setActiveSubFilter(sub.id)}
                     className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
                       isActive 
-                        ? 'bg-[#FFF8F0] text-[#B8892E] border border-[#B8892E]/30 font-extrabold'
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200 font-extrabold shadow-2xs'
                         : 'text-[#1C1C1E] hover:bg-[#F2F2F7]'
                     }`}
                   >
                     <span>{sub.label}</span>
-                    {isActive && <ChevronRight className="w-3.5 h-3.5 text-[#B8892E]" />}
+                    {isActive && <ChevronRight className="w-3.5 h-3.5 text-blue-600" />}
                   </button>
                 );
               })}
@@ -295,7 +295,7 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
                         </h3>
                         <div className="flex items-center gap-3 mt-1 text-xs text-[#8E8E93]">
                           <span className="flex items-center gap-1 font-bold text-[#1C1C1E]">
-                            <Star className="w-3.5 h-3.5 fill-[#B8892E] text-[#B8892E]" /> {srv.rating}
+                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" /> {srv.rating}
                           </span>
                           <span>&bull;</span>
                           <span>({srv.reviewCount} reviews)</span>
@@ -324,7 +324,7 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
                         <ul className="text-xs text-[#636366] space-y-1">
                           {srv.inclusions.slice(0, 3).map((inc, i) => (
                             <li key={i} className="flex items-start gap-1.5">
-                              <span className="text-[#B8892E] font-bold">&bull;</span>
+                              <span className="text-blue-600 font-bold">&bull;</span>
                               <span>{inc}</span>
                             </li>
                           ))}
@@ -335,10 +335,10 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
                       <button
                         type="button"
                         onClick={() => onSelectServiceDetails(srv)}
-                        className="text-xs font-bold text-[#B8892E] hover:underline flex items-center gap-1 pt-1 cursor-pointer"
+                        className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 pt-1 cursor-pointer"
                       >
                         <span>View details &amp; equipment SOP</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
+                        <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
                       </button>
                     </div>
 
@@ -363,17 +363,17 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
                           <button
                             type="button"
                             onClick={() => handleAddToCart(srv.id)}
-                            className="w-full py-2 px-3 rounded-xl bg-white border border-[#D1D1D6] hover:border-[#1C1C1E] text-xs font-bold text-[#1C1C1E] shadow-2xs hover:bg-[#F8F9FB] flex items-center justify-center gap-1 transition-all cursor-pointer active:scale-95"
+                            className="w-full py-2 px-3 rounded-xl bg-white border border-[#D1D1D6] hover:border-blue-600 text-xs font-bold text-[#1C1C1E] shadow-2xs hover:bg-blue-50 flex items-center justify-center gap-1 transition-all cursor-pointer active:scale-95"
                           >
-                            <Plus className="w-3.5 h-3.5 text-[#B8892E]" />
+                            <Plus className="w-3.5 h-3.5 text-blue-600" />
                             <span>Add</span>
                           </button>
                         ) : (
-                          <div className="w-full py-1.5 px-3 rounded-xl bg-[#1C1C1E] text-white text-xs font-bold shadow-xs flex items-center justify-between">
+                          <div className="w-full py-1.5 px-3 rounded-xl bg-blue-700 text-white text-xs font-bold shadow-xs flex items-center justify-between">
                             <button
                               type="button"
                               onClick={() => handleRemoveFromCart(srv.id)}
-                              className="p-1 hover:text-red-400 transition-colors cursor-pointer"
+                              className="p-1 hover:text-red-300 transition-colors cursor-pointer"
                             >
                               <Minus className="w-3.5 h-3.5" />
                             </button>
@@ -381,7 +381,7 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
                             <button
                               type="button"
                               onClick={() => handleAddToCart(srv.id)}
-                              className="p-1 hover:text-[#F9D976] transition-colors cursor-pointer"
+                              className="p-1 hover:text-blue-200 transition-colors cursor-pointer"
                             >
                               <Plus className="w-3.5 h-3.5" />
                             </button>
@@ -400,7 +400,7 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
             <div className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[#F2F2F7]">
                 <h3 className="font-bold text-sm text-[#1C1C1E] flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 text-[#B8892E]" />
+                  <ShoppingBag className="w-4 h-4 text-blue-600" />
                   <span>Cart ({cartItemsCount})</span>
                 </h3>
                 {cartItemsCount > 0 && (
@@ -497,7 +497,7 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
         {/* 3. URBAN COMPANY COMPARISON SECTION: BHARAT PRO VS LOCAL MAID */}
         <section className="mt-16 pt-12 border-t border-[#E5E5EA]">
           <div className="text-center max-w-2xl mx-auto space-y-2 mb-10">
-            <span className="text-xs uppercase font-extrabold tracking-wider text-[#B8892E]">
+            <span className="text-xs uppercase font-extrabold tracking-wider text-blue-600">
               Why Choose Professional Deep Cleaning?
             </span>
             <h2 className="text-2xl sm:text-3xl font-black font-['Outfit'] text-[#1C1C1E]">
@@ -511,7 +511,7 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
           <div className="max-w-4xl mx-auto bg-white rounded-3xl border border-[#E5E5EA] overflow-hidden shadow-2xs">
             <div className="grid grid-cols-12 bg-[#F8F9FB] p-4 text-xs font-bold text-[#1C1C1E] border-b border-[#E5E5EA]">
               <div className="col-span-6 sm:col-span-5">Feature &amp; Standard</div>
-              <div className="col-span-3 sm:col-span-3 text-center text-[#B8892E] font-black">Bharat Pro Expert</div>
+              <div className="col-span-3 sm:col-span-3 text-center text-blue-700 font-black">Bharat Pro Expert</div>
               <div className="col-span-3 sm:col-span-4 text-center text-[#8E8E93]">Local Maid / Vendor</div>
             </div>
 
@@ -582,7 +582,7 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
         {/* 4. REALISTIC URBAN COMPANY FAQ SECTION */}
         <section className="mt-16 pt-12 border-t border-[#E5E5EA] max-w-4xl mx-auto">
           <div className="text-center space-y-2 mb-8">
-            <span className="text-xs uppercase font-extrabold tracking-wider text-[#B8892E]">
+            <span className="text-xs uppercase font-extrabold tracking-wider text-blue-600">
               Everything You Need to Know
             </span>
             <h2 className="text-2xl font-black font-['Outfit'] text-[#1C1C1E]">
@@ -624,10 +624,10 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
             ))}
           </div>
 
-          {/* iOS Water 3D Help & Contact Card */}
-          <div className="mt-8 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-white/90 via-[#F8F9FB]/90 to-amber-50/50 backdrop-blur-2xl border border-white/90 shadow-[0_20px_50px_rgba(0,0,0,0.06)] ring-1 ring-black/5 flex flex-col md:flex-row items-center justify-between gap-6">
+          {/* Support Concierge Card */}
+          <div className="mt-8 p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-white/95 via-blue-50/30 to-indigo-50/20 backdrop-blur-2xl border border-blue-100 shadow-[0_20px_50px_rgba(0,0,0,0.04)] ring-1 ring-black/5 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-1.5 text-center md:text-left">
-              <span className="px-3 py-1 rounded-full bg-amber-100 text-[#B8892E] text-[10px] font-black tracking-widest uppercase inline-block">
+              <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black tracking-widest uppercase inline-block">
                 Dedicated Support Concierge
               </span>
               <h3 className="text-lg font-black font-['Outfit'] text-[#1C1C1E]">
@@ -637,8 +637,8 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
                 Reach our cleaning supervisor directly for customized apartment packages, commercial spaces, or immediate booking inquiries.
               </p>
               <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-4 text-xs font-semibold text-[#1C1C1E]">
-                <span>📧 <a href="mailto:bharatproexpert@gmail.com" className="hover:underline text-amber-700">bharatproexpert@gmail.com</a></span>
-                <span>📞 <a href="tel:+918920252647" className="hover:underline text-emerald-700">+91 8920252647</a></span>
+                <span>📧 <a href="mailto:support@bharatproexpert.com" className="hover:underline text-blue-700">support@bharatproexpert.com</a></span>
+                <span>💬 <a href="https://wa.me/918920252647" target="_blank" rel="noreferrer" className="hover:underline text-emerald-700">+91 8920252647 (WhatsApp)</a></span>
               </div>
             </div>
 
