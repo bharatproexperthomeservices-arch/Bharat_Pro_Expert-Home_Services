@@ -61,7 +61,12 @@ const DEFAULT_SERVICES: ServiceItem[] = [
   }
 ];
 
-export const AdminCatalogueTab: React.FC = () => {
+interface AdminCatalogueTabProps {
+  services?: any[];
+  onRefresh?: () => void;
+}
+
+export const AdminCatalogueTab: React.FC<AdminCatalogueTabProps> = ({ onRefresh }) => {
   const [services, setServices] = useState<ServiceItem[]>(() => {
     const saved = localStorage.getItem('bharatpro_catalog_services');
     return saved ? JSON.parse(saved) : DEFAULT_SERVICES;

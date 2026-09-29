@@ -9,7 +9,8 @@ import {
   getAllServices, 
   assignPartnerManually, 
   getAllHubs, 
-  saveAllHubs 
+  saveAllHubs,
+  wipeAndResetAllAdminData
 } from '../services/dbService';
 import { INITIAL_HUBS, INITIAL_SERVICES, WHATSAPP_NUMBER } from '../data';
 import { OWNER_EMAIL } from '../services/emailService';
@@ -69,7 +70,8 @@ import {
   Compass,
   ArrowRight,
   TrendingUp,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -205,6 +207,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     console.log(`[AUDIT] Action: ${action} | Target: ${targetId} | Details: ${details}`);
   };
 
+  const handleWipeOldData = async () => {
+    const confirmed = window.confirm(
+      'पुरानी सभी टेस्ट व अनचाही जानकारी हटाकर Master Spec (6 Hubs, 2 Bookings, 4 Partners, 53 Services) पर रीसेट करें?'
+    );
+    if (!confirmed) return;
+    try {
+      const res = await wipeAndResetAllAdminData();
+      await loadData();
+      alert(res.message);
+    } catch (err: any) {
+      alert(`Reset failed: ${err.message || err}`);
+    }
+  };
+
   // Date range filtering for Module 01 Executive Dashboard
   const now = new Date();
   const filteredBookingsByDate = bookings.filter(b => {
@@ -261,6 +277,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleWipeOldData}
+            className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer border border-red-700"
+            title="Purana data delete karein aur Master Spec par reset karein"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-white" />
+            <span className="hidden sm:inline">Purana Data Delete / Reset</span>
+            <span className="sm:hidden">Reset</span>
+          </button>
+
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs font-semibold">
             <ShieldCheck className="w-4 h-4 text-amber-600" />
             <span className="font-mono">{OWNER_EMAIL}</span>

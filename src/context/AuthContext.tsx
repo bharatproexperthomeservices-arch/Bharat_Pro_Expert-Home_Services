@@ -14,14 +14,25 @@ import {
   FirebaseUser 
 } from '../firebase-config';
 import { UserProfile } from '../types';
+import { 
+  handleGoogleCustomerAuth, 
+  sendCustomerMobileOtp, 
+  verifyCustomerMobileOtp,
+  linkMobileToExistingCustomer,
+  getCustomerSession,
+  clearCustomerSession
+} from '../services/customerAuthService';
 
 interface AuthContextType {
   user: FirebaseUser | null;
   profile: UserProfile | null;
   loading: boolean;
   role: 'customer' | 'partner' | 'admin';
-  signInWithGoogle: (targetRole?: 'customer' | 'partner') => Promise<void>;
+  signInWithGoogle: (targetRole?: 'customer' | 'partner') => Promise<UserProfile>;
   signInWithGoogleRedirect: (targetRole?: 'customer' | 'partner') => Promise<void>;
+  signInWithMobileOtp: (phone: string, otp: string) => Promise<UserProfile>;
+  requestMobileOtp: (phone: string) => Promise<{ success: boolean; message: string; error?: string; previewOtp?: string; cooldownSeconds?: number }>;
+  linkMobile: (phone: string, otp: string) => Promise<UserProfile>;
   signInDirect: (email: string, name?: string, targetRole?: 'customer' | 'partner') => Promise<void>;
   signInWithEmailOtp: (email: string, otp: string, targetRole?: 'customer' | 'partner') => Promise<void>;
   requestEmailOtp: (email: string) => Promise<{ success: boolean; message: string; previewOtp?: string }>;
@@ -34,7 +45,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(() => getCustomerSession());
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<'customer' | 'partner' | 'admin'>('customer');
 
@@ -48,27 +59,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const fbUser = result.user;
         setUser(fbUser);
         try {
-          const userDocRef = doc(db, 'users', fbUser.uid);
-          const docSnap = await getDoc(userDocRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data() as UserProfile;
-            setProfile(data);
-            setRole(data.role || 'customer');
-          } else {
-            const referralCode = 'BPRO' + Math.random().toString(36).substring(2, 7).toUpperCase();
-            const newProfile: UserProfile = {
-              uid: fbUser.uid,
-              email: fbUser.email || '',
-              name: fbUser.displayName || 'Valued Customer',
-              phone: fbUser.phoneNumber || '',
-              avatarUrl: fbUser.photoURL || undefined,
-              role: 'customer',
-              referralCode,
-              walletBalance: 100,
-              createdAt: new Date().toISOString()
-            };
-            await setDoc(userDocRef, newProfile);
-            setProfile(newProfile);
+          const authRes = await handleGoogleCustomerAuth(fbUser);
+          if (authRes.success) {
+            setProfile(authRes.profile);
+            setRole(authRes.profile.role || 'customer');
           }
         } catch (e) {
           console.warn('Error reading user after redirect', e);
@@ -81,118 +75,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Check fallback stored session first if no fb user
-    const savedLocal = localStorage.getItem('bharatpro_active_profile');
-    if (savedLocal && !user && !profile) {
-      try {
-        const parsed = JSON.parse(savedLocal);
-        setProfile(parsed);
-        setRole(parsed.role || 'customer');
-      } catch {}
+    const savedLocal = getCustomerSession();
+    if (savedLocal && !profile) {
+      setProfile(savedLocal);
+      setRole(savedLocal.role || 'customer');
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setUser(fbUser);
       if (fbUser) {
         try {
-          const userDocRef = doc(db, 'users', fbUser.uid);
-          const docSnap = await getDoc(userDocRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data() as UserProfile;
-            setProfile(data);
-            setRole(data.role || 'customer');
-            localStorage.setItem('bharatpro_active_profile', JSON.stringify(data));
-          } else {
-            // New user registration
-            const referralCode = 'BPRO' + Math.random().toString(36).substring(2, 7).toUpperCase();
-            const newProfile: UserProfile = {
-              uid: fbUser.uid,
-              email: fbUser.email || '',
-              name: fbUser.displayName || 'Valued Customer',
-              phone: fbUser.phoneNumber || '',
-              avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fbUser.displayName || 'B')}`,
-              role: role,
-              referralCode,
-              walletBalance: 100, // Welcome signup credit ₹100
-              createdAt: new Date().toISOString()
-            };
-            await setDoc(userDocRef, newProfile);
-            setProfile(newProfile);
-            localStorage.setItem('bharatpro_active_profile', JSON.stringify(newProfile));
+          const authRes = await handleGoogleCustomerAuth(fbUser);
+          if (authRes.success) {
+            setProfile(authRes.profile);
+            setRole(authRes.profile.role || 'customer');
           }
         } catch (error) {
           console.warn('Firestore load error, falling back to local session:', error);
-          const fallbackProfile: UserProfile = {
-            uid: fbUser.uid,
-            email: fbUser.email || 'customer@bharatpro.in',
-            name: fbUser.displayName || 'Customer',
-            phone: '+91 98765 43210',
-            avatarUrl: fbUser.photoURL || undefined,
-            role: role,
-            referralCode: 'BPRO-WELCOME',
-            walletBalance: 100,
-            createdAt: new Date().toISOString()
-          };
-          setProfile(fallbackProfile);
-          localStorage.setItem('bharatpro_active_profile', JSON.stringify(fallbackProfile));
-        }
-      } else {
-        const currentSaved = localStorage.getItem('bharatpro_active_profile');
-        if (!currentSaved) {
-          setProfile(null);
         }
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const handleCustomerAuthEvent = (e: any) => {
+      if (e.detail) {
+        setProfile(e.detail);
+        setRole(e.detail.role || 'customer');
+      } else {
+        setProfile(null);
+      }
+    };
+    window.addEventListener('bharatpro_customer_auth_changed', handleCustomerAuthEvent);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('bharatpro_customer_auth_changed', handleCustomerAuthEvent);
+    };
   }, [role]);
 
-  const signInWithGoogle = async (targetRole: 'customer' | 'partner' = 'customer') => {
+  const signInWithGoogle = async (targetRole: 'customer' | 'partner' = 'customer'): Promise<UserProfile> => {
     setLoading(true);
     try {
       setRole(targetRole);
       const result = await signInWithPopup(auth, googleProvider);
       const fbUser = result.user;
-      
-      const userDocRef = doc(db, 'users', fbUser.uid);
-      try {
-        const docSnap = await getDoc(userDocRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data() as UserProfile;
-          setProfile(data);
-          localStorage.setItem('bharatpro_active_profile', JSON.stringify(data));
-        } else {
-          const referralCode = 'BPRO' + Math.random().toString(36).substring(2, 7).toUpperCase();
-          const newProfile: UserProfile = {
-            uid: fbUser.uid,
-            email: fbUser.email || '',
-            name: fbUser.displayName || 'Valued User',
-            phone: '',
-            avatarUrl: fbUser.photoURL || undefined,
-            role: targetRole,
-            referralCode,
-            walletBalance: 100,
-            createdAt: new Date().toISOString()
-          };
-          await setDoc(userDocRef, newProfile);
-          setProfile(newProfile);
-          localStorage.setItem('bharatpro_active_profile', JSON.stringify(newProfile));
-        }
-      } catch {
-        const fallback: UserProfile = {
-          uid: fbUser.uid,
-          email: fbUser.email || '',
-          name: fbUser.displayName || 'Valued Customer',
-          phone: '',
-          avatarUrl: fbUser.photoURL || undefined,
-          role: targetRole,
-          referralCode: 'BPRO-WELCOME',
-          walletBalance: 100,
-          createdAt: new Date().toISOString()
-        };
-        setProfile(fallback);
-        localStorage.setItem('bharatpro_active_profile', JSON.stringify(fallback));
-      }
+      setUser(fbUser);
+
+      const authRes = await handleGoogleCustomerAuth(fbUser);
+      setProfile(authRes.profile);
+      return authRes.profile;
     } catch (err: any) {
       console.error('Google Sign-in failed', err);
       throw err;
@@ -212,6 +143,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
+  };
+
+  const requestMobileOtp = async (phone: string) => {
+    return await sendCustomerMobileOtp(phone);
+  };
+
+  const signInWithMobileOtp = async (phone: string, otp: string): Promise<UserProfile> => {
+    setLoading(true);
+    try {
+      const res = await verifyCustomerMobileOtp(phone, otp);
+      if (!res.success || !res.profile) {
+        throw new Error(res.error || 'OTP verification failed');
+      }
+      setProfile(res.profile);
+      setRole(res.profile.role || 'customer');
+      return res.profile;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const linkMobile = async (phone: string, otp: string): Promise<UserProfile> => {
+    if (!profile) {
+      throw new Error('No active customer profile found to link.');
+    }
+    const verifyRes = await verifyCustomerMobileOtp(phone, otp);
+    if (!verifyRes.success) {
+      throw new Error(verifyRes.error || 'Failed to verify mobile OTP.');
+    }
+    const linked = await linkMobileToExistingCustomer(profile, phone);
+    setProfile(linked);
+    return linked;
   };
 
   const signInDirect = async (email: string, name?: string, targetRole: 'customer' | 'partner' = 'customer') => {
@@ -302,10 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    try {
-      await firebaseSignOut(auth);
-    } catch {}
-    localStorage.removeItem('bharatpro_active_profile');
+    await clearCustomerSession();
     setUser(null);
     setProfile(null);
     setRole('customer');
@@ -333,6 +293,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role,
       signInWithGoogle,
       signInWithGoogleRedirect,
+      signInWithMobileOtp,
+      requestMobileOtp,
+      linkMobile,
       signInDirect,
       signInWithEmailOtp,
       requestEmailOtp,

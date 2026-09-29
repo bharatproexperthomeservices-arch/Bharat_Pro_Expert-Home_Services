@@ -18,7 +18,12 @@ import {
   LogOut,
   ChevronRight,
   ShieldCheck,
-  RotateCcw
+  RotateCcw,
+  Tag,
+  Wallet,
+  Gift,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 
 interface CustomerDashboardModalProps {
@@ -40,7 +45,7 @@ export const CustomerDashboardModal: React.FC<CustomerDashboardModalProps> = ({
   myBookings,
   onTrackBooking
 }) => {
-  const [activeTab, setActiveTab] = useState<'bookings' | 'profile' | 'addresses' | 'payments' | 'reviews' | 'notifications'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'profile' | 'addresses' | 'payments' | 'offers' | 'reviews' | 'notifications'>('bookings');
   const [bookingFilter, setBookingFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all');
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
@@ -123,7 +128,7 @@ export const CustomerDashboardModal: React.FC<CustomerDashboardModalProps> = ({
               activeTab === 'profile' ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' : 'text-gray-400 hover:text-[#0B2A4A]'
             }`}
           >
-            Profile
+            Profile &amp; Account
           </button>
           <button
             onClick={() => setActiveTab('addresses')}
@@ -132,6 +137,14 @@ export const CustomerDashboardModal: React.FC<CustomerDashboardModalProps> = ({
             }`}
           >
             Saved Addresses
+          </button>
+          <button
+            onClick={() => setActiveTab('offers')}
+            className={`py-3 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'offers' ? 'border-b-2 border-[#0B2A4A] text-[#0B2A4A]' : 'text-gray-400 hover:text-[#0B2A4A]'
+            }`}
+          >
+            Offers &amp; Wallet
           </button>
           <button
             onClick={() => setActiveTab('payments')}
@@ -247,43 +260,201 @@ export const CustomerDashboardModal: React.FC<CustomerDashboardModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: PROFILE */}
+          {/* TAB 2: PROFILE & UNIFIED ACCOUNT */}
           {activeTab === 'profile' && (
-            <div className="max-w-md space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[#0B2A4A]">Full Name</label>
-                <input
-                  type="text"
-                  defaultValue={profile?.name || 'Customer'}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs font-semibold outline-none focus:border-[#0B2A4A]"
-                />
+            <div className="max-w-2xl space-y-5">
+              {/* Premium Customer Identity Card */}
+              <div className="p-5 rounded-2xl bg-gradient-to-br from-[#0B2A4A] via-[#0E355D] to-[#071E36] text-white shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-[#D4A24E]/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    {profile?.avatarUrl ? (
+                      <img 
+                        src={profile.avatarUrl} 
+                        alt={profile?.name || 'Customer'} 
+                        className="w-16 h-16 rounded-2xl object-cover border-2 border-[#D4A24E] shadow-md"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-white/10 border-2 border-[#D4A24E] text-[#D4A24E] font-black text-2xl flex items-center justify-center shadow-md">
+                        {profile?.name?.charAt(0) || user?.email?.charAt(0) || 'C'}
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#D4A24E] bg-[#D4A24E]/20 px-2 py-0.5 rounded-md">
+                          Verified Customer
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-300">
+                          {profile?.status || 'ACTIVE'}
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-bold text-white tracking-tight">
+                        {profile?.name || user?.displayName || 'Valued Customer'}
+                      </h3>
+                      <div className="flex items-center gap-1.5 text-xs text-slate-300 font-mono">
+                        <span className="text-slate-400">ID:</span>
+                        <span className="font-bold text-white bg-white/10 px-2 py-0.5 rounded select-all">
+                          {profile?.customerId || 'BPE-CUST-100245'}
+                        </span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(profile?.customerId || 'BPE-CUST-100245');
+                            showToast('Customer ID copied to clipboard!');
+                          }}
+                          className="p-1 hover:text-[#D4A24E] transition-colors cursor-pointer"
+                          title="Copy Customer ID"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Wallet & Cashback Balance */}
+                  <div className="bg-white/10 border border-white/15 rounded-xl p-3.5 sm:text-right shrink-0 backdrop-blur-sm">
+                    <span className="text-[10px] text-slate-300 font-medium block flex items-center gap-1 sm:justify-end">
+                      <Wallet className="w-3 h-3 text-[#D4A24E]" />
+                      BPE Cashback Wallet
+                    </span>
+                    <span className="text-xl font-black text-[#D4A24E] tracking-tight">
+                      ₹{profile?.walletBalance ?? 250}
+                    </span>
+                    <span className="text-[10px] text-emerald-300 block font-semibold">
+                      ● Active for next booking
+                    </span>
+                  </div>
+                </div>
+
+                {/* Identity Badges: Google & Mobile */}
+                <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                  {/* Google Status */}
+                  <div className="bg-black/20 rounded-xl p-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                      </svg>
+                      <span className="font-semibold text-slate-200">Google:</span>
+                    </div>
+                    {profile?.googleLinked || profile?.googleProviderId || user?.providerData?.some((p: any) => p.providerId === 'google.com') ? (
+                      <span className="font-bold text-[#D4A24E] bg-[#D4A24E]/20 px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-[#D4A24E]" />
+                        Connected
+                      </span>
+                    ) : (
+                      <span className="font-bold text-slate-400 bg-white/5 px-2 py-0.5 rounded text-[11px]">
+                        Not Connected
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Mobile Status */}
+                  <div className="bg-black/20 rounded-xl p-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span className="font-semibold text-slate-200">Mobile:</span>
+                    </div>
+                    {profile?.mobileVerified || profile?.phone ? (
+                      <span className="font-bold text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-300" />
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded text-[11px]">
+                        Not Verified
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Login Provider */}
+                  <div className="bg-black/20 rounded-xl p-2.5 flex items-center justify-between">
+                    <span className="font-semibold text-slate-200">Method:</span>
+                    <span className="font-bold text-white uppercase text-[10px] bg-white/10 px-2 py-0.5 rounded tracking-wider">
+                      {profile?.loginProvider === 'google_and_mobile' 
+                        ? 'Google + Mobile' 
+                        : profile?.loginProvider === 'google' 
+                        ? 'Google' 
+                        : 'Mobile OTP'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[#0B2A4A]">Email Address</label>
-                <input
-                  type="email"
-                  disabled
-                  defaultValue={user?.email || 'customer@gmail.com'}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-xs text-gray-500 font-semibold"
-                />
-              </div>
+              {/* Profile Details Form */}
+              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 space-y-4">
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#0B2A4A]">
+                  Profile Details
+                </h4>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-[#0B2A4A]">Mobile Number</label>
-                <input
-                  type="tel"
-                  defaultValue={profile?.phone || '8920252647'}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs font-semibold outline-none focus:border-[#0B2A4A]"
-                />
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-[#0B2A4A]">Full Name</label>
+                    <input
+                      type="text"
+                      defaultValue={profile?.name || user?.displayName || 'Valued Customer'}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs font-semibold outline-none focus:border-[#0B2A4A] focus:ring-1 focus:ring-[#0B2A4A]"
+                    />
+                  </div>
 
-              <button
-                onClick={() => showToast('Profile details updated successfully!')}
-                className="px-6 py-2.5 rounded-full bg-[#0B2A4A] text-white text-xs font-bold hover:bg-[#071E36] transition-all cursor-pointer"
-              >
-                Save Changes
-              </button>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-[#0B2A4A] flex items-center justify-between">
+                      <span>Mobile Number</span>
+                      <span className="text-[10px] text-emerald-600 font-bold">
+                        {profile?.mobileVerified ? '● Verified' : '● Verification Pending'}
+                      </span>
+                    </label>
+                    <input
+                      type="tel"
+                      defaultValue={profile?.phone ? (profile.phone.startsWith('+91') ? profile.phone : `+91 ${profile.phone}`) : '+91 8920252647'}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs font-semibold outline-none focus:border-[#0B2A4A] focus:ring-1 focus:ring-[#0B2A4A]"
+                    />
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-xs font-bold text-[#0B2A4A] flex items-center justify-between">
+                      <span>Email Address</span>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {profile?.googleLinked ? '● Synced with Google Account' : '● Standard Email'}
+                      </span>
+                    </label>
+                    <input
+                      type="email"
+                      defaultValue={profile?.email || user?.email || 'customer@bharatproexpert.com'}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs font-semibold outline-none focus:border-[#0B2A4A] focus:ring-1 focus:ring-[#0B2A4A]"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#F1F5F9]">
+                  <button
+                    onClick={() => showToast('Profile details updated successfully!')}
+                    className="px-6 py-2.5 rounded-full bg-[#0B2A4A] text-white text-xs font-bold hover:bg-[#071E36] transition-all cursor-pointer shadow-sm"
+                  >
+                    Save Changes
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveTab('addresses')}
+                      className="px-4 py-2 rounded-full border border-gray-300 text-xs font-semibold text-[#0B2A4A] hover:bg-gray-50 cursor-pointer"
+                    >
+                      Manage Addresses
+                    </button>
+                    <button
+                      onClick={() => {
+                        onSignOut();
+                        onClose();
+                      }}
+                      className="px-4 py-2 rounded-full border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50 cursor-pointer flex items-center gap-1.5"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -312,6 +483,123 @@ export const CustomerDashboardModal: React.FC<CustomerDashboardModalProps> = ({
               >
                 + Add New Address
               </button>
+            </div>
+          )}
+
+          {/* TAB: OFFERS & WALLET */}
+          {activeTab === 'offers' && (
+            <div className="space-y-4">
+              {/* Wallet Summary Card */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0B2A4A] to-[#164273] text-white flex items-center justify-between shadow-md">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-white/10 border border-[#D4A24E]/40 text-[#D4A24E] flex items-center justify-center">
+                    <Wallet className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-300 uppercase tracking-widest font-extrabold block">
+                      Bharat Pro Wallet Balance
+                    </span>
+                    <h3 className="text-2xl font-black text-[#D4A24E]">
+                      ₹{profile?.walletBalance ?? 250}
+                    </h3>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[11px] bg-emerald-500/20 text-emerald-300 font-bold px-2.5 py-1 rounded-full border border-emerald-500/30">
+                    Auto-Applied on Checkout
+                  </span>
+                </div>
+              </div>
+
+              {/* Exclusive Promo Coupons */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-bold text-[#0B2A4A] flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-[#D4A24E]" />
+                  <span>Available Coupons &amp; Instant Discounts</span>
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-xl border-2 border-dashed border-[#D4A24E]/50 bg-amber-50/40 relative">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-mono font-black text-xs text-[#0B2A4A] bg-[#D4A24E]/20 px-2 py-0.5 rounded">
+                        BHARATPRO20
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText('BHARATPRO20');
+                          showToast('Coupon BHARATPRO20 copied!');
+                        }}
+                        className="text-[11px] font-bold text-[#0B2A4A] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                    <h5 className="text-xs font-bold text-[#0B2A4A]">Flat 20% Instant Discount</h5>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Valid on all Deep Cleaning, Kitchen &amp; Bathroom services across India.</p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 relative">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-mono font-black text-xs text-emerald-900 bg-emerald-200/60 px-2 py-0.5 rounded">
+                        SHINE300
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText('SHINE300');
+                          showToast('Coupon SHINE300 copied!');
+                        }}
+                        className="text-[11px] font-bold text-emerald-800 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                    <h5 className="text-xs font-bold text-emerald-950">₹300 Off on Cart &gt; ₹1,499</h5>
+                    <p className="text-[11px] text-emerald-700/80 mt-0.5">Applies directly at checkout for full home and villa sanitize packages.</p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/40 relative">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-mono font-black text-xs text-blue-900 bg-blue-200/60 px-2 py-0.5 rounded">
+                        WELCOME500
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText('WELCOME500');
+                          showToast('Coupon WELCOME500 copied!');
+                        }}
+                        className="text-[11px] font-bold text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                    <h5 className="text-xs font-bold text-blue-950">₹500 Welcome Discount</h5>
+                    <p className="text-[11px] text-blue-700/80 mt-0.5">For verified mobile &amp; Google customer profiles on first booking.</p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border-2 border-dashed border-purple-300 bg-purple-50/40 relative">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-mono font-black text-xs text-purple-900 bg-purple-200/60 px-2 py-0.5 rounded">
+                        FREEINSPECT
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText('FREEINSPECT');
+                          showToast('Coupon FREEINSPECT copied!');
+                        }}
+                        className="text-[11px] font-bold text-purple-800 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                    <h5 className="text-xs font-bold text-purple-950">Free Pro Inspection</h5>
+                    <p className="text-[11px] text-purple-700/80 mt-0.5">Free 45-point hygiene check with any cleaning service booked today.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

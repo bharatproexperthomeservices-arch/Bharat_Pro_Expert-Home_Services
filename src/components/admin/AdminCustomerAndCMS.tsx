@@ -259,53 +259,112 @@ export const AdminCustomerAndCMS: React.FC<AdminCustomerAndCMSProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredCustomers.map((cust) => (
-              <div key={cust.id} className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-[#1C1C1E]">{cust.name}</h4>
-                    <p className="text-xs text-[#8E8E93] flex items-center gap-1 mt-0.5">
-                      <Phone className="w-3 h-3" /> {cust.phone} &bull; {cust.email}
-                    </p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                    VERIFIED
-                  </span>
-                </div>
+            {filteredCustomers.map((cust: any) => {
+              const loginProvider = cust.loginProvider || (cust.googleLinked && cust.mobileVerified ? 'google_and_mobile' : cust.googleLinked ? 'google' : 'mobile_otp');
+              const providerLabel = loginProvider === 'google_and_mobile' 
+                ? 'Google + Mobile' 
+                : loginProvider === 'google' 
+                ? 'Google' 
+                : 'Mobile OTP';
+              const mobileVerified = cust.mobileVerified ?? true;
+              const googleLinked = cust.googleLinked ?? false;
 
-                <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] text-xs">
-                  <div>
-                    <span className="text-[10px] text-[#8E8E93] block">Lifetime Bookings</span>
-                    <span className="font-bold text-[#1C1C1E] block mt-0.5">{cust.totalBookings} Completed</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-[#8E8E93] block">Lifetime Spend</span>
-                    <span className="font-black text-[#1F8A3B] block mt-0.5">
-                      ₹{(cust.totalSpend ?? cust.lifetimeValue ?? 0).toLocaleString('en-IN')}
+              return (
+                <div key={cust.id} className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-3 font-['Inter',sans-serif]">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-[#1C1C1E]">{cust.name}</h4>
+                        <span className="text-[10px] font-mono text-[#D4A24E] bg-amber-50 px-1.5 py-0.5 rounded font-bold">
+                          {cust.customerId || cust.id}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#8E8E93] flex items-center gap-1.5 mt-0.5">
+                        <Phone className="w-3 h-3 text-slate-400" /> 
+                        <span className="font-semibold text-slate-700">{cust.phone}</span>
+                        <span>&bull;</span>
+                        <span className="text-slate-600">{cust.email}</span>
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      (cust.status || 'ACTIVE') === 'ACTIVE' 
+                        ? 'bg-emerald-100 text-emerald-800' 
+                        : 'bg-rose-100 text-rose-800'
+                    }`}>
+                      {cust.status || 'ACTIVE'}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-[10px] text-[#8E8E93] block">Wallet Balance</span>
-                    <span className="font-bold text-[#B8892E] block mt-0.5">₹{cust.walletBalance ?? 0}</span>
-                  </div>
-                </div>
 
-                <div>
-                  <span className="text-[10px] text-[#8E8E93] font-bold uppercase block mb-1">
-                    Saved Addresses ({cust.savedAddresses?.length || 0}):
-                  </span>
-                  <div className="space-y-1">
-                    {cust.savedAddresses?.map((addr: any, aIdx: number) => (
-                      <div key={aIdx} className="text-xs text-[#48484A] flex items-center gap-1.5 truncate">
-                        <MapPin className="w-3.5 h-3.5 text-[#B8892E] shrink-0" />
-                        <span className="font-bold">{addr.label || addr.tag || 'Address'}:</span>
-                        <span className="truncate">{addr.houseNumber || addr.address || ''}, {addr.sector || ''} {addr.city || ''}</span>
-                      </div>
-                    ))}
+                  {/* Auth & Security Status Grid (Safe - Zero Secrets) */}
+                  <div className="grid grid-cols-3 gap-2 p-2.5 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] text-[11px]">
+                    <div>
+                      <span className="text-[10px] text-[#8E8E93] block font-medium">Login Provider</span>
+                      <span className="font-bold text-[#1C1C1E] block mt-0.5">
+                        {providerLabel}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#8E8E93] block font-medium">Mobile Status</span>
+                      <span className={`font-bold block mt-0.5 ${
+                        mobileVerified ? 'text-emerald-700' : 'text-amber-700'
+                      }`}>
+                        {mobileVerified ? 'Verified' : 'Not Verified'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#8E8E93] block font-medium">Google Account</span>
+                      <span className={`font-bold block mt-0.5 ${
+                        googleLinked ? 'text-blue-700' : 'text-slate-500'
+                      }`}>
+                        {googleLinked ? 'Connected' : 'Not Connected'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Account Timeline */}
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+                    <span>
+                      Created: <b className="text-slate-700">{cust.createdAt ? new Date(cust.createdAt).toLocaleDateString('en-IN') : '2025-01-15'}</b>
+                    </span>
+                    <span>
+                      Last Login: <b className="text-slate-700">{cust.lastLoginAt ? new Date(cust.lastLoginAt).toLocaleDateString('en-IN') : 'Today'}</b>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] text-xs">
+                    <div>
+                      <span className="text-[10px] text-[#8E8E93] block">Lifetime Bookings</span>
+                      <span className="font-bold text-[#1C1C1E] block mt-0.5">{cust.totalBookings || 0} Completed</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#8E8E93] block">Lifetime Spend</span>
+                      <span className="font-black text-[#1F8A3B] block mt-0.5">
+                        ₹{(cust.totalSpend ?? cust.lifetimeValue ?? 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#8E8E93] block">Wallet Balance</span>
+                      <span className="font-bold text-[#B8892E] block mt-0.5">₹{cust.walletBalance ?? 0}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-[#8E8E93] font-bold uppercase block mb-1">
+                      Saved Addresses ({cust.savedAddresses?.length || 0}):
+                    </span>
+                    <div className="space-y-1">
+                      {cust.savedAddresses?.map((addr: any, aIdx: number) => (
+                        <div key={aIdx} className="text-xs text-[#48484A] flex items-center gap-1.5 truncate">
+                          <MapPin className="w-3.5 h-3.5 text-[#B8892E] shrink-0" />
+                          <span className="font-bold">{addr.label || addr.tag || 'Address'}:</span>
+                          <span className="truncate">{addr.houseNumber || addr.address || ''}, {addr.sector || ''} {addr.city || ''}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

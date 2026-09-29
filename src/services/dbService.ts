@@ -13,7 +13,7 @@ import {
   onSnapshot 
 } from '../firebase-config';
 import { Booking, Partner, HubLocation, CleaningService, WhatsAppLog, AssignmentHistoryEntry, JobStatus } from '../types';
-import { INITIAL_SERVICES, INITIAL_HUBS, INITIAL_PARTNERS, WHATSAPP_NUMBER } from '../data';
+import { INITIAL_SERVICES, INITIAL_HUBS, INITIAL_PARTNERS, INITIAL_BOOKINGS, WHATSAPP_NUMBER } from '../data';
 
 // Local storage backup keys
 const STORAGE_BOOKINGS_KEY = 'bharat_pro_bookings_v2';
@@ -46,6 +46,9 @@ export const initializeDatabaseDefaults = async () => {
     }
     if (!localStorage.getItem(STORAGE_PARTNERS_KEY)) {
       localStorage.setItem(STORAGE_PARTNERS_KEY, JSON.stringify(INITIAL_PARTNERS));
+    }
+    if (!localStorage.getItem(STORAGE_BOOKINGS_KEY)) {
+      localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(INITIAL_BOOKINGS));
     }
 
     const alreadySynced = localStorage.getItem(STORAGE_SERVICES_SYNCED_KEY);
@@ -225,6 +228,16 @@ export const assignPartnerManually = async (
   const partner = partners.find(p => p.id === partnerId);
   if (!partner) {
     return { success: false, error: 'Selected partner not found' };
+  }
+
+  // Enforce Section 42 (Partner Job Eligibility): Only Approved & KYC Verified partners can receive jobs
+  const isApprovedOrActive = partner.status === 'active' || partner.status === 'ACTIVE' || partner.status === 'APPROVED';
+  const isKycVerified = partner.kycVerified === true || partner.kycStatus === 'KYC_VERIFIED' || partner.kycStatus === 'VERIFIED';
+  if (!isApprovedOrActive || !isKycVerified) {
+    return {
+      success: false,
+      error: `Cannot assign: Partner ${partner.name} is ${partner.status.toUpperCase()} (KYC: ${partner.kycStatus || 'PENDING'}). Only Approved and KYC Verified partners are eligible for job assignment.`
+    };
   }
 
   const nowIso = new Date().toISOString();
@@ -571,10 +584,17 @@ export const getAllBookings = async (customerId?: string): Promise<Booking[]> =>
   } catch {}
 
   const stored: Booking[] = JSON.parse(localStorage.getItem(STORAGE_BOOKINGS_KEY) || '[]');
-  if (customerId) {
-    return stored.filter(b => b.customerId === customerId);
+  if (stored && Array.isArray(stored) && stored.length > 0) {
+    if (customerId) {
+      return stored.filter(b => b.customerId === customerId);
+    }
+    return stored;
   }
-  return stored;
+  if (!customerId) {
+    localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(INITIAL_BOOKINGS));
+    return INITIAL_BOOKINGS;
+  }
+  return [];
 };
 
 // Fetch WhatsApp logs
@@ -764,5 +784,31 @@ export const saveAllHubs = async (hubs: HubLocation[]): Promise<boolean> => {
     console.warn('Firestore hubs bulk save notice:', err);
   }
   return true;
+};
+
+// -------------------------------------------------------------
+// WIPE OLD DATA & HARD RESET TO 22-MODULE MASTER SPECIFICATION
+// Hubs: 6 | Bookings: 2 | Partners: 4 | Services: 53
+// -------------------------------------------------------------
+export const wipeAndResetAllAdminData = async (): Promise<{ success: boolean; message: string }> => {
+  localStorage.setItem(STORAGE_SERVICES_KEY, JSON.stringify(INITIAL_SERVICES));
+  localStorage.setItem(STORAGE_HUBS_KEY, JSON.stringify(INITIAL_HUBS));
+  localStorage.setItem(STORAGE_PARTNERS_KEY, JSON.stringify(INITIAL_PARTNERS));
+  localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(INITIAL_BOOKINGS));
+  localStorage.removeItem(STORAGE_WALOGS_KEY);
+  localStorage.removeItem('bharat_pro_partner_audit_v1');
+
+  // Trigger sync events across the application
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bharatpro_services_updated', { detail: INITIAL_SERVICES }));
+    window.dispatchEvent(new CustomEvent('bharatpro_hubs_updated', { detail: INITIAL_HUBS }));
+    window.dispatchEvent(new CustomEvent('bharatpro_partners_updated', { detail: INITIAL_PARTNERS }));
+    window.dispatchEvent(new CustomEvent('bharatpro_booking_updated', { detail: INITIAL_BOOKINGS }));
+  }
+
+  return {
+    success: true,
+    message: `All old data successfully purged. Admin panel reset to Master Spec: 6 Hubs, 4 Partners, 2 Bookings, 53 Services.`
+  };
 };
 

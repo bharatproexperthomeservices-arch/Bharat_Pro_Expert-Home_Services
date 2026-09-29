@@ -2152,20 +2152,70 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
             </h2>
 
             {/* Profile Card */}
-            <div className="bg-white rounded-2xl p-5 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb] flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-[#0b3ba8] text-white font-extrabold text-2xl grid place-items-center">
-                {customerFirstName ? customerFirstName[0].toUpperCase() : '👤'}
+            <div className="bg-white rounded-2xl p-5 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb] space-y-3">
+              <div className="flex items-center gap-4">
+                {profile?.avatarUrl ? (
+                  <img
+                    src={profile.avatarUrl}
+                    alt={profile?.name || 'Customer'}
+                    className="w-14 h-14 rounded-full object-cover border-2 border-[#D4A24E] shadow-sm"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-[#0b3ba8] text-white font-extrabold text-2xl grid place-items-center">
+                    {customerFirstName ? customerFirstName[0].toUpperCase() : '👤'}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#D4A24E] bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                      {profile?.status || 'ACTIVE'}
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-500 font-bold truncate">
+                      {profile?.customerId || 'BPE-CUST-100245'}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-[#111827] truncate mt-0.5">
+                    {profile?.name || user?.displayName || 'Customer'}
+                  </h3>
+                  <p className="text-xs text-[#6b7280] truncate">
+                    📞 {profile?.phone || '8920252647'}
+                  </p>
+                  <p className="text-xs text-[#6b7280] truncate">
+                    📧 {user?.email || profile?.email || 'customer@bharatproexpert.com'}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-base font-bold text-[#111827]">
-                  {profile?.name || user?.displayName || 'Customer'}
-                </h3>
-                <p className="text-xs text-[#6b7280]">
-                  📞 {profile?.phone || '8920252647'}
-                </p>
-                <p className="text-xs text-[#6b7280]">
-                  📧 {user?.email || profile?.email || 'bharatproexpert@gmail.com'}
-                </p>
+
+              {/* Status & Wallet Strips */}
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-[11px]">
+                <div className="p-2 rounded-xl bg-slate-50 flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Mobile:</span>
+                  <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                    profile?.mobileVerified || profile?.phone
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {profile?.mobileVerified || profile?.phone ? 'Verified' : 'Not Verified'}
+                  </span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-50 flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Google:</span>
+                  <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                    profile?.googleLinked || profile?.googleProviderId || user?.providerData?.some((p: any) => p.providerId === 'google.com')
+                      ? 'bg-blue-100 text-[#0b3ba8]'
+                      : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {profile?.googleLinked || profile?.googleProviderId || user?.providerData?.some((p: any) => p.providerId === 'google.com')
+                      ? 'Connected'
+                      : 'Not Connected'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Wallet Bar */}
+              <div className="p-2.5 rounded-xl bg-gradient-to-r from-blue-900 to-[#0b3ba8] text-white flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-200">BPE Cashback Wallet:</span>
+                <span className="text-xs font-black text-[#D4A24E]">₹{profile?.walletBalance ?? 250}</span>
               </div>
             </div>
 

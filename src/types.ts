@@ -129,6 +129,7 @@ export interface InventoryItem {
 
 export interface CustomerUser {
   id: string;
+  customerId?: string;
   name: string;
   phone: string;
   email: string;
@@ -142,6 +143,11 @@ export interface CustomerUser {
   addresses: { tag: string; address: string }[];
   savedAddresses?: string[];
   registeredDate: string;
+  mobileVerified?: boolean;
+  googleLinked?: boolean;
+  loginProvider?: 'google' | 'mobile_otp' | 'google_and_mobile';
+  status?: 'ACTIVE' | 'SUSPENDED';
+  lastLoginAt?: string;
 }
 
 export interface ComplaintTicket {
@@ -377,6 +383,7 @@ export interface Booking {
   // Mandatory OTPs
   startOtp: string;
   completionOtp: string;
+  otp?: string;
   otpVerifiedAt?: string;
   completionVerifiedAt?: string;
 
@@ -404,7 +411,8 @@ export interface Booking {
   
   // Timestamps
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
+  notes?: string;
   assignedAt?: string;
   acceptedAt?: string;
   onTheWayAt?: string;
@@ -422,33 +430,175 @@ export interface Booking {
   };
 }
 
+// ==================== PARTNER TYPES & DOCUMENT MANAGEMENT ====================
+
+export type DocumentType = 
+  | 'AADHAAR_FRONT'
+  | 'AADHAAR_BACK'
+  | 'PAN_CARD'
+  | 'ADDRESS_PROOF_FRONT'
+  | 'ADDRESS_PROOF_BACK'
+  | 'BANK_PROOF'
+  | 'SELFIE'
+  | 'POLICE_VERIFICATION'
+  | 'SKILL_CERTIFICATE'
+  | 'AGREEMENT'
+  | 'DRIVING_LICENCE'
+  | 'OTHER';
+
+export type DocumentVerificationStatus = 
+  | 'NOT_UPLOADED'
+  | 'UPLOADED'
+  | 'UNDER_REVIEW'
+  | 'VERIFIED'
+  | 'REJECTED'
+  | 'REUPLOAD_REQUIRED'
+  | 'EXPIRED';
+
+export interface PartnerDocument {
+  id: string;
+  partnerId: string;
+  documentType: DocumentType;
+  documentName: string;
+  documentNumber?: string;
+  side?: 'FRONT' | 'BACK' | 'BOTH';
+  fileUrl: string;
+  storageKey?: string;
+  mimeType?: string;
+  fileSize?: number;
+  uploadedAt: string;
+  updatedAt?: string;
+  verificationStatus: DocumentVerificationStatus;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  rejectionReason?: string;
+  isCurrent?: boolean;
+  version?: number;
+}
+
+export type BankVerificationStatus = 
+  | 'NOT_SUBMITTED'
+  | 'PENDING'
+  | 'UNDER_REVIEW'
+  | 'VERIFIED'
+  | 'FAILED'
+  | 'REUPLOAD_REQUIRED';
+
+export interface PartnerBankDetails {
+  accountHolderName: string;
+  bankName: string;
+  accountNumber: string;
+  accountNumberMasked: string; // e.g. "XXXXXX1234"
+  ifsc: string;
+  branchName?: string;
+  accountType?: 'SAVINGS' | 'CURRENT';
+  upiId?: string;
+  bankProofType?: 'CANCELLED_CHEQUE' | 'PASSBOOK' | 'BANK_STATEMENT';
+  bankProofUrl?: string;
+  verificationStatus: BankVerificationStatus;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  rejectionReason?: string;
+  updatedAt?: string;
+}
+
+export interface PartnerAuditLog {
+  id: string;
+  partnerId: string;
+  adminId: string;
+  action: string;
+  fieldChanged?: string;
+  oldValue?: string;
+  newValue?: string;
+  reason?: string;
+  timestamp: string;
+}
+
+export interface RequiredDocumentConfig {
+  id: string;
+  documentType: DocumentType;
+  documentName: string;
+  isMandatory: boolean;
+  requiresVerification: boolean;
+  requiresExpiry: boolean;
+  isActive: boolean;
+  description: string;
+}
+
 export interface Partner {
   id: string;
   name: string;
+  displayName?: string;
+  guardianName?: string;
+  dob?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
   email: string;
   phone: string;
+  alternatePhone?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
   avatarUrl: string;
-  status: 'active' | 'pending' | 'inactive';
+  photoStorageKey?: string;
+  photoUploadedAt?: string;
+  photoUpdatedAt?: string;
+
+  // Address Details
+  houseNumber?: string;
+  street?: string;
+  locality?: string;
+  sector?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  fullAddress?: string;
+  permanentAddress?: string;
+  isPermanentSameAsCurrent?: boolean;
+
+  // Professional
+  experienceYears?: number;
+  skills?: string[];
+  languages?: string[];
+  serviceRadiusKm?: number;
+  preferredHubId?: string;
+  availableDays?: string[];
+  availableHours?: string;
+  emergencyAvailability?: boolean;
+  partnerType?: 'FREELANCE' | 'FULL_TIME' | 'AGENCY';
+  joiningDate?: string;
+  expectedCapacity?: number;
+  notes?: string;
+
+  status: 'active' | 'pending' | 'inactive' | 'DRAFT' | 'PENDING_VERIFICATION' | 'APPROVED' | 'ACTIVE' | 'SUSPENDED' | 'REJECTED';
   isOnline: boolean;
   assignedHubId: string;
   assignedHubName: string;
   hubName?: string;
-  city?: string;
   approvedCategories: string[]; // Category IDs
   rating: number;
   totalJobs: number;
   completedJobs?: number;
   totalEarnings: number;
+  walletBalance?: number;
+
+  // KYC & Document Verification
   kycVerified: boolean;
-  kycStatus?: 'VERIFIED' | 'PENDING' | 'REJECTED';
+  kycStatus?: 'DRAFT' | 'PENDING' | 'PENDING_DOCUMENTS' | 'UNDER_REVIEW' | 'KYC_NEEDS_REUPLOAD' | 'KYC_VERIFIED' | 'VERIFIED' | 'REJECTED';
+  panNumber?: string;
+  panName?: string;
+  aadhaarNumber?: string;
+  aadhaarNumberMasked?: string;
+  documents?: PartnerDocument[];
+  bankDetails?: PartnerBankDetails;
+  onboardingProgress?: number; // 0 - 100%
+
   currentLocation?: { lat: number; lng: number };
-  // Partner Credentials & Approval State
   loginUserId?: string; // Assigned User ID (e.g. BPE-PRO-101)
   loginPassword?: string; // Admin-issued Password
-  onboardingStatus?: 'pending_approval' | 'approved' | 'rejected';
+  onboardingStatus?: 'pending_approval' | 'approved' | 'rejected' | 'DRAFT' | 'PENDING_DOCUMENTS' | 'DOCUMENTS_SUBMITTED' | 'UNDER_REVIEW' | 'KYC_NEEDS_REUPLOAD' | 'KYC_VERIFIED' | 'BANK_PENDING' | 'BANK_VERIFIED';
   approvedAt?: string;
   approvedBy?: string;
   emailNotificationSent?: boolean;
+  isDemo?: boolean;
 }
 
 export interface AdminLoginRequest {
@@ -483,6 +633,7 @@ export interface EmailNotificationLog {
 
 export interface UserProfile {
   uid: string;
+  customerId?: string; // Unified format e.g. BPE-CUST-100452
   email: string;
   name: string;
   phone: string;
@@ -491,7 +642,15 @@ export interface UserProfile {
   referralCode: string;
   referredBy?: string;
   walletBalance: number;
+  mobileVerified?: boolean;
+  googleLinked?: boolean;
+  googleProviderId?: string;
+  loginProvider?: 'google' | 'mobile_otp' | 'google_and_mobile';
+  status?: 'ACTIVE' | 'SUSPENDED';
+  savedAddresses?: string[];
   createdAt: string;
+  updatedAt?: string;
+  lastLoginAt?: string;
 }
 
 export interface WhatsAppLog {

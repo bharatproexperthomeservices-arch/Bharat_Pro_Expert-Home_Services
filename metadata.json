@@ -1,6 +1,6 @@
 {
   "name": "Bharat Pro Expert Cleaning Services",
-  "description": "Cleaning-only marketplace and master Admin Panel with dynamic 15% discount pricing engine, frozen booking price snapshots, 47-service catalogue management, and WhatsApp dispatch.",
+  "description": "Urban Company-level cleaning marketplace and 22-module master Admin Panel with 6 Hubs, 53 Services Master Catalogue, 15% discount pricing engine, 5% GST finance, partner onboarding & KYC 360° verification.",
   "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
