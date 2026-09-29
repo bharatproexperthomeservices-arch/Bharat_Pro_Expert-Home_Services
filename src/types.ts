@@ -264,6 +264,14 @@ export interface CleaningService {
   inclusions: string[];
   exclusions: string[];
   addons: ServiceAddon[];
+  sku?: string;
+  subCategory?: string;
+  bannerUrl?: string;
+  videoUrl?: string;
+  scopeOfWork?: string[];
+  equipmentRequired?: string[];
+  requiredPartners?: number;
+  gstPercent?: number;
 }
 
 export interface BookingPriceSnapshot {

@@ -74,6 +74,13 @@ export const initializeDatabaseDefaults = async () => {
             await setDoc(doc(db, 'partners', p.id), p);
           }
         }
+
+        const servicesSnap = await withTimeout(getDocs(collection(db, 'services')), 8000);
+        if (servicesSnap.empty) {
+          for (const s of INITIAL_SERVICES) {
+            await setDoc(doc(db, 'services', s.id), s, { merge: true });
+          }
+        }
       } catch (err) {
         // Fallback store is active; silently handle network delay/offline state
         console.warn('Initial cloud sync deferred to local cache:', err);
