@@ -1136,3 +1136,5 @@ export const PartnerAddModal: React.FC<PartnerAddModalProps> = ({
     </div>
   );
 };
+
+export default PartnerAddModal;

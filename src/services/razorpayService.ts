@@ -185,21 +185,15 @@ export const handlePayment = async (
       const errMsg = resp.error?.description || 'Payment failed or was cancelled.';
       if (options?.onError) {
         options.onError(resp.error);
-      } else {
-        alert(`Payment Failed: ${errMsg}`);
       }
     });
 
-    // Visible browser alert to confirm code path reached
-    alert("Opening Razorpay checkout now");
+    console.log('[RazorpayService] Opening Razorpay checkout modal now');
     rzp.open();
   } catch (err: any) {
     console.error('[RazorpayService] Failed to initialize Razorpay checkout:', err);
-    alert(`Razorpay checkout failed to open: ${err?.message || err}`);
     if (options?.onError) {
       options.onError(err);
-    } else {
-      alert('Could not start Razorpay checkout. Please check console for details.');
     }
   }
 };

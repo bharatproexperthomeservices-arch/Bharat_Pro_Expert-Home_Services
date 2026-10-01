@@ -275,14 +275,12 @@ export const useRazorpayBooking = () => {
         options.onError?.(failDesc);
       });
 
-      // Verification alert as requested for testing
-      alert("Opening Razorpay checkout now");
+      console.log("[useRazorpayBooking] Opening Razorpay checkout modal now");
 
       // EXPLICITLY TRIGGER RAZORPAY CHECKOUT INSTANCE
       razorpayInstance.open();
     } catch (launchError: any) {
       console.error('[useRazorpayBooking] Failed to open Razorpay instance:', launchError);
-      alert(`Razorpay checkout failed to open: ${launchError?.message || launchError}`);
       setIsProcessing(false);
       const openErr = launchError?.message || 'Failed to open Razorpay checkout.';
       setError(openErr);

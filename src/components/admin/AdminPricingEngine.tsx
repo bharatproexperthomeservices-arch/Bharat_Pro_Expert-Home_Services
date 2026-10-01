@@ -536,3 +536,5 @@ export const AdminPricingEngine: React.FC<AdminPricingEngineProps> = ({
     </div>
   );
 };
+
+export default AdminPricingEngine;

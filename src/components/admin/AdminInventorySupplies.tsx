@@ -267,3 +267,5 @@ export const AdminInventorySupplies: React.FC<AdminInventorySuppliesProps> = ({
     </div>
   );
 };
+
+export default AdminInventorySupplies;

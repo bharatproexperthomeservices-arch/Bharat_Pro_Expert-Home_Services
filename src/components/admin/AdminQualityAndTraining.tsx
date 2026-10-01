@@ -21,15 +21,23 @@ import {
 interface AdminQualityAndTrainingProps {
   partners: Partner[];
   onAuditLog?: (action: string, targetId: string, details: string) => void;
+  initialTab?: 'SOP_CHECKLISTS' | 'TRAINING_COURSES' | 'QUALITY_AUDITS' | 'REFRESHER_TRIGGERS';
 }
 
 export const AdminQualityAndTraining: React.FC<AdminQualityAndTrainingProps> = ({
   partners,
-  onAuditLog
+  onAuditLog,
+  initialTab
 }) => {
   const [sopRules, setSopRules] = useState<SOPRule[]>(INITIAL_SOP_RULES);
   const [courses, setCourses] = useState<TrainingCourse[]>(INITIAL_TRAINING_COURSES);
-  const [activeTab, setActiveTab] = useState<'SOP_CHECKLISTS' | 'TRAINING_COURSES' | 'QUALITY_AUDITS' | 'REFRESHER_TRIGGERS'>('SOP_CHECKLISTS');
+  const [activeTab, setActiveTab] = useState<'SOP_CHECKLISTS' | 'TRAINING_COURSES' | 'QUALITY_AUDITS' | 'REFRESHER_TRIGGERS'>(initialTab || 'SOP_CHECKLISTS');
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
 
   // Filtered SOPs
@@ -279,3 +287,5 @@ export const AdminQualityAndTraining: React.FC<AdminQualityAndTrainingProps> = (
     </div>
   );
 };
+
+export default AdminQualityAndTraining;

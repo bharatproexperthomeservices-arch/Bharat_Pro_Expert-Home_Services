@@ -176,10 +176,17 @@ export const Partner360Modal: React.FC<Partner360ModalProps> = ({
   // Actions: Approve, Suspend, Reactivate, Delete
   const handleApprove = async () => {
     if (!window.confirm(`Approve partner ${partner.name} and make login live?`)) return;
-    const res = await approvePartnerAndMakeIdLive(partner.id);
-    if (res.success && res.partner) {
-      onPartnerUpdated(res.partner);
-      alert(`✅ Partner ${res.partner.name} is now ACTIVE & APPROVED! Login ID: ${res.partner.loginUserId}`);
+    try {
+      const res = await approvePartnerAndMakeIdLive(partner.id);
+      if (res.success && res.partner) {
+        onPartnerUpdated(res.partner);
+        onAuditLog?.('PARTNER_APPROVED', partner.id, `Partner ${partner.name} approved by admin`);
+        alert(`✅ Partner ${res.partner.name} is now ACTIVE & APPROVED! Login ID: ${res.partner.loginUserId}`);
+      } else {
+        alert(`Approval failed: ${res.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert(`Error approving partner: ${String(err)}`);
     }
   };
 
@@ -647,3 +654,5 @@ export const Partner360Modal: React.FC<Partner360ModalProps> = ({
     </div>
   );
 };
+
+export default Partner360Modal;

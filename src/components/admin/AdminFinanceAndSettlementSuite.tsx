@@ -863,3 +863,5 @@ export const AdminFinanceAndSettlementSuite: React.FC<AdminFinanceAndSettlementS
     </div>
   );
 };
+
+export default AdminFinanceAndSettlementSuite;

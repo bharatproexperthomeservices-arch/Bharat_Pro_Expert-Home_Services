@@ -1039,3 +1039,5 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     </div>
   );
 };
+
+export default BookingFlowModal;

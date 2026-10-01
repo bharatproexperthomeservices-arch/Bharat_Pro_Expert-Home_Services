@@ -359,7 +359,7 @@ function AppContent() {
           window.location.hash = '#admin-gateway';
           setIsAdminView(true);
         }}
-        onOpenHelp={() => setHelpModalOpen(true)} 
+        onOpenHelp={() => setHelpModalOpen(true)}
       />
 
       {/* Floating WhatsApp Widget */}

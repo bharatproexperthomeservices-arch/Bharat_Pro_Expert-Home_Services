@@ -274,3 +274,5 @@ export const AdminDispatchEngine: React.FC<AdminDispatchEngineProps> = ({
     </div>
   );
 };
+
+export default AdminDispatchEngine;

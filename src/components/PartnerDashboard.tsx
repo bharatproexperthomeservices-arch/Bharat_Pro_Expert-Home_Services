@@ -1343,3 +1343,5 @@ export const PartnerDashboard: React.FC<PartnerDashboardProps> = ({ onBackToCust
     </div>
   );
 };
+
+export default PartnerDashboard;

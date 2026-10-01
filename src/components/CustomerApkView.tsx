@@ -2607,3 +2607,5 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
     </div>
   );
 };
+
+export default CustomerApkView;

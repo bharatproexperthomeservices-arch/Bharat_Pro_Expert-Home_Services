@@ -1,36 +1,61 @@
-import React, { useState } from 'react';
-import { HubLocation, LocationZone, Partner, HubStatus } from '../../types';
-import { INITIAL_HUBS, INITIAL_ZONES } from '../../data';
-import { 
-  MapPin, 
-  Plus, 
-  Copy, 
-  PauseCircle, 
-  PlayCircle, 
-  Archive, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Layers, 
-  Users, 
-  Compass, 
-  Clock, 
-  Settings, 
-  ArrowRightLeft,
-  Search,
-  Filter,
-  Sliders,
-  ShieldAlert,
-  Edit2,
-  Phone,
-  UserCheck
-} from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { HubLocation, Partner } from '../../types';
+import { getAllBookings } from '../../services/dbService';
+import {
+  IndiaMap,
+  INDIA_CENTER,
+  INDIA_BOUNDS,
+  GeoResult,
+  searchPlaces,
+  reversePlace,
+  hubId,
+  hubName,
+  hubLat,
+  hubLng,
+  hubRadius,
+  hubCity,
+  hubState,
+  hubSector,
+  hubIsActive,
+  hubIsArchived,
+  partnersOfHub,
+  bookingsOfHub,
+  statusValues
+} from './HubMapCore';
 
 interface AdminHubOperationsProps {
   hubs: HubLocation[];
   partners: Partner[];
   onUpdateHubs: (updated: HubLocation[]) => void;
-  onAuditLog?: (action: string, targetId: string, details: string) => void;
+  onAuditLog: (action: string, targetId: string, details: string) => void;
 }
+
+interface HubForm {
+  id?: string;
+  name: string;
+  state: string;
+  city: string;
+  sector: string;
+  lat: string;
+  lng: string;
+  radiusKm: string;
+  active: boolean;
+}
+
+const emptyForm: HubForm = {
+  name: '',
+  state: '',
+  city: '',
+  sector: '',
+  lat: '',
+  lng: '',
+  radiusKm: '5',
+  active: true
+};
+
+const inputCls =
+  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
+const labelCls = 'block text-[11px] font-bold text-slate-600 mb-1';
 
 export const AdminHubOperations: React.FC<AdminHubOperationsProps> = ({
   hubs,
@@ -38,937 +63,674 @@ export const AdminHubOperations: React.FC<AdminHubOperationsProps> = ({
   onUpdateHubs,
   onAuditLog
 }) => {
-  const [selectedCity, setSelectedCity] = useState<string>('ALL');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [zones, setZones] = useState<LocationZone[]>(INITIAL_ZONES);
-  const [activeSubTab, setActiveSubTab] = useState<'HUBS' | 'ZONES' | 'CAPACITY' | 'MULTI_CITY_CLUSTER'>('HUBS');
+  const hubList = (hubs || []) as any[];
+  const partnerList = (partners || []) as any[];
+  const sv = statusValues(hubList);
 
-  // Modal / Form state
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingHub, setEditingHub] = useState<HubLocation | null>(null);
+  const [stateFilter, setStateFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [query, setQuery] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mode, setMode] = useState<'list' | 'form'>('list');
+  const [form, setForm] = useState<HubForm>(emptyForm);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  // Form inputs
-  const [formName, setFormName] = useState('');
-  const [formCode, setFormCode] = useState('');
-  const [formState, setFormState] = useState('Bihar');
-  const [formCity, setFormCity] = useState('Patna');
-  const [formDistrict, setFormDistrict] = useState('Patna District');
-  const [formAddress, setFormAddress] = useState('');
-  const [formContact, setFormContact] = useState('');
-  const [formManager, setFormManager] = useState('');
-  const [formOperatingHours, setFormOperatingHours] = useState('08:00 - 20:00');
-  const [formSectors, setFormSectors] = useState('');
-  const [formPincodes, setFormPincodes] = useState('');
-  const [formRadius, setFormRadius] = useState('8');
-  const [formMaxJobsPerDay, setFormMaxJobsPerDay] = useState('80');
-  const [formPartnerCapacity, setFormPartnerCapacity] = useState('25');
-  const [formBackupHubId, setFormBackupHubId] = useState('');
-  const [formStatus, setFormStatus] = useState<HubStatus>('ACTIVE');
+  const [geoQuery, setGeoQuery] = useState('');
+  const [geoResults, setGeoResults] = useState<GeoResult[]>([]);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
 
-  // Extract unique cities
-  const cities = ['ALL', ...Array.from(new Set(hubs.map(h => h.city)))];
+  const [focus, setFocus] = useState<{ lat: number; lng: number; zoom: number; key: number } | null>(null);
+  const focusKey = useRef(0);
+  const revTimer = useRef<any>(null);
 
-  // Filtering
-  const filteredHubs = hubs.filter(hub => {
-    const matchesCity = selectedCity === 'ALL' || hub.city === selectedCity;
-    const matchesStatus = statusFilter === 'ALL' || (hub.status || (hub.active ? 'ACTIVE' : 'PAUSED')) === statusFilter;
-    const matchesSearch = hub.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      hub.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (hub.code && hub.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      hub.coveredSectors.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCity && matchesStatus && matchesSearch;
-  });
+  const flyTo = (lat: number, lng: number, zoom: number) => {
+    focusKey.current += 1;
+    setFocus({ lat, lng, zoom, key: focusKey.current });
+  };
 
-  // Action: Create or Update Hub
-  const handleSaveHub = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formName || !formCity || !formSectors) {
-      alert('Please fill in Hub Name, City, and Covered Sectors.');
+  useEffect(() => () => clearTimeout(revTimer.current), []);
+
+  // Address search (Nominatim) with 1 second debounce
+  useEffect(() => {
+    const q = geoQuery.trim();
+    if (q.length < 3) {
+      setGeoResults([]);
+      setGeoError(null);
       return;
     }
-
-    const sectorsArray = formSectors.split(',').map(s => s.trim()).filter(Boolean);
-    const pincodesArray = formPincodes.split(',').map(p => p.trim()).filter(Boolean);
-    const backupHubObj = hubs.find(h => h.id === formBackupHubId);
-
-    if (editingHub) {
-      // Update
-      const updated = hubs.map(h => {
-        if (h.id === editingHub.id) {
-          return {
-            ...h,
-            name: formName,
-            code: formCode || h.code,
-            state: formState,
-            city: formCity,
-            district: formDistrict,
-            address: formAddress,
-            contactPhone: formContact,
-            managerName: formManager,
-            operatingHours: formOperatingHours,
-            coveredSectors: sectorsArray,
-            pincodes: pincodesArray,
-            serviceRadiusKm: parseFloat(formRadius) || 8,
-            backupHubId: formBackupHubId,
-            backupHubName: backupHubObj?.name,
-            status: formStatus,
-            active: formStatus === 'ACTIVE',
-            capacity: {
-              ...(h.capacity || {
-                maxJobsPerHour: 10,
-                maxJobsPerDay: 80,
-                partnerCapacity: 25,
-                peakCapacity: 100,
-                bookingBufferMinutes: 30,
-                travelBufferMinutes: 20,
-                emergencyCapacity: 12
-              }),
-              maxJobsPerDay: parseInt(formMaxJobsPerDay) || 80,
-              partnerCapacity: parseInt(formPartnerCapacity) || 25
-            }
-          };
-        }
-        return h;
-      });
-      onUpdateHubs(updated);
-      onAuditLog?.('UPDATE_HUB', editingHub.id, `Updated hub configuration for ${formName} (${formCode})`);
-      alert(`Hub "${formName}" updated successfully.`);
-    } else {
-      // Create
-      const newId = `hub-${formCity.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
-      const newHub: HubLocation = {
-        id: newId,
-        code: formCode || `BPE-${formCity.substring(0, 3).toUpperCase()}-${hubs.length + 1}`,
-        name: formName,
-        state: formState,
-        city: formCity,
-        district: formDistrict,
-        address: formAddress || `${formCity} Center Operations Facility`,
-        contactPhone: formContact || '+91 8920252647',
-        managerName: formManager || 'Operations Lead',
-        operatingHours: formOperatingHours,
-        coveredSectors: sectorsArray,
-        pincodes: pincodesArray,
-        lat: 25.60 + Math.random() * 0.1,
-        lng: 85.10 + Math.random() * 0.1,
-        serviceRadiusKm: parseFloat(formRadius) || 8,
-        allowedPropertyTypes: ['Apartment', 'Villa', 'Duplex', 'Independent Floor', 'Commercial/Office'],
-        capacity: {
-          maxJobsPerHour: 10,
-          maxJobsPerDay: parseInt(formMaxJobsPerDay) || 80,
-          partnerCapacity: parseInt(formPartnerCapacity) || 25,
-          peakCapacity: 100,
-          bookingBufferMinutes: 30,
-          travelBufferMinutes: 20,
-          emergencyCapacity: 15
-        },
-        dispatchPriority: 'PRIMARY',
-        backupHubId: formBackupHubId,
-        backupHubName: backupHubObj?.name,
-        crossHubDispatchAllowed: true,
-        overflowThresholdPct: 85,
-        dispatchTimeoutSec: 60,
-        status: formStatus,
-        active: formStatus === 'ACTIVE'
-      };
-
-      const updated = [newHub, ...hubs];
-      onUpdateHubs(updated);
-      onAuditLog?.('CREATE_HUB', newId, `Created new operational hub ${formName} for ${formCity}`);
-      alert(`New Operational Hub "${newHub.name}" (${newHub.code}) created and activated!`);
-    }
-
-    resetForm();
-  };
-
-  const resetForm = () => {
-    setShowCreateModal(false);
-    setEditingHub(null);
-    setFormName('');
-    setFormCode('');
-    setFormState('Bihar');
-    setFormCity('Patna');
-    setFormDistrict('Patna District');
-    setFormAddress('');
-    setFormContact('');
-    setFormManager('');
-    setFormSectors('');
-    setFormPincodes('');
-    setFormRadius('8');
-    setFormMaxJobsPerDay('80');
-    setFormPartnerCapacity('25');
-    setFormBackupHubId('');
-    setFormStatus('ACTIVE');
-  };
-
-  const handleEditClick = (hub: HubLocation) => {
-    setEditingHub(hub);
-    setFormName(hub.name);
-    setFormCode(hub.code || '');
-    setFormState(hub.state);
-    setFormCity(hub.city);
-    setFormDistrict(hub.district || `${hub.city} District`);
-    setFormAddress(hub.address || '');
-    setFormContact(hub.contactPhone || '');
-    setFormManager(hub.managerName || '');
-    setFormOperatingHours(hub.operatingHours || '08:00 - 20:00');
-    setFormSectors(hub.coveredSectors.join(', '));
-    setFormPincodes((hub.pincodes || []).join(', '));
-    setFormRadius(String(hub.serviceRadiusKm));
-    setFormMaxJobsPerDay(String(hub.capacity?.maxJobsPerDay || 80));
-    setFormPartnerCapacity(String(hub.capacity?.partnerCapacity || 25));
-    setFormBackupHubId(hub.backupHubId || '');
-    setFormStatus(hub.status || (hub.active ? 'ACTIVE' : 'PAUSED'));
-    setShowCreateModal(true);
-  };
-
-  // Action: Duplicate Hub
-  const handleDuplicateHub = (hub: HubLocation) => {
-    const duplicated: HubLocation = {
-      ...hub,
-      id: `${hub.id}-copy-${Date.now()}`,
-      code: `${hub.code || 'BPE'}-COPY`,
-      name: `${hub.name} (Duplicate Cluster)`,
-      status: 'DRAFT',
-      active: false
-    };
-    onUpdateHubs([duplicated, ...hubs]);
-    onAuditLog?.('DUPLICATE_HUB', duplicated.id, `Cloned configuration from ${hub.name}`);
-    alert(`Duplicated Hub "${duplicated.name}". Initial status set to DRAFT.`);
-  };
-
-  // Action: Toggle Status (Pause / Activate / Maintenance)
-  const handleSetStatus = (hubId: string, newStatus: HubStatus) => {
-    const hub = hubs.find(h => h.id === hubId);
-    if (!hub) return;
-
-    if (newStatus === 'ARCHIVED' || newStatus === 'CLOSED') {
-      const confirmAction = window.confirm(
-        `Critical Hub Operation: Are you sure you want to mark "${hub.name}" as ${newStatus}?\n\n` +
-        `Rule: Historical bookings remain intact for audit reporting. Hub serviceability will be stopped.`
-      );
-      if (!confirmAction) return;
-    }
-
-    const updated = hubs.map(h => {
-      if (h.id === hubId) {
-        return {
-          ...h,
-          status: newStatus,
-          active: newStatus === 'ACTIVE'
-        };
+    const t = setTimeout(async () => {
+      setGeoLoading(true);
+      setGeoError(null);
+      try {
+        setGeoResults(await searchPlaces(q));
+      } catch (e: any) {
+        setGeoError(e?.message || 'Search fail hua');
+        setGeoResults([]);
+      } finally {
+        setGeoLoading(false);
       }
-      return h;
-    });
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [geoQuery]);
 
-    onUpdateHubs(updated);
-    onAuditLog?.('SET_HUB_STATUS', hubId, `Changed hub status of ${hub.name} to ${newStatus}`);
+  /* ---------------- filters ---------------- */
+  const states = useMemo(
+    () => Array.from(new Set(hubList.map(hubState).filter(Boolean))).sort(),
+    [hubList]
+  );
+  const cities = useMemo(
+    () =>
+      Array.from(
+        new Set(hubList.filter(h => !stateFilter || hubState(h) === stateFilter).map(hubCity).filter(Boolean))
+      ).sort(),
+    [hubList, stateFilter]
+  );
+
+  const visibleHubs = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return hubList.filter(h => {
+      if (!showArchived && hubIsArchived(h)) return false;
+      if (stateFilter && hubState(h) !== stateFilter) return false;
+      if (cityFilter && hubCity(h) !== cityFilter) return false;
+      if (q) {
+        const hay = `${hubName(h)} ${hubCity(h)} ${hubState(h)} ${hubSector(h)}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [hubList, showArchived, stateFilter, cityFilter, query]);
+
+  const zoomToFilter = (st: string, ct: string) => {
+    const pts = hubList
+      .filter(h => !hubIsArchived(h) && (!st || hubState(h) === st) && (!ct || hubCity(h) === ct))
+      .map(h => ({ lat: hubLat(h), lng: hubLng(h) }))
+      .filter(p => p.lat !== null && p.lng !== null) as { lat: number; lng: number }[];
+    if (!st && !ct) {
+      flyTo(INDIA_CENTER.lat, INDIA_CENTER.lng, 5);
+      return;
+    }
+    if (pts.length === 0) return;
+    const lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
+    const lng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
+    flyTo(lat, lng, ct ? (pts.length === 1 ? 13 : 10) : 7);
   };
 
-  // 3-Hub Multi-Cluster Patna Demo View
-  const patnaHubs = hubs.filter(h => h.city.toLowerCase() === 'patna');
+  const resetToIndia = () => {
+    setStateFilter('');
+    setCityFilter('');
+    setSelectedId(null);
+    flyTo(INDIA_CENTER.lat, INDIA_CENTER.lng, 5);
+  };
 
+  const selectedHub = hubList.find(h => hubId(h) === selectedId) || null;
+
+  /* ---------------- form helpers ---------------- */
+  const startAdd = () => {
+    setForm({ ...emptyForm });
+    setFormError(null);
+    setGeoQuery('');
+    setGeoResults([]);
+    setSelectedId(null);
+    setMode('form');
+  };
+
+  const startEdit = (h: any) => {
+    setForm({
+      id: hubId(h),
+      name: hubName(h),
+      state: hubState(h),
+      city: hubCity(h),
+      sector: hubSector(h),
+      lat: hubLat(h) !== null ? String(hubLat(h)) : '',
+      lng: hubLng(h) !== null ? String(hubLng(h)) : '',
+      radiusKm: String(hubRadius(h)),
+      active: hubIsActive(h)
+    });
+    setFormError(null);
+    setGeoQuery('');
+    setGeoResults([]);
+    setSelectedId(hubId(h));
+    setMode('form');
+    const la = hubLat(h);
+    const ln = hubLng(h);
+    if (la !== null && ln !== null) flyTo(la, ln, 13);
+  };
+
+  const cancelForm = () => {
+    setMode('list');
+    setFormError(null);
+    setGeoResults([]);
+  };
+
+  const handleDraft = (lat: number, lng: number) => {
+    setForm(f => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+    clearTimeout(revTimer.current);
+    revTimer.current = setTimeout(async () => {
+      try {
+        const r = await reversePlace(lat, lng);
+        setForm(f => ({
+          ...f,
+          state: f.state || r.state,
+          city: f.city || r.city,
+          sector: f.sector || r.sector
+        }));
+      } catch {
+        /* ignore reverse lookup errors */
+      }
+    }, 1000);
+  };
+
+  const pickGeo = (r: GeoResult) => {
+    setForm(f => ({
+      ...f,
+      lat: r.lat.toFixed(6),
+      lng: r.lng.toFixed(6),
+      state: r.state || f.state,
+      city: r.city || f.city,
+      sector: r.sector || f.sector
+    }));
+    setGeoResults([]);
+    setGeoQuery('');
+    flyTo(r.lat, r.lng, 14);
+  };
+
+  const draftLat = parseFloat(form.lat);
+  const draftLng = parseFloat(form.lng);
+  const draft =
+    mode === 'form' && Number.isFinite(draftLat) && Number.isFinite(draftLng)
+      ? { lat: draftLat, lng: draftLng }
+      : null;
+
+  const saveForm = () => {
+    const name = form.name.trim();
+    const lat = parseFloat(form.lat);
+    const lng = parseFloat(form.lng);
+    const radius = parseFloat(form.radiusKm);
+
+    if (!name) return setFormError('Hub ka naam likho.');
+    if (!form.state.trim() || !form.city.trim()) return setFormError('State aur City zaroori hain.');
+    if (!Number.isFinite(lat) || !Number.isFinite(lng))
+      return setFormError('Map par pin lagao ya search karo, ya lat/lng bharo.');
+    if (
+      lat < INDIA_BOUNDS.minLat ||
+      lat > INDIA_BOUNDS.maxLat ||
+      lng < INDIA_BOUNDS.minLng ||
+      lng > INDIA_BOUNDS.maxLng
+    )
+      return setFormError('Location India ke andar honi chahiye.');
+    if (!Number.isFinite(radius) || radius <= 0 || radius > 200)
+      return setFormError('Service radius 0 se bada aur 200 km tak hona chahiye.');
+    const dup = hubList.some(
+      h => hubName(h).trim().toLowerCase() === name.toLowerCase() && hubId(h) !== (form.id || '')
+    );
+    if (dup) return setFormError('Is naam ka hub pehle se hai.');
+
+    const base: any = {
+      name,
+      hubName: name,
+      state: form.state.trim(),
+      city: form.city.trim(),
+      sector: form.sector.trim(),
+      lat,
+      lng,
+      latitude: lat,
+      longitude: lng,
+      radiusKm: radius,
+      status: form.active ? sv.active : sv.inactive,
+      archived: false
+    };
+
+    let updated: any[];
+    if (form.id) {
+      updated = hubList.map(h => (hubId(h) === form.id ? { ...h, ...base } : h));
+      onAuditLog('HUB_UPDATED', form.id, `Hub "${name}" update kiya (${base.city}, ${base.state}).`);
+      setSelectedId(form.id);
+    } else {
+      const id = `HUB-${Date.now()}`;
+      updated = [...hubList, { id, createdAt: new Date().toISOString(), ...base }];
+      onAuditLog('HUB_CREATED', id, `Naya hub "${name}" banaya (${base.city}, ${base.state}).`);
+      setSelectedId(id);
+    }
+    onUpdateHubs(updated as HubLocation[]);
+    setMode('list');
+    setFormError(null);
+  };
+
+  /* ---------------- archive / delete ---------------- */
+  const setArchived = (h: any, archived: boolean) => {
+    const id = hubId(h);
+    const updated = hubList.map(x =>
+      hubId(x) === id ? { ...x, archived, status: archived ? sv.inactive : sv.active } : x
+    );
+    onUpdateHubs(updated as HubLocation[]);
+    onAuditLog(
+      archived ? 'HUB_ARCHIVED' : 'HUB_RESTORED',
+      id,
+      `Hub "${hubName(h)}" ${archived ? 'archive' : 'restore'} kiya.`
+    );
+  };
+
+  const removeHub = async (h: any) => {
+    const id = hubId(h);
+    const partnerCount = partnersOfHub(h, partnerList).length;
+    let bookingCount = 0;
+    try {
+      bookingCount = bookingsOfHub(h, (await getAllBookings()) as any[]).length;
+    } catch {
+      /* bookings load na ho to sirf partners se check hoga */
+    }
+    if (partnerCount > 0 || bookingCount > 0) {
+      alert(
+        `Is hub se ${partnerCount} partner aur ${bookingCount} booking jude hain, isliye delete nahi ho sakta. Hub archive kar diya gaya hai.`
+      );
+      setArchived(h, true);
+      return;
+    }
+    if (!window.confirm(`"${hubName(h)}" hub permanent delete karna hai? Ye wapas nahi aayega.`)) return;
+    onUpdateHubs(hubList.filter(x => hubId(x) !== id) as HubLocation[]);
+    onAuditLog('HUB_DELETED', id, `Hub "${hubName(h)}" permanent delete kiya.`);
+    if (selectedId === id) setSelectedId(null);
+  };
+
+  const activeCount = hubList.filter(h => hubIsActive(h)).length;
+
+  /* ---------------- render ---------------- */
   return (
-    <div className="space-y-6">
-      {/* Top Banner with Architecture Hierarchy */}
-      <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <div className="space-y-5 font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* Header */}
+      <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#1C1C1E] text-white text-[10px] font-bold tracking-wider uppercase font-mono">
-              Module 02 &bull; Hub Operations
-            </span>
-            <span className="text-xs text-[#8E8E93]">Company &rarr; State &rarr; City &rarr; Hub &rarr; Zone</span>
-          </div>
-          <h3 className="text-xl font-black text-[#1C1C1E] mt-1 font-['Outfit']">
-            Master Hub Operations &amp; City Service Clusters
-          </h3>
-          <p className="text-xs text-[#8E8E93] mt-0.5 max-w-2xl">
-            Centralized operational management. Create, edit, duplicate, activate, pause, or archive hubs. 
-            Supports multiple hubs per city (e.g., 3 hubs in Patna) with automated backup overflow routing.
+          <h2 className="text-lg font-extrabold text-slate-900">Hub Management</h2>
+          <p className="text-[12px] text-slate-500">
+            India map par hub add karo, service radius set karo aur status manage karo.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => {
-              resetForm();
-              setShowCreateModal(true);
-            }}
-            className="px-4 py-2.5 rounded-xl bg-[#1C1C1E] hover:bg-black text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4 text-[#D4A24E]" />
-            <span>Create New Hub</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Sub-tabs for Operational Perspectives */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#E5E5EA] pb-3">
-        {[
-          { id: 'HUBS', label: `Operational Hubs (${hubs.length})`, icon: MapPin },
-          { id: 'MULTI_CITY_CLUSTER', label: '3-Hub Multi-Cluster (Patna Example)', icon: ArrowRightLeft },
-          { id: 'ZONES', label: `Service Zones & Sectors (${zones.length})`, icon: Compass },
-          { id: 'CAPACITY', label: 'Live Capacity & Overflow Rules', icon: Sliders }
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeSubTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveSubTab(tab.id as any)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
-                isActive
-                  ? 'bg-[#1C1C1E] text-white shadow-sm'
-                  : 'bg-white hover:bg-[#F2F2F7] text-[#48484A] border border-[#E5E5EA]'
-              }`}
-            >
-              <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#D4A24E]' : 'text-[#8E8E93]'}`} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* VIEW 1: OPERATIONAL HUBS DIRECTORY */}
-      {activeSubTab === 'HUBS' && (
-        <div className="space-y-4">
-          {/* Filter Bar */}
-          <div className="p-4 rounded-2xl bg-white border border-[#E5E5EA] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-1">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="w-4 h-4 text-[#8E8E93] absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search hub name, code, sector..."
-                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
-                />
-              </div>
-
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl bg-[#F2F2F7] border border-transparent font-medium outline-none"
-              >
-                {cities.map(c => (
-                  <option key={c} value={c}>{c === 'ALL' ? 'All Cities' : c}</option>
-                ))}
-              </select>
-
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl bg-[#F2F2F7] border border-transparent font-medium outline-none"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="PAUSED">Paused</option>
-                <option value="MAINTENANCE">Maintenance</option>
-                <option value="OVERLOADED">Overloaded</option>
-                <option value="ARCHIVED">Archived</option>
-              </select>
-            </div>
-
-            <span className="text-xs text-[#8E8E93] font-medium shrink-0">
-              Showing {filteredHubs.length} of {hubs.length} Hubs
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold">
+            <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700">Total: {hubList.length}</span>
+            <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700">Active: {activeCount}</span>
+            <span className="px-3 py-1 rounded-full bg-rose-50 text-rose-700">
+              Inactive: {hubList.length - activeCount}
             </span>
           </div>
-
-          {/* Hubs Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {filteredHubs.map((hub) => {
-              const assignedPartners = partners.filter(p => p.assignedHubId === hub.id);
-              const currentStatus = hub.status || (hub.active ? 'ACTIVE' : 'PAUSED');
-
-              const statusColor = {
-                ACTIVE: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-                PAUSED: 'bg-amber-100 text-amber-800 border-amber-200',
-                MAINTENANCE: 'bg-blue-100 text-blue-800 border-blue-200',
-                OVERLOADED: 'bg-rose-100 text-rose-800 border-rose-200',
-                DRAFT: 'bg-neutral-100 text-neutral-800 border-neutral-200',
-                CLOSED: 'bg-red-100 text-red-800 border-red-200',
-                ARCHIVED: 'bg-stone-200 text-stone-800 border-stone-300'
-              }[currentStatus] || 'bg-emerald-100 text-emerald-800';
-
-              return (
-                <div key={hub.id} className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
-                  {/* Card Header */}
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono font-black uppercase text-[#B8892E] bg-[#D4A24E]/10 px-2 py-0.5 rounded">
-                          {hub.code || 'BPE-HUB'}
-                        </span>
-                        <span className="text-xs text-[#8E8E93] font-semibold">
-                          {hub.state} &bull; {hub.city}
-                        </span>
-                      </div>
-                      <h4 className="text-base font-bold text-[#1C1C1E] mt-1">{hub.name}</h4>
-                      <p className="text-xs text-[#8E8E93] mt-0.5">{hub.address || `${hub.city} District Operations Unit`}</p>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-1">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold border ${statusColor}`}>
-                        {currentStatus}
-                      </span>
-                      <span className="text-[10px] text-[#8E8E93] font-mono">
-                        Radius: {hub.serviceRadiusKm} km
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Manager & Operational Specs */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] text-xs">
-                    <div>
-                      <span className="text-[10px] text-[#8E8E93] block">Hub Manager</span>
-                      <span className="font-semibold text-[#1C1C1E] flex items-center gap-1 mt-0.5">
-                        <UserCheck className="w-3 h-3 text-[#B8892E]" />
-                        {hub.managerName || 'Operations Lead'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-[#8E8E93] block">Operating Hours</span>
-                      <span className="font-semibold text-[#1C1C1E] flex items-center gap-1 mt-0.5">
-                        <Clock className="w-3 h-3 text-[#B8892E]" />
-                        {hub.operatingHours || '08:00 - 20:00'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-[#8E8E93] block">Backup Overflow Hub</span>
-                      <span className="font-semibold text-indigo-600 block mt-0.5 truncate">
-                        {hub.backupHubName || (hub.backupHubId ? 'Assigned' : 'None (Standalone)')}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-[#8E8E93] block">Partner Fleet</span>
-                      <span className="font-bold text-[#1C1C1E] block mt-0.5">
-                        {assignedPartners.length} Active Technicians
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-[#8E8E93] block">Daily Capacity</span>
-                      <span className="font-bold text-[#1C1C1E] block mt-0.5">
-                        {hub.capacity?.maxJobsPerDay || 80} jobs/day
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-[#8E8E93] block">Contact</span>
-                      <span className="font-mono text-[11px] text-[#1C1C1E] block mt-0.5 truncate">
-                        {hub.contactPhone || '+91 98765 43210'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Sectors & Pincodes Covered */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[11px] font-bold text-[#48484A]">
-                        Covered Sectors &amp; Localities ({hub.coveredSectors.length}):
-                      </span>
-                      {hub.pincodes && hub.pincodes.length > 0 && (
-                        <span className="text-[10px] font-mono text-[#8E8E93]">
-                          Pincodes: {hub.pincodes.join(', ')}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {hub.coveredSectors.map((sector, sIdx) => (
-                        <span key={sIdx} className="px-2 py-0.5 rounded-md bg-[#F2F2F7] text-[#1C1C1E] text-[11px] font-medium">
-                          {sector}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Action Bar (Edit, Duplicate, Pause/Resume, Archive) */}
-                  <div className="pt-2 border-t border-[#F2F2F7] flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleEditClick(hub)}
-                        className="px-2.5 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-semibold flex items-center gap-1"
-                        title="Edit Hub Parameters"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        <span>Edit</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleDuplicateHub(hub)}
-                        className="px-2.5 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] text-xs font-semibold flex items-center gap-1"
-                        title="Clone configuration to a new cluster"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Duplicate</span>
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      {currentStatus === 'ACTIVE' ? (
-                        <button
-                          onClick={() => handleSetStatus(hub.id, 'PAUSED')}
-                          className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold flex items-center gap-1"
-                        >
-                          <PauseCircle className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Pause</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleSetStatus(hub.id, 'ACTIVE')}
-                          className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold flex items-center gap-1"
-                        >
-                          <PlayCircle className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Activate</span>
-                        </button>
-                      )}
-
-                      <button
-                        onClick={() => handleSetStatus(hub.id, 'MAINTENANCE')}
-                        className="px-2 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#48484A] text-[11px] font-semibold"
-                        title="Set Maintenance Mode"
-                      >
-                        Maint.
-                      </button>
-
-                      <button
-                        onClick={() => handleSetStatus(hub.id, 'ARCHIVED')}
-                        className="px-2 py-1.5 rounded-lg hover:bg-red-50 text-red-700 text-[11px] font-semibold flex items-center gap-1"
-                        title="Archive Hub (Preserves historic bookings)"
-                      >
-                        <Archive className="w-3.5 h-3.5 text-red-600" />
-                        <span>Archive</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
-      )}
+        <button
+          onClick={startAdd}
+          className="px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-[12px] font-extrabold cursor-pointer"
+        >
+          + Add Hub
+        </button>
+      </div>
 
-      {/* VIEW 2: 3-HUB MULTI-CLUSTER (PATNA DEMO SPECIFICATION) */}
-      {activeSubTab === 'MULTI_CITY_CLUSTER' && (
-        <div className="space-y-6">
-          <div className="p-6 rounded-3xl bg-amber-500/10 border border-amber-300/40 space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-amber-700 text-white font-mono text-[10px] font-bold uppercase">
-                Section 3 Benchmark &bull; 3 Hubs in One City
-              </span>
-              <span className="text-xs font-bold text-amber-900">Patna Operational Cluster</span>
-            </div>
-            <h4 className="text-base font-black text-amber-950">
-              Patna Multi-Hub Architecture with Automated Overflow Routing
-            </h4>
-            <p className="text-xs text-amber-900 leading-relaxed max-w-3xl">
-              In this architecture, a city is not constrained to a single operational node. Patna is partitioned into 
-              <strong> Patna Central</strong> (Fraser Road, Kankarbagh), <strong>Patna West</strong> (Bailey Road, Danapur), 
-              and <strong>Patna South</strong> (Anisabad, Bypass). When one hub reaches 80-85% capacity threshold, incoming 
-              jobs automatically overflow to the designated backup hub.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {patnaHubs.map((hub) => (
-              <div key={hub.id} className="p-5 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded bg-[#1C1C1E] text-white font-mono text-[10px] font-bold">
-                    {hub.code}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                    NORMAL DISPATCH
-                  </span>
-                </div>
-
-                <div>
-                  <h4 className="text-base font-bold text-[#1C1C1E]">{hub.name}</h4>
-                  <span className="text-xs text-[#8E8E93]">{hub.district} &bull; {hub.serviceRadiusKm} km</span>
-                </div>
-
-                <div className="p-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] text-xs space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-[#8E8E93]">Primary Role:</span>
-                    <span className="font-semibold text-[#1C1C1E]">Normal Dispatch</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#8E8E93]">Overflow Route:</span>
-                    <span className="font-bold text-indigo-600">{hub.backupHubName || 'Cross-Cluster'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#8E8E93]">Overflow Threshold:</span>
-                    <span className="font-mono font-semibold text-amber-700">{hub.overflowThresholdPct || 85}% Load</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#8E8E93]">Dispatch Timeout:</span>
-                    <span className="font-mono text-[#1C1C1E]">{hub.dispatchTimeoutSec || 60} seconds</span>
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-[11px] font-bold text-[#48484A] block mb-1">
-                    Coverage Core Sectors:
-                  </span>
-                  <div className="flex flex-wrap gap-1">
-                    {hub.coveredSectors.map((s, idx) => (
-                      <span key={idx} className="px-2 py-0.5 rounded bg-[#F2F2F7] text-[10px] font-medium">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-[#F2F2F7] flex justify-between items-center text-xs">
-                  <span className="text-[#8E8E93]">Assigned Fleet:</span>
-                  <span className="font-bold text-[#1F8A3B]">
-                    {partners.filter(p => p.assignedHubId === hub.id).length} Partners Online
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* VIEW 3: LOCATION ZONES & SECTORS */}
-      {activeSubTab === 'ZONES' && (
-        <div className="space-y-4">
-          <div className="p-4 rounded-2xl bg-white border border-[#E5E5EA] flex items-center justify-between">
-            <div>
-              <h4 className="text-sm font-bold text-[#1C1C1E]">
-                Granular Service Zones, Pincodes &amp; Geofences
-              </h4>
-              <p className="text-xs text-[#8E8E93]">
-                Map customer addresses to specific sub-hub zones with dynamic travel-time buffers.
-              </p>
-            </div>
+      {/* Breadcrumb */}
+      <div className="flex flex-wrap items-center gap-2 text-[12px] font-bold text-slate-600">
+        <button onClick={resetToIndia} className="text-blue-600 hover:underline cursor-pointer">
+          India
+        </button>
+        {stateFilter && (
+          <>
+            <span>&gt;</span>
             <button
               onClick={() => {
-                const zoneName = window.prompt("Enter new Zone Name (e.g., Bailey Road North Zone):");
-                if (!zoneName) return;
-                const newZone: LocationZone = {
-                  id: `zone-${Date.now()}`,
-                  name: zoneName,
-                  hubId: 'hub-patna-central',
-                  hubName: 'Patna Central Hub',
-                  state: 'Bihar',
-                  city: 'Patna',
-                  district: 'Patna District',
-                  pincode: '800001',
-                  sector: zoneName,
-                  radiusKm: 6.0,
-                  travelTimeMinutes: 15,
-                  serviceable: true
-                };
-                setZones([newZone, ...zones]);
-                alert(`Zone "${zoneName}" added to service directory.`);
+                setCityFilter('');
+                zoomToFilter(stateFilter, '');
               }}
-              className="px-3.5 py-1.5 rounded-xl bg-[#1C1C1E] text-white text-xs font-bold flex items-center gap-1.5"
+              className="text-blue-600 hover:underline cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5 text-[#D4A24E]" />
-              <span>Add Zone</span>
+              {stateFilter}
             </button>
-          </div>
+          </>
+        )}
+        {cityFilter && (
+          <>
+            <span>&gt;</span>
+            <span>{cityFilter}</span>
+          </>
+        )}
+        {selectedHub && hubSector(selectedHub) && (
+          <>
+            <span>&gt;</span>
+            <span>{hubSector(selectedHub)}</span>
+          </>
+        )}
+        {selectedHub && (
+          <>
+            <span>&gt;</span>
+            <span className="text-slate-900">{hubName(selectedHub)}</span>
+          </>
+        )}
+      </div>
 
-          <div className="overflow-x-auto bg-white rounded-3xl border border-[#E5E5EA] shadow-sm">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-[#E5E5EA] text-[#8E8E93] bg-[#F8F9FB]">
-                  <th className="p-4 font-semibold">Zone Name</th>
-                  <th className="p-4 font-semibold">Assigned Hub</th>
-                  <th className="p-4 font-semibold">City / State</th>
-                  <th className="p-4 font-semibold">Pincode / Sector</th>
-                  <th className="p-4 font-semibold">Radius</th>
-                  <th className="p-4 font-semibold">Travel Buffer</th>
-                  <th className="p-4 font-semibold text-right">Serviceability</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F2F2F7]">
-                {zones.map((zone) => (
-                  <tr key={zone.id} className="hover:bg-[#F8F9FB]">
-                    <td className="p-4 font-bold text-[#1C1C1E]">{zone.name}</td>
-                    <td className="p-4 font-medium text-indigo-700">{zone.hubName}</td>
-                    <td className="p-4 text-[#48484A]">{zone.city}, {zone.state}</td>
-                    <td className="p-4 font-mono text-[#1C1C1E]">
-                      <span className="font-bold">{zone.pincode}</span> &bull; {zone.sector}
-                    </td>
-                    <td className="p-4 font-mono text-[#48484A]">{zone.radiusKm} km</td>
-                    <td className="p-4 font-mono text-[#48484A]">{zone.travelTimeMinutes} mins</td>
-                    <td className="p-4 text-right">
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                        ACTIVE SERVICEABLE
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* VIEW 4: CAPACITY & OVERFLOW RULES */}
-      {activeSubTab === 'CAPACITY' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
-            <h4 className="text-sm font-bold text-[#1C1C1E] flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-[#B8892E]" />
-              <span>Platform Capacity Control Rules</span>
-            </h4>
-            <p className="text-xs text-[#8E8E93]">
-              Configure peak capacity thresholds, travel buffers, and automatic load redirection policies.
-            </p>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-[#F8F9FB]">
-                <div>
-                  <span className="font-semibold text-[#1C1C1E] block">Default Overflow Trigger</span>
-                  <span className="text-[11px] text-[#8E8E93]">Redirects to backup hub when active jobs cross percentage</span>
-                </div>
-                <span className="px-3 py-1 rounded-lg bg-white border border-[#E5E5EA] font-mono font-bold text-[#1C1C1E]">
-                  85% Load
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-[#F8F9FB]">
-                <div>
-                  <span className="font-semibold text-[#1C1C1E] block">Dispatch Offer Timeout</span>
-                  <span className="text-[11px] text-[#8E8E93]">Auto-forwards to next ranked partner after expiry</span>
-                </div>
-                <span className="px-3 py-1 rounded-lg bg-white border border-[#E5E5EA] font-mono font-bold text-[#1C1C1E]">
-                  60 Seconds
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-[#F8F9FB]">
-                <div>
-                  <span className="font-semibold text-[#1C1C1E] block">Mandatory Travel Buffer</span>
-                  <span className="text-[11px] text-[#8E8E93]">Enforced gap between sequential partner appointments</span>
-                </div>
-                <span className="px-3 py-1 rounded-lg bg-white border border-[#E5E5EA] font-mono font-bold text-[#1C1C1E]">
-                  25 Minutes
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-white border border-[#E5E5EA] shadow-sm space-y-4">
-            <h4 className="text-sm font-bold text-[#1C1C1E] flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-[#B8892E]" />
-              <span>Emergency City Overload Switch</span>
-            </h4>
-            <p className="text-xs text-[#8E8E93]">
-              In extreme weather, festival rush, or emergency situations, Super Admin can temporarily restrict 
-              same-day bookings and enforce advance booking windows.
-            </p>
-
-            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-2">
-              <span className="font-bold block">Current Operational Status: NORMAL OPERATING DISPATCH</span>
-              <p className="text-[11px]">
-                All {hubs.filter(h => h.active).length} hubs accepting live same-day bookings with full SLA adherence.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: CREATE OR EDIT HUB */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto shadow-2xl border border-[#E5E5EA]">
-            <div className="flex items-center justify-between border-b border-[#E5E5EA] pb-3">
-              <div>
-                <h3 className="text-lg font-black text-[#1C1C1E]">
-                  {editingHub ? 'Edit Operational Hub' : 'Create Operational Hub'}
-                </h3>
-                <span className="text-xs text-[#8E8E93]">Company &rarr; State &rarr; City &rarr; Hub Model</span>
-              </div>
-              <button
-                onClick={resetForm}
-                className="p-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#8E8E93]"
-              >
-                &times;
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
+        {/* Map */}
+        <div className="order-1 xl:order-2 xl:col-span-3">
+          <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-3">
+            <IndiaMap
+              className="h-[420px] xl:h-[600px]"
+              hubs={visibleHubs}
+              selectedId={selectedId}
+              onSelectHub={id => {
+                setSelectedId(id);
+                const h = hubList.find(x => hubId(x) === id);
+                if (h && mode === 'list') {
+                  const la = hubLat(h);
+                  const ln = hubLng(h);
+                  if (la !== null && ln !== null) flyTo(la, ln, 12);
+                }
+              }}
+              draft={draft}
+              onDraftChange={mode === 'form' ? handleDraft : undefined}
+              focus={focus}
+            />
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+              <span>
+                <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#10B981] mr-1" />
+                Active
+                <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#EF4444] ml-3 mr-1" />
+                Inactive
+                {mode === 'form' && (
+                  <>
+                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#2563EB] ml-3 mr-1" />
+                    Naya pin (map par click ya drag karo)
+                  </>
+                )}
+              </span>
+              <button onClick={resetToIndia} className="font-bold text-blue-600 hover:underline cursor-pointer">
+                Poora India dekho
               </button>
             </div>
+          </div>
+        </div>
 
-            <form onSubmit={handleSaveHub} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">Hub Name</label>
-                  <input
-                    type="text"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="e.g. Patna Central Hub"
-                    required
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">Hub Code</label>
-                  <input
-                    type="text"
-                    value={formCode}
-                    onChange={(e) => setFormCode(e.target.value)}
-                    placeholder="e.g. BPE-PAT-01"
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">City</label>
-                  <input
-                    type="text"
-                    value={formCity}
-                    onChange={(e) => setFormCity(e.target.value)}
-                    placeholder="e.g. Patna, Gurugram"
-                    required
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">State</label>
-                  <input
-                    type="text"
-                    value={formState}
-                    onChange={(e) => setFormState(e.target.value)}
-                    placeholder="e.g. Bihar, Haryana"
-                    required
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">Hub Manager Name</label>
-                  <input
-                    type="text"
-                    value={formManager}
-                    onChange={(e) => setFormManager(e.target.value)}
-                    placeholder="e.g. Vikramaditya Sahay"
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">Contact Phone</label>
-                  <input
-                    type="text"
-                    value={formContact}
-                    onChange={(e) => setFormContact(e.target.value)}
-                    placeholder="e.g. +91 612 223 9001"
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-[#1C1C1E] mb-1">
-                  Covered Sectors / Localities (Comma Separated)
-                </label>
-                <textarea
-                  rows={2}
-                  value={formSectors}
-                  onChange={(e) => setFormSectors(e.target.value)}
-                  placeholder="e.g. Fraser Road, Dak Bungalow, Kankarbagh Zone, Boring Road"
-                  required
-                  className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
+        {/* Left panel */}
+        <div className="order-2 xl:order-1 xl:col-span-2 space-y-4">
+          {mode === 'list' ? (
+            <>
+              {/* Filters */}
+              <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 space-y-3">
+                <input
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Hub, city ya state search karo"
+                  className={inputCls}
                 />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">Pincodes (Comma Separated)</label>
-                  <input
-                    type="text"
-                    value={formPincodes}
-                    onChange={(e) => setFormPincodes(e.target.value)}
-                    placeholder="e.g. 800001, 800020"
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">Service Radius (KM)</label>
-                  <input
-                    type="number"
-                    value={formRadius}
-                    onChange={(e) => setFormRadius(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">Backup Overflow Hub</label>
+                <div className="grid grid-cols-2 gap-3">
                   <select
-                    value={formBackupHubId}
-                    onChange={(e) => setFormBackupHubId(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
+                    value={stateFilter}
+                    onChange={e => {
+                      setStateFilter(e.target.value);
+                      setCityFilter('');
+                      zoomToFilter(e.target.value, '');
+                    }}
+                    className={inputCls}
                   >
-                    <option value="">None (Standalone)</option>
-                    {hubs.filter(h => h.id !== editingHub?.id).map(h => (
-                      <option key={h.id} value={h.id}>{h.city} - {h.name}</option>
+                    <option value="">Saare States</option>
+                    {states.map(s => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={cityFilter}
+                    onChange={e => {
+                      setCityFilter(e.target.value);
+                      zoomToFilter(stateFilter, e.target.value);
+                    }}
+                    className={inputCls}
+                  >
+                    <option value="">Saare Cities</option>
+                    {cities.map(c => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))}
                   </select>
                 </div>
+                <label className="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer">
+                  <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
+                  Archived hubs bhi dikhao
+                </label>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">Daily Job Capacity</label>
-                  <input
-                    type="number"
-                    value={formMaxJobsPerDay}
-                    onChange={(e) => setFormMaxJobsPerDay(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">Partner Fleet Limit</label>
-                  <input
-                    type="number"
-                    value={formPartnerCapacity}
-                    onChange={(e) => setFormPartnerCapacity(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-[#1C1C1E] mb-1">Initial Status</label>
-                  <select
-                    value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as HubStatus)}
-                    className="w-full p-2.5 rounded-xl bg-[#F2F2F7] border border-transparent focus:border-[#B8892E] outline-none"
+              {/* List */}
+              {hubList.length === 0 ? (
+                <div className="rounded-2xl bg-white border border-dashed border-slate-300 p-8 text-center">
+                  <p className="text-[13px] font-bold text-slate-700">Abhi koi hub nahi hai.</p>
+                  <p className="mt-1 text-[12px] text-slate-500">
+                    Map par search karke pehla hub add karo.
+                  </p>
+                  <button
+                    onClick={startAdd}
+                    className="mt-4 px-4 py-2 rounded-xl bg-[#2563EB] text-white text-[12px] font-extrabold cursor-pointer"
                   >
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="PAUSED">PAUSED</option>
-                    <option value="MAINTENANCE">MAINTENANCE</option>
+                    + Pehla Hub Add Karo
+                  </button>
+                </div>
+              ) : visibleHubs.length === 0 ? (
+                <div className="rounded-2xl bg-white border border-slate-200 p-6 text-center text-[12px] text-slate-500">
+                  Is filter mein koi hub nahi mila.
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                  {visibleHubs.map((h, i) => {
+                    const id = hubId(h);
+                    const active = hubIsActive(h);
+                    const archived = hubIsArchived(h);
+                    const pc = partnersOfHub(h, partnerList).length;
+                    const la = hubLat(h);
+                    const ln = hubLng(h);
+                    return (
+                      <div
+                        key={id || `${hubName(h)}-${i}`}
+                        onClick={() => {
+                          setSelectedId(id);
+                          if (la !== null && ln !== null) flyTo(la, ln, 13);
+                        }}
+                        className={`rounded-2xl bg-white border shadow-sm p-4 cursor-pointer ${
+                          id === selectedId ? 'border-blue-500 ring-2 ring-blue-100' : 'border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[14px] font-extrabold text-slate-900 truncate">{hubName(h)}</p>
+                            <p className="text-[12px] text-slate-500 truncate">
+                              {[hubSector(h), hubCity(h), hubState(h)].filter(Boolean).join(', ') || 'Location set nahi'}
+                            </p>
+                          </div>
+                          <span
+                            className={`shrink-0 px-3 py-1 rounded-full text-[10px] font-extrabold text-white ${
+                              archived ? 'bg-slate-500' : active ? 'bg-[#10B981]' : 'bg-[#EF4444]'
+                            }`}
+                          >
+                            {archived ? 'ARCHIVED' : active ? 'ACTIVE' : 'INACTIVE'}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-slate-600">
+                          <span>Partners: <b>{pc}</b></span>
+                          <span>Radius: <b>{hubRadius(h)} km</b></span>
+                          {(la === null || ln === null) && (
+                            <span className="text-amber-600 font-bold">Map location set nahi</span>
+                          )}
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => startEdit(h)}
+                            className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-[11px] font-bold cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          {archived ? (
+                            <button
+                              onClick={() => setArchived(h, false)}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-bold cursor-pointer"
+                            >
+                              Restore
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setArchived(h, true)}
+                              className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-[11px] font-bold cursor-pointer"
+                            >
+                              Archive
+                            </button>
+                          )}
+                          <button
+                            onClick={() => removeHub(h)}
+                            className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 text-[11px] font-bold cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            /* ---------------- Add / Edit form ---------------- */
+            <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-4">
+              <h3 className="text-[15px] font-extrabold text-slate-900">
+                {form.id ? 'Hub Edit Karo' : 'Naya Hub Add Karo'}
+              </h3>
+
+              <div className="relative">
+                <label className={labelCls}>Location search (India)</label>
+                <input
+                  value={geoQuery}
+                  onChange={e => setGeoQuery(e.target.value)}
+                  placeholder="Jaise: Sector 85 Gurgaon"
+                  className={inputCls}
+                />
+                {geoLoading && <p className="mt-1 text-[11px] text-slate-500">Dhundh rahe hain...</p>}
+                {geoError && <p className="mt-1 text-[11px] text-rose-600">{geoError}</p>}
+                {geoResults.length > 0 && (
+                  <div className="absolute z-30 mt-1 w-full max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                    {geoResults.map((r, i) => (
+                      <button
+                        key={i}
+                        onClick={() => pickGeo(r)}
+                        className="block w-full text-left px-3 py-2 text-[12px] text-slate-700 hover:bg-blue-50 cursor-pointer"
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Ya seedha map par click karo. Pin ko drag karke sahi jagah laga sakte ho.
+                </p>
+              </div>
+
+              <div>
+                <label className={labelCls}>Hub ka naam *</label>
+                <input
+                  value={form.name}
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                  className={inputCls}
+                  placeholder="Jaise: Gurgaon Sector 85 Hub"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>State *</label>
+                  <input
+                    value={form.state}
+                    onChange={e => setForm({ ...form, state: e.target.value })}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>City *</label>
+                  <input
+                    value={form.city}
+                    onChange={e => setForm({ ...form, city: e.target.value })}
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>Sector / Area</label>
+                <input
+                  value={form.sector}
+                  onChange={e => setForm({ ...form, sector: e.target.value })}
+                  className={inputCls}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Latitude *</label>
+                  <input
+                    value={form.lat}
+                    onChange={e => setForm({ ...form, lat: e.target.value })}
+                    className={inputCls}
+                    inputMode="decimal"
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Longitude *</label>
+                  <input
+                    value={form.lng}
+                    onChange={e => setForm({ ...form, lng: e.target.value })}
+                    className={inputCls}
+                    inputMode="decimal"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Service radius (km) *</label>
+                  <input
+                    value={form.radiusKm}
+                    onChange={e => setForm({ ...form, radiusKm: e.target.value })}
+                    className={inputCls}
+                    inputMode="decimal"
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Status</label>
+                  <select
+                    value={form.active ? 'A' : 'I'}
+                    onChange={e => setForm({ ...form, active: e.target.value === 'A' })}
+                    className={inputCls}
+                  >
+                    <option value="A">Active</option>
+                    <option value="I">Inactive</option>
                   </select>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-[#E5E5EA]">
+              {formError && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-[12px] font-semibold text-rose-700">
+                  {formError}
+                </div>
+              )}
+
+              <div className="flex gap-3">
                 <button
-                  type="button"
-                  onClick={resetForm}
-                  className="px-4 py-2 rounded-xl bg-[#F2F2F7] text-[#1C1C1E] font-bold"
+                  onClick={saveForm}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-[12px] font-extrabold cursor-pointer"
+                >
+                  {form.id ? 'Changes Save Karo' : 'Hub Save Karo'}
+                </button>
+                <button
+                  onClick={cancelForm}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-[12px] font-extrabold cursor-pointer"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 rounded-xl bg-[#1C1C1E] hover:bg-black text-white font-bold"
-                >
-                  {editingHub ? 'Save Changes' : 'Create & Activate'}
-                </button>
               </div>
-            </form>
-          </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
+
+export default AdminHubOperations;

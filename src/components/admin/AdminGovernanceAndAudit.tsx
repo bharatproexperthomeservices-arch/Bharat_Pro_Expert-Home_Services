@@ -40,15 +40,23 @@ interface AdminGovernanceAndAuditProps {
   partners: Partner[];
   hubs: HubLocation[];
   onAuditLog?: (action: string, targetId: string, details: string) => void;
+  initialTab?: 'RBAC' | 'AUDIT_LOGS' | 'COMPLAINTS' | 'NOTIFICATIONS' | 'SETTINGS' | 'BI_REPORTS';
 }
 
 export const AdminGovernanceAndAudit: React.FC<AdminGovernanceAndAuditProps> = ({
   bookings,
   partners,
   hubs,
-  onAuditLog
+  onAuditLog,
+  initialTab
 }) => {
-  const [activeTab, setActiveTab] = useState<'RBAC' | 'AUDIT_LOGS' | 'COMPLAINTS' | 'NOTIFICATIONS' | 'SETTINGS' | 'BI_REPORTS'>('RBAC');
+  const [activeTab, setActiveTab] = useState<'RBAC' | 'AUDIT_LOGS' | 'COMPLAINTS' | 'NOTIFICATIONS' | 'SETTINGS' | 'BI_REPORTS'>(initialTab || 'RBAC');
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [complaints, setComplaints] = useState<ComplaintTicket[]>(INITIAL_COMPLAINTS);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(INITIAL_AUDIT_LOGS);
   const [roles, setRoles] = useState<RBACRoleRecord[]>(INITIAL_RBAC_ROLES);
@@ -445,3 +453,5 @@ export const AdminGovernanceAndAudit: React.FC<AdminGovernanceAndAuditProps> = (
     </div>
   );
 };
+
+export default AdminGovernanceAndAudit;

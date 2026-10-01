@@ -33,6 +33,11 @@ export const AdminCustomerAndCMS: React.FC<AdminCustomerAndCMSProps> = ({
   onAuditLog
 }) => {
   const [activeTab, setActiveTab] = useState<'CMS' | 'CUSTOMERS' | 'COUPONS'>(initialTab);
+
+  React.useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   const [cmsPages, setCmsPages] = useState<CMSPageContent[]>(INITIAL_CMS_PAGES);
   const [customers, setCustomers] = useState<CustomerUser[]>(INITIAL_CUSTOMERS);
   const [coupons, setCoupons] = useState<CouponRule[]>(INITIAL_COUPONS);
@@ -455,3 +460,5 @@ export const AdminCustomerAndCMS: React.FC<AdminCustomerAndCMSProps> = ({
     </div>
   );
 };
+
+export default AdminCustomerAndCMS;

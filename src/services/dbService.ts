@@ -590,16 +590,17 @@ export const getAllBookings = async (customerId?: string): Promise<Booking[]> =>
     }
   } catch {}
 
-  const stored: Booking[] = JSON.parse(localStorage.getItem(STORAGE_BOOKINGS_KEY) || '[]');
-  if (stored && Array.isArray(stored) && stored.length > 0) {
-    if (customerId) {
-      return stored.filter(b => b.customerId === customerId);
-    }
-    return stored;
-  }
-  if (!customerId) {
-    localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(INITIAL_BOOKINGS));
-    return INITIAL_BOOKINGS;
+  const raw = localStorage.getItem(STORAGE_BOOKINGS_KEY);
+  if (raw !== null) {
+    try {
+      const stored: Booking[] = JSON.parse(raw);
+      if (Array.isArray(stored)) {
+        if (customerId) {
+          return stored.filter(b => b.customerId === customerId);
+        }
+        return stored;
+      }
+    } catch {}
   }
   return [];
 };

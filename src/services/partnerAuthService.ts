@@ -1064,18 +1064,37 @@ export const approvePartnerAndMakeIdLive = async (
     newValue: `Partner Approved. Login ID: ${finalUserId}`
   });
 
-  // Dispatched Owner notification email
-  await sendOwnerEmailNotification({
-    type: 'PARTNER_ID_LIVE',
-    subject: `⚡ [Bharat Pro] Partner ID LIVE Alert: ${partner.name} (${finalUserId}) is Approved!`,
-    body: `Namaste Admin / Owner,\n\nPartner Onboarding has been APPROVED and the ID is now LIVE on the platform!\n\nPartner Details:\n- Name: ${partner.name}\n- Mobile: ${partner.phone}\n- Email: ${partner.email || 'N/A'}\n- Hub: ${partner.assignedHubName || partner.assignedHubId}\n\nLOGIN CREDENTIALS ASSIGNED:\n- User ID: ${finalUserId}\n- Password: ${finalPassword}\n- Status: LIVE & ACTIVE\n- Approved At: ${new Date(nowIso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST\n- Approved By: ${approvedBy}\n\nThe partner can now log in strictly using this User ID and Password at the Partner Portal.\n\n- Bharat Pro Expert Admin System`,
-    metadata: {
-      partnerId: partner.id,
-      loginUserId: finalUserId,
-      partnerName: partner.name,
-      partnerPhone: partner.phone
-    }
-  });
+  // Also log to primary admin audit_logs collection
+  try {
+    const globalAudit = {
+      id: `audit_prt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      action: 'PARTNER_APPROVED',
+      adminId: approvedBy,
+      adminEmail: approvedBy,
+      module: 'PARTNERS',
+      targetId: partnerId,
+      details: `Partner ${partner.name} approved and activated with Login ID ${finalUserId}`,
+      timestamp: nowIso
+    };
+    await setDoc(doc(db, 'audit_logs', globalAudit.id), globalAudit);
+  } catch {}
+
+  // Dispatched Owner notification email (safely caught so partner approval never fails due to email provider)
+  try {
+    await sendOwnerEmailNotification({
+      type: 'PARTNER_ID_LIVE',
+      subject: `⚡ [Bharat Pro] Partner ID LIVE Alert: ${partner.name} (${finalUserId}) is Approved!`,
+      body: `Namaste Admin / Owner,\n\nPartner Onboarding has been APPROVED and the ID is now LIVE on the platform!\n\nPartner Details:\n- Name: ${partner.name}\n- Mobile: ${partner.phone}\n- Email: ${partner.email || 'N/A'}\n- Hub: ${partner.assignedHubName || partner.assignedHubId}\n\nLOGIN CREDENTIALS ASSIGNED:\n- User ID: ${finalUserId}\n- Password: ${finalPassword}\n- Status: LIVE & ACTIVE\n- Approved At: ${new Date(nowIso).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST\n- Approved By: ${approvedBy}\n\nThe partner can now log in strictly using this User ID and Password at the Partner Portal.\n\n- Bharat Pro Expert Admin System`,
+      metadata: {
+        partnerId: partner.id,
+        loginUserId: finalUserId,
+        partnerName: partner.name,
+        partnerPhone: partner.phone
+      }
+    });
+  } catch (err) {
+    console.warn('Partner approval email notification deferred:', err);
+  }
 
   return { success: true, partner: saved };
 };

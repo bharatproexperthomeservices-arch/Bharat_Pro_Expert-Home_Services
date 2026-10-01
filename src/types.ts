@@ -865,3 +865,259 @@ export interface CustomerInvoice {
   sacCode: string; // 998533 (Disinfection and pest control / cleaning services)
   issuedAt: string;
 }
+
+// ==========================================
+// 11-ROLE RBAC SYSTEM (Section 31 & Blueprint)
+// ==========================================
+export type RbacRoleType = 
+  | 'SUPER_ADMIN'
+  | 'OPERATIONS_DIRECTOR'
+  | 'LIVE_DISPATCH_COMMANDER'
+  | 'LOCAL_HUB_LEAD'
+  | 'QUALITY_SOP_OFFICER'
+  | 'CATALOGUE_CONTENT_LEAD'
+  | 'FINANCE_ACCOUNTS_OFFICER'
+  | 'CRM_CUSTOMER_OPS_LEAD'
+  | 'PARTNER_FLEET_MANAGER'
+  | 'REPORTS_ANALYTICS_MANAGER'
+  | 'SECURITY_AUDIT_ADMIN';
+
+export type RbacPermissionAction = 
+  | 'view'
+  | 'create'
+  | 'edit'
+  | 'delete'
+  | 'archive'
+  | 'restore'
+  | 'approve'
+  | 'reject'
+  | 'payout'
+  | 'refund'
+  | 'dispatch'
+  | 'manage_users'
+  | 'manage_permissions'
+  | 'manage_integrations'
+  | 'run_ai_tasks'
+  | 'deploy'
+  | 'rollback'
+  | 'configure_automation';
+
+export interface EmployeeAccount {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: RbacRoleType;
+  roleTitle: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  assignedHubId?: string;
+  assignedHubName?: string;
+  assignedCity?: string;
+  assignedModules: string[];
+  customPermissions?: RbacPermissionAction[];
+  lastActiveAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ==========================================
+// IMMUTABLE AUDIT CENTER (Section 32)
+// ==========================================
+export interface ImmutableAuditLog {
+  id: string;
+  actor: string;
+  actorEmail: string;
+  role: RbacRoleType | 'AUTOMATION_AGENT' | 'AI_DEVELOPER' | 'CUSTOMER';
+  timestamp: string;
+  ipAddress?: string;
+  action: string;
+  module: 
+    | 'OPERATIONS'
+    | 'DISPATCH'
+    | 'HUBS'
+    | 'PARTNERS'
+    | 'SERVICES'
+    | 'PRICING'
+    | 'COUPONS'
+    | 'QUALITY'
+    | 'INVENTORY'
+    | 'CRM'
+    | 'FINANCE'
+    | 'SETTLEMENTS'
+    | 'REFUNDS'
+    | 'CMS'
+    | 'GOVERNANCE'
+    | 'SECURITY'
+    | 'AI_DEVELOPER'
+    | 'AUTOMATION_AGENT';
+  recordId?: string;
+  beforeState?: Record<string, any>;
+  afterState?: Record<string, any>;
+  result: 'SUCCESS' | 'FAILURE' | 'BLOCKED' | 'PENDING';
+  reason?: string;
+  taskId?: string;
+  automationId?: string;
+}
+
+// ==========================================
+// AI DEVELOPER ENGINE (Section 37-54 & Page 3)
+// ==========================================
+export type AiSafeMode = 'SAFE' | 'REVIEW' | 'CONTROLLED_AUTO' | 'EMERGENCY';
+
+export interface AiTaskStep {
+  stepNumber: number;
+  phase: 'UNDERSTAND' | 'INSPECT' | 'PLAN_DIFF' | 'BUILD_TEST' | 'VERIFY' | 'DEPLOY';
+  title: string;
+  description: string;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
+  outputLogs?: string[];
+  timestamp?: string;
+}
+
+export interface AiDiffItem {
+  file: string;
+  type: 'MODIFY' | 'CREATE' | 'DELETE' | 'MIGRATION';
+  summary: string;
+  diffText: string;
+}
+
+export interface AiChangePlan {
+  id: string;
+  goal: string;
+  whatIUnderstood: string;
+  filesAffected: string[];
+  dbChanges: string[];
+  apiImpact: string[];
+  uiChanges: string[];
+  risks: string[];
+  testPlan: string[];
+  rollbackPlan: string;
+  diffs: AiDiffItem[];
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+}
+
+export interface AiTask {
+  id: string;
+  command: string;
+  requesterEmail: string;
+  mode: AiSafeMode;
+  provider: 'Google Gemini' | 'OpenAI' | 'Anthropic' | 'Fallback Mock';
+  model: string;
+  status: 'QUEUED' | 'RUNNING' | 'WAITING_APPROVAL' | 'TESTING' | 'COMPLETED' | 'FAILED' | 'ROLLED_BACK' | 'CANCELLED';
+  plan?: AiChangePlan;
+  steps: AiTaskStep[];
+  checkpointId?: string;
+  testResults?: {
+    lint: 'PASS' | 'FAIL';
+    typecheck: 'PASS' | 'FAIL';
+    build: 'PASS' | 'FAIL';
+    details: string;
+  };
+  approvalState?: {
+    required: boolean;
+    approvedBy?: string;
+    approvedAt?: string;
+  };
+  tokensUsed?: number;
+  estimatedCostUsd?: number;
+  durationSeconds?: number;
+  createdAt: string;
+  completedAt?: string;
+  errorMessage?: string;
+}
+
+export interface AiProviderConfig {
+  provider: 'Google Gemini' | 'OpenAI' | 'Anthropic';
+  model: string;
+  enabled: boolean;
+  maxTokens: number;
+  timeoutSeconds: number;
+  fallbackEnabled: boolean;
+  rateLimitPerMinute: number;
+  hasServerKeyConfigured: boolean;
+}
+
+// ==========================================
+// 24x7 AUTOMATION AGENT (Section 55-65 & Pages 4-7)
+// ==========================================
+export type AutomationEventType = 
+  | 'booking.created'
+  | 'booking.updated'
+  | 'booking.cancelled'
+  | 'booking.assigned'
+  | 'booking.reassigned'
+  | 'booking.completed'
+  | 'partner.approved'
+  | 'partner.suspended'
+  | 'partner.availability_changed'
+  | 'payment.confirmed'
+  | 'refund.initiated'
+  | 'hub.coverage_check';
+
+export interface AutomationRule {
+  id: string;
+  name: string;
+  eventType: AutomationEventType;
+  description: string;
+  enabled: boolean;
+  priority: number; // 1 (Highest) - 10
+  actionType: 
+    | 'AUTO_DISPATCH_BROADCAST' 
+    | 'CANCEL_RECOVERY' 
+    | 'REASSIGN_ALTERNATIVE_PARTNER' 
+    | 'NOTIFY_PARTIES' 
+    | 'REFUND_DISPATCH' 
+    | 'COVERAGE_ALERT';
+  conditions: Record<string, any>;
+  retryLimit: number;
+  timeoutSeconds: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AutomationRun {
+  id: string;
+  ruleId: string;
+  ruleName: string;
+  eventType: AutomationEventType;
+  bookingId?: string;
+  bookingNumber?: string;
+  partnerId?: string;
+  status: 'SUCCESS' | 'ATTENTION' | 'PENDING' | 'FAILED';
+  startedAt: string;
+  completedAt?: string;
+  durationMs: number;
+  stepsExecuted: string[];
+  message: string;
+  exceptionDetails?: string;
+  relatedRecordLink?: string;
+}
+
+export interface AutomationException {
+  id: string;
+  automationRunId: string;
+  bookingId?: string;
+  bookingNumber?: string;
+  eventType: AutomationEventType;
+  failedStep: string;
+  error: string;
+  retryCount: number;
+  maxRetries: number;
+  status: 'OPEN' | 'RESOLVING' | 'RESOLVED' | 'IGNORED';
+  recommendedAction: string;
+  createdAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+}
+
+export interface OfflineWorkReport {
+  id: string;
+  sinceTimestamp: string;
+  generatedAt: string;
+  bookingsHandledCount: number;
+  reassignmentsCount: number;
+  cancellationsProcessedCount: number;
+  partnerActionsCount: number;
+  exceptionsCount: number;
+  runs: AutomationRun[];
+}
