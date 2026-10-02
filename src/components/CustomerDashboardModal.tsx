@@ -227,7 +227,7 @@ export const CustomerDashboardModal: React.FC<CustomerDashboardModalProps> = ({
                         <div className="text-xs text-gray-500 flex items-center gap-3">
                           <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {bk.date}</span>
                           <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {bk.timeSlot}</span>
-                          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {bk.address.city}</span>
+                          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {bk.address?.city || 'Gurugram'}</span>
                         </div>
                       </div>
 

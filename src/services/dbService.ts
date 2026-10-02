@@ -177,10 +177,24 @@ export const createNewBooking = async (newBooking: Booking): Promise<Booking> =>
     console.warn('Firestore write fallback to local storage:', err);
   }
 
-  // Backup in LocalStorage
+  // Backup in LocalStorage (ensure no duplicate ID)
   const stored: Booking[] = JSON.parse(localStorage.getItem(STORAGE_BOOKINGS_KEY) || '[]');
-  stored.unshift(bookingPendingAssignment);
+  const existingIndex = stored.findIndex(b => b.id === bookingPendingAssignment.id);
+  if (existingIndex !== -1) {
+    stored[existingIndex] = bookingPendingAssignment;
+  } else {
+    stored.unshift(bookingPendingAssignment);
+  }
   localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(stored));
+
+  // Store in session recent bookings for guest visibility
+  try {
+    const recentIds: string[] = JSON.parse(localStorage.getItem('bharat_pro_recent_booking_ids') || '[]');
+    if (!recentIds.includes(bookingPendingAssignment.id)) {
+      recentIds.unshift(bookingPendingAssignment.id);
+      localStorage.setItem('bharat_pro_recent_booking_ids', JSON.stringify(recentIds.slice(0, 20)));
+    }
+  } catch {}
 
   // Trigger Real-time WhatsApp Notification to Admin Number
   await sendWhatsAppNotification(
@@ -193,7 +207,7 @@ export const createNewBooking = async (newBooking: Booking): Promise<Booking> =>
   // Broadcast event for real-time app update
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('bharatpro_booking_updated', { 
-      detail: { booking: bookingPendingAssignment } 
+      detail: { booking: bookingPendingAssignment, allBookings: stored } 
     }));
     localStorage.setItem('bharatpro_last_updated_booking', JSON.stringify({ 
       id: bookingPendingAssignment.id, 
@@ -577,32 +591,87 @@ export const getPartnersList = async (): Promise<Partner[]> => {
   return getOrSeedPartners();
 };
 
-// Fetch all bookings
-export const getAllBookings = async (customerId?: string): Promise<Booking[]> => {
+// Fetch all bookings (merges LocalStorage and Firestore so no booking is ever lost)
+export const getAllBookings = async (
+  customerId?: string,
+  customerPhone?: string
+): Promise<Booking[]> => {
+  const map = new Map<string, Booking>();
+
+  // 1. Load from LocalStorage first (immediate, client bookings always present)
   try {
-    let q = query(collection(db, 'bookings'), orderBy('createdAt', 'desc'));
-    if (customerId) {
-      q = query(collection(db, 'bookings'), where('customerId', '==', customerId));
+    const raw = localStorage.getItem(STORAGE_BOOKINGS_KEY);
+    if (raw) {
+      const stored: Booking[] = JSON.parse(raw);
+      if (Array.isArray(stored)) {
+        stored.forEach(b => {
+          if (b && (b.id || b.bookingNumber)) {
+            const key = b.id || b.bookingNumber;
+            map.set(key, b);
+          }
+        });
+      }
     }
-    const snap = await withTimeout(getDocs(q), 2000);
+  } catch (err) {
+    console.warn('LocalStorage bookings read error:', err);
+  }
+
+  // 2. Fetch from Firestore (merge with remote records)
+  try {
+    const snap = await withTimeout(getDocs(collection(db, 'bookings')), 3000);
     if (!snap.empty) {
-      return snap.docs.map(d => d.data() as Booking);
+      snap.docs.forEach(d => {
+        const remote = d.data() as Booking;
+        if (remote && (remote.id || remote.bookingNumber)) {
+          const key = remote.id || remote.bookingNumber;
+          const local = map.get(key);
+          if (!local) {
+            map.set(key, remote);
+          } else {
+            const localTime = new Date(local.updatedAt || local.createdAt || 0).getTime();
+            const remoteTime = new Date(remote.updatedAt || remote.createdAt || 0).getTime();
+            if (remoteTime >= localTime) {
+              map.set(key, { ...local, ...remote });
+            }
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('Firestore bookings read note:', err);
+  }
+
+  // Sync merged list to LocalStorage cache
+  try {
+    const mergedList = Array.from(map.values());
+    if (mergedList.length > 0) {
+      localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(mergedList));
     }
   } catch {}
 
-  const raw = localStorage.getItem(STORAGE_BOOKINGS_KEY);
-  if (raw !== null) {
-    try {
-      const stored: Booking[] = JSON.parse(raw);
-      if (Array.isArray(stored)) {
-        if (customerId) {
-          return stored.filter(b => b.customerId === customerId);
-        }
-        return stored;
-      }
-    } catch {}
+  // Sort newest first
+  const all = Array.from(map.values()).sort((a, b) => {
+    const timeA = new Date(a.createdAt || a.date || 0).getTime();
+    const timeB = new Date(b.createdAt || b.date || 0).getTime();
+    return timeB - timeA;
+  });
+
+  // Filter if customerId or customerPhone provided
+  if (customerId || customerPhone) {
+    const cleanPhone = (p?: string) => (p || '').replace(/\D/g, '').slice(-10);
+    const targetPhone = cleanPhone(customerPhone);
+    const targetId = customerId?.trim();
+
+    return all.filter(b => {
+      if (targetId && b.customerId === targetId) return true;
+      if (targetPhone && b.customerPhone && cleanPhone(b.customerPhone) === targetPhone) return true;
+      if (targetId && b.customerEmail && b.customerEmail.toLowerCase() === targetId.toLowerCase()) return true;
+      if (targetPhone && b.customerId && b.customerId.includes(targetPhone)) return true;
+      return false;
+    });
   }
-  return [];
+
+  return all;
 };
 
 // Fetch WhatsApp logs

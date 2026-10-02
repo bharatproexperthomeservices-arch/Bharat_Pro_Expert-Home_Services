@@ -235,8 +235,8 @@ export function AdminBookingsTab({
 
   const filtered = useMemo(() => {
     let list = [...bookings];
-    if (stateFilter !== 'ALL') list = list.filter((b) => b.state_code === stateFilter);
-    if (cityFilter !== 'ALL') list = list.filter((b) => b.city_name === cityFilter);
+    if (stateFilter !== 'ALL') list = list.filter((b) => b.state_code.toUpperCase() === stateFilter.toUpperCase());
+    if (cityFilter !== 'ALL') list = list.filter((b) => b.city_name.toLowerCase() === cityFilter.toLowerCase());
     if (statusFilter !== 'ALL') list = list.filter((b) => b.status === statusFilter);
     if (paymentFilter !== 'ALL') list = list.filter((b) => b.payment_status === paymentFilter);
     if (search.trim()) {

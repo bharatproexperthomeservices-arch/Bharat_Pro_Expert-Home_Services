@@ -135,14 +135,50 @@ function AppContent() {
     initializeDatabaseDefaults();
   }, []);
 
-  // Load user bookings
+  // Load user bookings and listen to real-time booking creations
   useEffect(() => {
     const fetchBookings = async () => {
-      const bks = await getAllBookings(user?.uid || profile?.uid);
-      setMyBookings(bks);
+      const custId = user?.uid || profile?.uid;
+      const phone = user?.phoneNumber || profile?.phone;
+      if (custId || phone) {
+        const bks = await getAllBookings(custId, phone);
+        setMyBookings(bks);
+      } else {
+        const all = await getAllBookings();
+        try {
+          const recentIds: string[] = JSON.parse(localStorage.getItem('bharat_pro_recent_booking_ids') || '[]');
+          if (recentIds.length > 0) {
+            const guestBookings = all.filter(b => recentIds.includes(b.id));
+            setMyBookings(guestBookings.length > 0 ? guestBookings : all);
+          } else {
+            setMyBookings(all);
+          }
+        } catch {
+          setMyBookings(all);
+        }
+      }
     };
     fetchBookings();
-  }, [user, profile, activeTrackingBooking]);
+
+    const handleBookingUpdated = (e: any) => {
+      if (e.detail?.booking) {
+        setMyBookings(prev => {
+          const existing = prev.findIndex(b => b.id === e.detail.booking.id);
+          if (existing !== -1) {
+            const copy = [...prev];
+            copy[existing] = e.detail.booking;
+            return copy;
+          }
+          return [e.detail.booking, ...prev];
+        });
+      } else {
+        fetchBookings();
+      }
+    };
+
+    window.addEventListener('bharatpro_booking_updated', handleBookingUpdated);
+    return () => window.removeEventListener('bharatpro_booking_updated', handleBookingUpdated);
+  }, [user, profile]);
 
   const handleOpenAuth = (targetRole: 'customer' | 'partner' = 'customer') => {
     setAuthModalDefaultRole(targetRole);
@@ -151,7 +187,10 @@ function AppContent() {
 
   const handleBookingSuccess = (newBooking: Booking) => {
     setBookingService(null);
-    setMyBookings(prev => [newBooking, ...prev]);
+    setMyBookings(prev => {
+      const remaining = prev.filter(b => b.id !== newBooking.id);
+      return [newBooking, ...remaining];
+    });
     setActiveTrackingBooking(newBooking);
   };
 
