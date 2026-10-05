@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Bharat Pro Expert - Admin</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD1EBd87Zm6iEtuBkza9qqP4joDUSr10cI",
+  authDomain: "bharatproexperthomeservi-de9c7.firebaseapp.com",
+  projectId: "bharatproexperthomeservi-de9c7",
+  storageBucket: "bharatproexperthomeservi-de9c7.firebasestorage.app",
+  messagingSenderId: "822174791200",
+  appId: "1:822174791200:web:0ffb6b90d1422476ba6e45",
+  measurementId: "G-EDFBC9GHQD"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+function Badge({ status }) {
+  const colors = {
+    active: 'bg-green-100 text-green-700', inactive: 'bg-gray-100 text-gray-600',
+    new: 'bg-blue-100 text-blue-700', ongoing: 'bg-yellow-100 text-yellow-700',
+    completed: 'bg-green-100 text-green-700', cancelled: 'bg-red-100 text-red-700',
+    verified: 'bg-green-100 text-green-700', pending: 'bg-yellow-100 text-yellow-700',
+    Gold: 'bg-yellow-100 text-yellow-700', Silver: 'bg-gray-100 text-gray-700',
+    Platinum: 'bg-purple-100 text-purple-700',
+  };
+  return <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>;
+}
+
+/* ============ LOGIN ============ */
+function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    try { await auth.signInWithEmailAndPassword(email, password); }
+    catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+        <div className="text-center mb-6">
+          <div className="text-5xl mb-2">🏢</div>
+          <h1 className="text-2xl font-bold text-gray-800">Bharat Pro Expert</h1>
+          <p className="text-gray-500 text-sm mt-1">Admin Panel</p>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+              className="w-full px-4 py-2 border rounded-lg" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Password</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+              className="w-full px-4 py-2 border rounded-lg" />
+          </div>
+          {error && <div className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</div>}
+          <button type="submit" disabled={loading}
+            className="w-full bg-orange-600 text-white py-2 rounded-lg font-medium disabled:opacity-50">
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ============ DASHBOARD ============ */
+function Dashboard({ categories, services, bookings, customers, partners }) {
+  const revenue = bookings.filter(b => b.status === 'completed').reduce((s, b) => s + (b.amount || 0), 0);
+  const stats = [
+    { l: 'Categories', v: categories.length, i: '🏷️', c: 'bg-purple-500' },
+    { l: 'Services', v: services.length, i: '🛠️', c: 'bg-indigo-500' },
+    { l: 'Bookings', v: bookings.length, i: '📅', c: 'bg-blue-500' },
+    { l: 'Revenue', v: `₹${revenue.toLocaleString()}`, i: '💰', c: 'bg-green-500' },
+    { l: 'Customers', v: customers.length, i: '👥', c: 'bg-pink-500' },
+    { l: 'Partners', v: partners.length, i: '🧑‍🔧', c: 'bg-orange-500' },
+  ];
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {stats.map(s => (
+          <div key={s.l} className="bg-white rounded-xl p-5 shadow border flex items-center justify-between">
+            <div>
+              <div className="text-gray-500 text-sm">{s.l}</div>
+              <div className="text-2xl font-bold mt-1">{s.v}</div>
+            </div>
+            <div className={`${s.c} w-12 h-12 rounded-lg flex items-center justify-center text-2xl`}>{s.i}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============ CATEGORIES ============ */
+function Categories({ items }) {
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const [form, setForm] = useState({ name: '', slug: '', icon: '🏷️', commission: 20, status: 'active' });
+  const [saving, setSaving] = useState(false);
+  const openAdd = () => { setEdit(null); setForm({ name: '', slug: '', icon: '🏷️', commission: 20, status: 'active' }); setOpen(true); };
+  const openEdit = (c) => { setEdit(c); setForm(c); setOpen(true); };
+  const save = async () => {
+    if (!form.name || !form.slug) return alert('Name + Slug required');
+    setSaving(true);
+    try {
+      if (edit) await db.collection('categories').doc(edit.id).update(form);
+      else await db.collection('categories').add({ ...form, createdAt: new Date() });
+      setOpen(false);
+    } catch (err) { alert('Error: ' + err.message); }
+    setSaving(false);
+  };
+  const del = async (id) => {
+    if (!confirm('Delete?')) return;
+    try { await db.collection('categories').doc(id).delete(); } catch (err) { alert(err.message); }
+  };
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Categories</h1>
+        <button onClick={openAdd} className="bg-orange-600 text-white px-4 py-2 rounded-lg">➕ Add</button>
+      </div>
+      <div className="bg-white rounded-xl shadow border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50"><tr>
+            <th className="text-left px-4 py-3">Icon</th>
+            <th className="text-left px-4 py-3">Name</th>
+            <th className="text-left px-4 py-3">Slug</th>
+            <th className="text-left px-4 py-3">Comm %</th>
+            <th className="text-left px-4 py-3">Status</th>
+            <th className="text-right px-4 py-3">Action</th>
+          </tr></thead>
+          <tbody>
+            {items.map(c => (
+              <tr key={c.id} className="border-t">
+                <td className="px-4 py-3 text-xl">{c.icon}</td>
+                <td className="px-4 py-3 font-medium">{c.name}</td>
+                <td className="px-4 py-3 text-gray-500">/{c.slug}</td>
+                <td className="px-4 py-3 font-medium">{c.commission}%</td>
+                <td className="px-4 py-3"><Badge status={c.status} /></td>
+                <td className="px-4 py-3 text-right">
+                  <button onClick={() => openEdit(c)} className="text-blue-600 mr-3">✏️</button>
+                  <button onClick={() => del(c.id)} className="text-red-600">🗑️</button>
+                </td>
+              </tr>
+            ))}
+            {items.length === 0 && <tr><td colSpan="6" className="text-center py-6 text-gray-400">No categories yet</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      {open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="font-bold text-lg mb-4">{edit ? 'Edit' : 'Add'} Category</h2>
+            <div className="space-y-3">
+              <div><label className="block text-sm mb-1">Icon</label>
+                <input value={form.icon} onChange={e => setForm({ ...form, icon: e.target.value })} maxLength="2"
+                  className="w-full px-3 py-2 border rounded-lg text-center text-xl" /></div>
+              <div><label className="block text-sm mb-1">Name *</label>
+                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg" /></div>
+              <div><label className="block text-sm mb-1">Slug *</label>
+                <input value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg" /></div>
+              <div><label className="block text-sm mb-1">Commission %</label>
+                <input type="number" value={form.commission} onChange={e => setForm({ ...form, commission: +e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg" />
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {[15, 20, 25, 28, 30].map(c => (
+                    <button key={c} type="button" onClick={() => setForm({ ...form, commission: c })}
+                      className={`px-3 py-1 rounded-lg text-sm border ${form.commission === c ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-700 border-gray-300'}`}>
+                      {c}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div><label className="block text-sm mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select></div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setOpen(false)} className="px-4 py-2 border rounded-lg">Cancel</button>
+              <button onClick={save} disabled={saving}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg disabled:opacity-50">
+                {saving ? 'Saving...' : '💾 Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============ SERVICES ============ */
+function Services({ items, categories }) {
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const [search, setSearch] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ name: '', categoryId: '', description: '', price: 0, discountPrice: 0, duration: 60, commission: 20, status: 'active' });
+
+  const filtered = items.filter(s => (s.name || '').toLowerCase().includes(search.toLowerCase()));
+  const openAdd = () => { setEdit(null); setForm({ name: '', categoryId: categories[0]?.id || '', description: '', price: 0, discountPrice: 0, duration: 60, commission: 20, status: 'active' }); setOpen(true); };
+  const openEdit = (s) => { setEdit(s); setForm({ ...s }); setOpen(true); };
+  const save = async () => {
+    if (!form.name || !form.categoryId) return alert('Name + Category required');
+    setSaving(true);
+    try {
+      const data = { ...form, updatedAt: new Date() };
+      if (edit) await db.collection('services').doc(edit.id).update(data);
+      else await db.collection('services').add({ ...data, createdAt: new Date() });
+      setOpen(false);
+    } catch (err) { alert('Error: ' + err.message); }
+    setSaving(false);
+  };
+  const del = async (id) => {
+    if (!confirm('Delete this service?')) return;
+    try { await db.collection('services').doc(id).delete(); } catch (err) { alert(err.message); }
+  };
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center flex-wrap gap-3">
+        <h1 className="text-2xl font-bold">Services</h1>
+        <button onClick={openAdd} className="bg-orange-600 text-white px-4 py-2 rounded-lg">➕ Add Service</button>
+      </div>
+      <div className="bg-white rounded-xl shadow border p-4">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Search services..."
+          className="w-full px-4 py-2 mb-3 border rounded-lg" />
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50"><tr>
+              <th className="text-left px-3 py-3">Service Name</th>
+              <th className="text-left px-3 py-3">Category</th>
+              <th className="text-left px-3 py-3">Price</th>
+              <th className="text-left px-3 py-3">Duration</th>
+              <th className="text-left px-3 py-3">Comm %</th>
+              <th className="text-left px-3 py-3">Status</th>
+              <th className="text-right px-3 py-3">Action</th>
+            </tr></thead>
+            <tbody>
+              {filtered.map(s => {
+                const cat = categories.find(c => c.id === s.categoryId);
+                return (
+                  <tr key={s.id} className="border-t">
+                    <td className="px-3 py-3 font-medium">{s.name}</td>
+                    <td className="px-3 py-3 text-gray-600">{cat?.icon} {cat?.name || '—'}</td>
+                    <td className="px-3 py-3 font-medium">₹{s.price}</td>
+                    <td className="px-3 py-3">{s.duration} min</td>
+                    <td className="px-3 py-3">{s.commission}%</td>
+                    <td className="px-3 py-3"><Badge status={s.status} /></td>
+                    <td className="px-3 py-3 text-right">
+                      <button onClick={() => openEdit(s)} className="text-blue-600 mr-3">✏️</button>
+                      <button onClick={() => del(s.id)} className="text-red-600">🗑️</button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && <tr><td colSpan="7" className="text-center py-6 text-gray-400">No services yet</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="font-bold text-lg mb-4">{edit ? 'Edit' : 'Add'} Service</h2>
+            <div className="space-y-3">
+              <div><label className="block text-sm mb-1">Service Name *</label>
+                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg" /></div>
+              <div><label className="block text-sm mb-1">Category *</label>
+                <select value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg">
+                  <option value="">— Select —</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                </select></div>
+              <div><label className="block text-sm mb-1">Description</label>
+                <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+                  rows="2" className="w-full px-3 py-2 border rounded-lg" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm mb-1">Price ₹</label>
+                  <input type="number" value={form.price} onChange={e => setForm({ ...form, price: +e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg" /></div>
+                <div><label className="block text-sm mb-1">Discount ₹</label>
+                  <input type="number" value={form.discountPrice} onChange={e => setForm({ ...form, discountPrice: +e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="block text-sm mb-1">Duration (min)</label>
+                  <input type="number" value={form.duration} onChange={e => setForm({ ...form, duration: +e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg" /></div>
+                <div><label className="block text-sm mb-1">Commission %</label>
+                  <input type="number" value={form.commission} onChange={e => setForm({ ...form, commission: +e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg" /></div>
+              </div>
+              <div><label className="block text-sm mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select></div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setOpen(false)} className="px-4 py-2 border rounded-lg">Cancel</button>
+              <button onClick={save} disabled={saving}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg disabled:opacity-50">
+                {saving ? 'Saving...' : '💾 Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============ BOOKINGS ============ */
+function Bookings({ items }) {
+  const [filter, setFilter] = useState('all');
+  const filtered = filter === 'all' ? items : items.filter(b => b.status === filter);
+  const updateStatus = async (id, status) => {
+    try { await db.collection('bookings').doc(id).update({ status, updatedAt: new Date() }); }
+    catch (err) { alert('Error: ' + err.message); }
+  };
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold">Bookings</h1>
+      <div className="flex gap-2 flex-wrap">
+        {['all', 'new', 'ongoing', 'completed', 'cancelled'].map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${filter === f ? 'bg-orange-600 text-white' : 'bg-white text-gray-600 border'}`}>
+            {f}
+          </button>
+        ))}
+      </div>
+      <div className="bg-white rounded-xl shadow border overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50"><tr>
+            <th className="text-left px-3 py-3">Customer</th>
+            <th className="text-left px-3 py-3">Service</th>
+            <th className="text-left px-3 py-3">Partner</th>
+            <th className="text-left px-3 py-3">Amount</th>
+            <th className="text-left px-3 py-3">Status</th>
+            <th className="text-right px-3 py-3">Change Status</th>
+          </tr></thead>
+          <tbody>
+            {filtered.map(b => (
+              <tr key={b.id} className="border-t">
+                <td className="px-3 py-3">
+                  <div className="font-medium">{b.customerName || b.customer || '—'}</div>
+                  <div className="text-xs text-gray-400">{b.phone || ''}</div>
+                </td>
+                <td className="px-3 py-3 text-gray-600">{b.serviceName || b.service || '—'}</td>
+                <td className="px-3 py-3 text-gray-600">{b.partnerName || 'Pending'}</td>
+                <td className="px-3 py-3 font-medium">₹{b.amount || 0}</td>
+                <td className="px-3 py-3"><Badge status={b.status || 'new'} /></td>
+                <td className="px-3 py-3 text-right">
+                  <select value={b.status || 'new'} onChange={e => updateStatus(b.id, e.target.value)}
+                    className="text-xs border rounded px-2 py-1">
+                    <option value="new">New</option>
+                    <option value="ongoing">Ongoing</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && <tr><td colSpan="6" className="text-center py-6 text-gray-400">No bookings yet</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ============ CUSTOMERS ============ */
+function Customers({ items }) {
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold">Customers</h1>
+      <div className="bg-white rounded-xl shadow border overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50"><tr>
+            <th className="text-left px-3 py-3">Name</th>
+            <th className="text-left px-3 py-3">Phone</th>
+            <th className="text-left px-3 py-3">Email</th>
+            <th className="text-left px-3 py-3">City</th>
+            <th className="text-left px-3 py-3">Status</th>
+          </tr></thead>
+          <tbody>
+            {items.map(c => (
+              <tr key={c.id} className="border-t">
+                <td className="px-3 py-3 font-medium">{c.name}</td>
+                <td className="px-3 py-3 text-gray-600">{c.phone}</td>
+                <td className="px-3 py-3 text-gray-600">{c.email}</td>
+                <td className="px-3 py-3 text-gray-600">{c.city}</td>
+                <td className="px-3 py-3"><Badge status={c.status || 'active'} /></td>
+              </tr>
+            ))}
+            {items.length === 0 && <tr><td colSpan="5" className="text-center py-6 text-gray-400">No customers yet</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ============ PARTNERS ============ */
+function Partners({ items }) {
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold">Service Partners</h1>
+      <div className="bg-white rounded-xl shadow border overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50"><tr>
+            <th className="text-left px-3 py-3">Name</th>
+            <th className="text-left px-3 py-3">Category</th>
+            <th className="text-left px-3 py-3">City</th>
+            <th className="text-left px-3 py-3">Rating</th>
+            <th className="text-left px-3 py-3">Tier</th>
+            <th className="text-left px-3 py-3">Status</th>
+          </tr></thead>
+          <tbody>
+            {items.map(p => (
+              <tr key={p.id} className="border-t">
+                <td className="px-3 py-3 font-medium">{p.name}</td>
+                <td className="px-3 py-3 text-gray-600">{p.category}</td>
+                <td className="px-3 py-3 text-gray-600">{p.city}</td>
+                <td className="px-3 py-3">⭐ {p.rating || '—'}</td>
+                <td className="px-3 py-3"><Badge status={p.tier || 'Silver'} /></td>
+                <td className="px-3 py-3"><Badge status={p.status || 'active'} /></td>
+              </tr>
+            ))}
+            {items.length === 0 && <tr><td colSpan="6" className="text-center py-6 text-gray-400">No partners yet</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ============ BANNERS ============ */
+function Banners({ items }) {
+  const [open, setOpen] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ title: '', imageUrl: '', link: '', position: 'home_top', status: 'active' });
+  const openAdd = () => { setEdit(null); setForm({ title: '', imageUrl: '', link: '', position: 'home_top', status: 'active' }); setOpen(true); };
+  const openEdit = (b) => { setEdit(b); setForm({ ...b }); setOpen(true); };
+  const save = async () => {
+    if (!form.title) return alert('Title required');
+    setSaving(true);
+    try {
+      const data = { ...form, updatedAt: new Date() };
+      if (edit) await db.collection('banners').doc(edit.id).update(data);
+      else await db.collection('banners').add({ ...data, createdAt: new Date() });
+      setOpen(false);
+    } catch (err) { alert('Error: ' + err.message); }
+    setSaving(false);
+  };
+  const del = async (id) => {
+    if (!confirm('Delete banner?')) return;
+    try { await db.collection('banners').doc(id).delete(); } catch (err) { alert(err.message); }
+  };
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Website Banners</h1>
+        <button onClick={openAdd} className="bg-orange-600 text-white px-4 py-2 rounded-lg">➕ Add Banner</button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {items.map(b => (
+          <div key={b.id} className="bg-white rounded-xl shadow border overflow-hidden">
+            <div className="aspect-video bg-gray-100 flex items-center justify-center">
+              {b.imageUrl ? <img src={b.imageUrl} alt={b.title} className="w-full h-full object-cover" /> : <span className="text-4xl">🖼️</span>}
+            </div>
+            <div className="p-4">
+              <div className="font-medium">{b.title}</div>
+              <div className="text-xs text-gray-400 mt-1">{b.position}</div>
+              <div className="flex justify-between mt-3">
+                <Badge status={b.status} />
+                <div className="space-x-2">
+                  <button onClick={() => openEdit(b)} className="text-blue-600 text-sm">✏️</button>
+                  <button onClick={() => del(b.id)} className="text-red-600 text-sm">🗑️</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+        {items.length === 0 && <div className="col-span-3 text-center py-8 text-gray-400">No banners yet</div>}
+      </div>
+      {open && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl w-full max-w-md p-6">
+            <h2 className="font-bold text-lg mb-4">{edit ? 'Edit' : 'Add'} Banner</h2>
+            <div className="space-y-3">
+              <div><label className="block text-sm mb-1">Title *</label>
+                <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg" /></div>
+              <div><label className="block text-sm mb-1">Image URL</label>
+                <input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg" /></div>
+              <div><label className="block text-sm mb-1">Link URL</label>
+                <input value={form.link} onChange={e => setForm({ ...form, link: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg" /></div>
+              <div><label className="block text-sm mb-1">Position</label>
+                <select value={form.position} onChange={e => setForm({ ...form, position: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg">
+                  <option value="home_top">Home Top</option>
+                  <option value="home_middle">Home Middle</option>
+                  <option value="category">Category Page</option>
+                </select></div>
+              <div><label className="block text-sm mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select></div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setOpen(false)} className="px-4 py-2 border rounded-lg">Cancel</button>
+              <button onClick={save} disabled={saving}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg disabled:opacity-50">
+                {saving ? 'Saving...' : '💾 Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============ APP ============ */
+function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState('dashboard');
+  const [categories, setCategories] = useState([]);
+  const [services, setServices] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [partners, setPartners] = useState([]);
+  const [banners, setBanners] = useState([]);
+
+  useEffect(() => {
+    return auth.onAuthStateChanged(u => { setUser(u); setLoading(false); });
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsubs = [
+      db.collection('categories').onSnapshot(s => setCategories(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      db.collection('services').onSnapshot(s => setServices(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      db.collection('bookings').onSnapshot(s => setBookings(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      db.collection('customers').onSnapshot(s => setCustomers(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      db.collection('partners').onSnapshot(s => setPartners(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      db.collection('banners').onSnapshot(s => setBanners(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+    ];
+    return () => unsubs.forEach(u => u());
+  }, [user]);
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="text-xl">Loading...</div></div>;
+  if (!user) return <Login />;
+
+  const NAV = [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'categories', label: 'Categories', icon: '🏷️' },
+    { id: 'services', label: 'Services', icon: '🛠️' },
+    { id: 'bookings', label: 'Bookings', icon: '📅' },
+    { id: 'customers', label: 'Customers', icon: '👥' },
+    { id: 'partners', label: 'Partners', icon: '🧑‍🔧' },
+    { id: 'banners', label: 'Banners', icon: '🖼️' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <aside className="w-64 bg-gray-900 text-white p-4 fixed h-full">
+        <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-700">
+          <span className="text-2xl">🏢</span>
+          <div>
+            <div className="font-bold">Bharat Pro Expert</div>
+            <div className="text-xs text-gray-400">Admin Panel</div>
+          </div>
+        </div>
+        <nav className="space-y-1">
+          {NAV.map(it => (
+            <button key={it.id} onClick={() => setPage(it.id)}
+              className={`w-full text-left px-4 py-2 rounded flex items-center gap-2 ${page === it.id ? 'bg-orange-600' : 'hover:bg-gray-800'}`}>
+              <span>{it.icon}</span> <span>{it.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="absolute bottom-4 left-4 right-4">
+          <div className="text-xs text-gray-400 mb-2 truncate">{user.email}</div>
+          <button onClick={() => auth.signOut()}
+            className="w-full bg-red-600 hover:bg-red-700 py-2 rounded text-sm">🚪 Logout</button>
+        </div>
+      </aside>
+      <main className="ml-64 p-6 flex-1">
+        {page === 'dashboard' && <Dashboard categories={categories} services={services} bookings={bookings} customers={customers} partners={partners} />}
+        {page === 'categories' && <Categories items={categories} />}
+        {page === 'services' && <Services items={services} categories={categories} />}
+        {page === 'bookings' && <Bookings items={bookings} />}
+        {page === 'customers' && <Customers items={customers} />}
+        {page === 'partners' && <Partners items={partners} />}
+        {page === 'banners' && <Banners items={banners} />}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
