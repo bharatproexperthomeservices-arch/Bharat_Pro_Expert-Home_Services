@@ -81,14 +81,11 @@ export const initializeDatabaseDefaults = async () => {
             await setDoc(doc(db, 'services', s.id), s, { merge: true });
           }
         }
-      } catch (err) {
+      } catch {
         // Fallback store is active; silently handle network delay/offline state
-        console.warn('Initial cloud sync deferred to local cache:', err);
       }
     }, 1200);
-  } catch (err) {
-    console.warn('Local storage init notice:', err);
-  }
+  } catch {}
 };
 
 // Dispatch WhatsApp notification (official simulated delivery engine + real wa.me link generation)
@@ -193,6 +190,12 @@ export const createNewBooking = async (newBooking: Booking): Promise<Booking> =>
     if (!recentIds.includes(bookingPendingAssignment.id)) {
       recentIds.unshift(bookingPendingAssignment.id);
       localStorage.setItem('bharat_pro_recent_booking_ids', JSON.stringify(recentIds.slice(0, 20)));
+    }
+    if (bookingPendingAssignment.customerPhone) {
+      localStorage.setItem('bharat_pro_last_customer_phone', bookingPendingAssignment.customerPhone);
+    }
+    if (bookingPendingAssignment.customerName) {
+      localStorage.setItem('bharat_pro_last_customer_name', bookingPendingAssignment.customerName);
     }
   } catch {}
 
@@ -591,84 +594,110 @@ export const getPartnersList = async (): Promise<Partner[]> => {
   return getOrSeedPartners();
 };
 
+// In-flight deduplication promise for bookings read
+let inFlightBookingsPromise: Promise<Booking[]> | null = null;
+
 // Fetch all bookings (merges LocalStorage and Firestore so no booking is ever lost)
 export const getAllBookings = async (
   customerId?: string,
   customerPhone?: string
 ): Promise<Booking[]> => {
-  const map = new Map<string, Booking>();
+  const fetchAll = async (): Promise<Booking[]> => {
+    const map = new Map<string, Booking>();
 
-  // 1. Load from LocalStorage first (immediate, client bookings always present)
-  try {
-    const raw = localStorage.getItem(STORAGE_BOOKINGS_KEY);
-    if (raw) {
-      const stored: Booking[] = JSON.parse(raw);
-      if (Array.isArray(stored)) {
-        stored.forEach(b => {
-          if (b && (b.id || b.bookingNumber)) {
-            const key = b.id || b.bookingNumber;
-            map.set(key, b);
+    // 1. Load from LocalStorage first (immediate, client bookings always present)
+    try {
+      const raw = localStorage.getItem(STORAGE_BOOKINGS_KEY);
+      if (raw) {
+        const stored: Booking[] = JSON.parse(raw);
+        if (Array.isArray(stored)) {
+          stored.forEach(b => {
+            if (b && (b.id || b.bookingNumber)) {
+              const key = b.id || b.bookingNumber;
+              map.set(key, b);
+            }
+          });
+        }
+      }
+    } catch {}
+
+    // 2. Fetch from Firestore (merge with remote records)
+    try {
+      const snap = await withTimeout(getDocs(collection(db, 'bookings')), 6000);
+      if (!snap.empty) {
+        snap.docs.forEach(d => {
+          const remote = d.data() as Booking;
+          if (remote && (remote.id || remote.bookingNumber)) {
+            const key = remote.id || remote.bookingNumber;
+            const local = map.get(key);
+            if (!local) {
+              map.set(key, remote);
+            } else {
+              const localTime = new Date(local.updatedAt || local.createdAt || 0).getTime();
+              const remoteTime = new Date(remote.updatedAt || remote.createdAt || 0).getTime();
+              if (remoteTime >= localTime) {
+                map.set(key, { ...local, ...remote });
+              }
+            }
           }
         });
       }
+    } catch {
+      // Graceful offline / local-cache fallback without noisy console warning
     }
-  } catch (err) {
-    console.warn('LocalStorage bookings read error:', err);
+
+    // Sync merged list to LocalStorage cache
+    try {
+      const mergedList = Array.from(map.values());
+      if (mergedList.length > 0) {
+        localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(mergedList));
+      }
+    } catch {}
+
+    // Sort newest first
+    return Array.from(map.values()).sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.date || 0).getTime();
+      const timeB = new Date(b.createdAt || b.date || 0).getTime();
+      return timeB - timeA;
+    });
+  };
+
+  if (!inFlightBookingsPromise) {
+    inFlightBookingsPromise = fetchAll().finally(() => {
+      inFlightBookingsPromise = null;
+    });
   }
 
-  // 2. Fetch from Firestore (merge with remote records)
-  try {
-    const snap = await withTimeout(getDocs(collection(db, 'bookings')), 3000);
-    if (!snap.empty) {
-      snap.docs.forEach(d => {
-        const remote = d.data() as Booking;
-        if (remote && (remote.id || remote.bookingNumber)) {
-          const key = remote.id || remote.bookingNumber;
-          const local = map.get(key);
-          if (!local) {
-            map.set(key, remote);
-          } else {
-            const localTime = new Date(local.updatedAt || local.createdAt || 0).getTime();
-            const remoteTime = new Date(remote.updatedAt || remote.createdAt || 0).getTime();
-            if (remoteTime >= localTime) {
-              map.set(key, { ...local, ...remote });
-            }
-          }
-        }
-      });
-    }
-  } catch (err) {
-    console.warn('Firestore bookings read note:', err);
-  }
-
-  // Sync merged list to LocalStorage cache
-  try {
-    const mergedList = Array.from(map.values());
-    if (mergedList.length > 0) {
-      localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(mergedList));
-    }
-  } catch {}
-
-  // Sort newest first
-  const all = Array.from(map.values()).sort((a, b) => {
-    const timeA = new Date(a.createdAt || a.date || 0).getTime();
-    const timeB = new Date(b.createdAt || b.date || 0).getTime();
-    return timeB - timeA;
-  });
+  const all = await inFlightBookingsPromise;
 
   // Filter if customerId or customerPhone provided
   if (customerId || customerPhone) {
+    let localRecentIds: string[] = [];
+    let lastPhone = '';
+    try {
+      localRecentIds = JSON.parse(localStorage.getItem('bharat_pro_recent_booking_ids') || '[]');
+      lastPhone = localStorage.getItem('bharat_pro_last_customer_phone') || '';
+    } catch {}
+
     const cleanPhone = (p?: string) => (p || '').replace(/\D/g, '').slice(-10);
-    const targetPhone = cleanPhone(customerPhone);
+    const targetPhone = cleanPhone(customerPhone) || cleanPhone(lastPhone);
     const targetId = customerId?.trim();
 
-    return all.filter(b => {
+    const filtered = all.filter(b => {
+      // Direct match on recent bookings from this device
+      if (localRecentIds.includes(b.id) || (b.bookingNumber && localRecentIds.includes(b.bookingNumber))) return true;
+      // Direct customerId match
       if (targetId && b.customerId === targetId) return true;
+      // Phone match (last 10 digits)
       if (targetPhone && b.customerPhone && cleanPhone(b.customerPhone) === targetPhone) return true;
+      // Email match
       if (targetId && b.customerEmail && b.customerEmail.toLowerCase() === targetId.toLowerCase()) return true;
+      // Embedded phone match
       if (targetPhone && b.customerId && b.customerId.includes(targetPhone)) return true;
       return false;
     });
+
+    return filtered;
   }
 
   return all;
@@ -685,23 +714,38 @@ export const getWhatsAppLogs = async (): Promise<WhatsAppLog[]> => {
   return JSON.parse(localStorage.getItem(STORAGE_WALOGS_KEY) || '[]');
 };
 
+// In-flight deduplication promise for services read
+let inFlightServicesPromise: Promise<CleaningService[]> | null = null;
+
 // Fetch All Catalogue Services (with fallback to local storage & seed)
 export const getAllServices = async (): Promise<CleaningService[]> => {
-  try {
-    const snap = await withTimeout(getDocs(collection(db, 'services')), 2000);
-    if (!snap.empty) {
-      return snap.docs.map(d => d.data() as CleaningService);
-    }
-  } catch {}
-
-  const stored = localStorage.getItem(STORAGE_SERVICES_KEY);
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch {}
+  if (inFlightServicesPromise) {
+    return inFlightServicesPromise;
   }
-  return INITIAL_SERVICES;
+
+  inFlightServicesPromise = (async () => {
+    try {
+      const snap = await withTimeout(getDocs(collection(db, 'services')), 6000);
+      if (!snap.empty) {
+        const list = snap.docs.map(d => d.data() as CleaningService);
+        localStorage.setItem(STORAGE_SERVICES_KEY, JSON.stringify(list));
+        return list;
+      }
+    } catch {}
+
+    const stored = localStorage.getItem(STORAGE_SERVICES_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return INITIAL_SERVICES;
+  })().finally(() => {
+    inFlightServicesPromise = null;
+  });
+
+  return inFlightServicesPromise;
 };
 
 // Update service pricing & all fields (Full Editability)
@@ -825,27 +869,46 @@ export const toggleServiceActive = async (serviceId: string, active: boolean): P
   return updateServicePricing(serviceId, { active });
 };
 
+// In-flight deduplication promise for hubs read
+let inFlightHubsPromise: Promise<HubLocation[]> | null = null;
+
 // Fetch All Hub Locations (combining cloud Firestore & local storage)
 export const getAllHubs = async (): Promise<HubLocation[]> => {
-  try {
-    const snap = await withTimeout(getDocs(collection(db, 'hubs')), 2000);
-    if (!snap.empty) {
-      const list = snap.docs.map(d => d.data() as HubLocation);
-      localStorage.setItem(STORAGE_HUBS_KEY, JSON.stringify(list));
-      return list;
-    }
-  } catch (err) {
-    console.warn('Firestore get hubs fallback to local cache:', err);
+  if (inFlightHubsPromise) {
+    return inFlightHubsPromise;
   }
 
-  const stored = localStorage.getItem(STORAGE_HUBS_KEY);
-  if (stored) {
+  inFlightHubsPromise = (async () => {
+    // 1. Quick check for existing local cache
+    let cachedList: HubLocation[] | null = null;
+    const stored = localStorage.getItem(STORAGE_HUBS_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          cachedList = parsed;
+        }
+      } catch {}
+    }
+
+    // 2. Fetch from Firestore with a healthy 6s timeout
     try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch {}
-  }
-  return INITIAL_HUBS;
+      const snap = await withTimeout(getDocs(collection(db, 'hubs')), 6000);
+      if (!snap.empty) {
+        const list = snap.docs.map(d => d.data() as HubLocation);
+        localStorage.setItem(STORAGE_HUBS_KEY, JSON.stringify(list));
+        return list;
+      }
+    } catch {
+      // Graceful offline/local-cache fallback without noisy console warning
+    }
+
+    return cachedList || INITIAL_HUBS;
+  })().finally(() => {
+    inFlightHubsPromise = null;
+  });
+
+  return inFlightHubsPromise;
 };
 
 // Save All Hub Locations (persists to Firestore, LocalStorage, and dispatches global event)

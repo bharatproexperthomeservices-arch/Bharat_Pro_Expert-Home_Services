@@ -1,101 +1,68 @@
 // ============================================================================
-// Agent #2: LocationResolverAgent
+// Agent #3: ProviderDiscoveryAgent
+// ============================================================================
+// यह एजेंट ग्राहक के स्थान और सेवा के आधार पर निकटतम उपलब्ध पार्टनर्स को खोजता है
 // ============================================================================
 
 import { BaseAgent } from '../BaseAgent';
+import { LocationResolverAgent } from './LocationResolverAgent';
 
-export interface LocationResult {
-  lat: number;
-  lng: number;
-  displayName: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
+export interface PartnerCandidate {
+  id: string;
+  name: string;
+  phone?: string;
+  services: string[];
+  rating: number;
+  completionRate?: number;
+  coordinates: { lat: number; lng: number };
+  distanceKm: number;
+  status: string;
 }
 
-export class LocationResolverAgent extends BaseAgent {
-  private readonly NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+export class ProviderDiscoveryAgent extends BaseAgent {
+  private locResolver: LocationResolverAgent;
 
   constructor() {
-    super(2, 'Location Resolver', 'पता (address) को GPS coordinates में बदलना');
+    super(3, 'Provider Discovery', 'निकटतम उपलब्ध सर्विस पार्टनर्स खोजना');
+    this.locResolver = new LocationResolverAgent();
   }
 
-  async resolve(address: string): Promise<LocationResult | null> {
-    console.log(`🗺️ Resolving location: "${address}"`);
+  async findNearest(
+    customerLoc: { lat: number; lng: number },
+    serviceType: string,
+    radiusKm: number = 25
+  ): Promise<PartnerCandidate[]> {
+    console.log(`🔍 Finding partners for "${serviceType}" near (${customerLoc.lat}, ${customerLoc.lng}) within ${radiusKm}km...`);
 
-    try {
-      const url = `${this.NOMINATIM_URL}?q=${encodeURIComponent(
-        address
-      )}&format=json&addressdetails=1&limit=1&countrycodes=in`;
+    const partners = [
+      { id: 'p1', name: 'Rajesh Sharma', phone: '+919810012345', services: ['Deep Cleaning', 'Home Cleaning', 'AC Repair'], rating: 4.85, completionRate: 98, coordinates: { lat: 28.4595, lng: 77.0266 }, status: 'active' },
+      { id: 'p2', name: 'Amit Verma', phone: '+919810012346', services: ['Deep Cleaning', 'Sofa Cleaning', 'Bathroom Cleaning'], rating: 4.75, completionRate: 94, coordinates: { lat: 28.4900, lng: 77.0850 }, status: 'active' },
+      { id: 'p3', name: 'Suresh Kumar', phone: '+919810012347', services: ['Kitchen Cleaning', 'Deep Cleaning'], rating: 4.90, completionRate: 99, coordinates: { lat: 28.4720, lng: 77.0510 }, status: 'active' },
+      { id: 'p4', name: 'Vikram Yadav', phone: '+919810012348', services: ['Full Home Deep Cleaning', 'Balcony Cleaning'], rating: 4.65, completionRate: 91, coordinates: { lat: 28.4350, lng: 77.0120 }, status: 'active' },
+    ];
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'BharatProExpert/1.0 (contact@bharatproexpert.com)',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Nominatim API error: HTTP ${response.status}`);
+    const results: PartnerCandidate[] = [];
+    for (const p of partners) {
+      if (serviceType && !p.services.some(s => s.toLowerCase().includes(serviceType.toLowerCase()) || serviceType.toLowerCase().includes(s.toLowerCase()))) {
+        continue;
       }
-
-      const data = await response.json();
-
-      if (!data || data.length === 0) {
-        console.warn(`⚠️ No location found for: ${address}`);
-        await this.report(`Location not found: ${address}`, 'low');
-        return null;
-      }
-
-      const place = data[0];
-      const result: LocationResult = {
-        lat: parseFloat(place.lat),
-        lng: parseFloat(place.lon),
-        displayName: place.display_name,
-        city:
-          place.address?.city ||
-          place.address?.town ||
-          place.address?.village ||
-          place.address?.suburb,
-        state: place.address?.state,
-        pincode: place.address?.postcode,
-      };
-
-      console.log(
-        `✅ Location resolved: ${result.city}, ${result.state} (${result.lat}, ${result.lng})`
+      const distance = this.locResolver.calculateDistance(
+        customerLoc.lat,
+        customerLoc.lng,
+        p.coordinates.lat,
+        p.coordinates.lng
       );
-
-      return result;
-    } catch (error: any) {
-      await this.handleError(error, `LocationResolver.resolve(${address})`);
-      return null;
+      if (distance <= radiusKm) {
+        results.push({
+          ...p,
+          distanceKm: parseFloat(distance.toFixed(2))
+        });
+      }
     }
-  }
 
-  calculateDistance(
-    lat1: number,
-    lng1: number,
-    lat2: number,
-    lng2: number
-  ): number {
-    const R = 6371;
-    const dLat = this.toRad(lat2 - lat1);
-    const dLng = this.toRad(lng2 - lng1);
-
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRad(lat1)) *
-        Math.cos(this.toRad(lat2)) *
-        Math.sin(dLng / 2) *
-        Math.sin(dLng / 2);
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
-
-  private toRad(degrees: number): number {
-    return (degrees * Math.PI) / 180;
+    results.sort((a, b) => a.distanceKm - b.distanceKm);
+    return results;
   }
 }
 
-export default LocationResolverAgent;
+export default ProviderDiscoveryAgent;

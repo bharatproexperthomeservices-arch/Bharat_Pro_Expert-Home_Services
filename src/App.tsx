@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { BharatProLogo } from './components/BharatProLogo';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 import { ServiceDetailModal } from './components/ServiceDetailModal';
@@ -10,16 +9,10 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLoginGate } from './components/AdminLoginGate';
 import { PartnerDashboard } from './components/PartnerDashboard';
 import { CustomerApkView } from './components/CustomerApkView';
-import { UrbanCompanyCleaningView } from './components/UrbanCompanyCleaningView';
+import { BharatProHomeView } from './components/home/BharatProHomeView';
 import { CustomerDashboardModal } from './components/CustomerDashboardModal';
-import { BumperOfferBanner } from './components/BumperOfferBanner';
 import { HelpSupportModal } from './components/HelpSupportModal';
-import { Footer } from './components/Footer';
-import { 
-  INITIAL_CATEGORIES, 
-  INITIAL_SERVICES, 
-  WHATSAPP_NUMBER 
-} from './data';
+import { INITIAL_SERVICES } from './data';
 import { CleaningService, Booking } from './types';
 import { initializeDatabaseDefaults, getAllBookings, getAllServices } from './services/dbService';
 import { 
@@ -27,28 +20,14 @@ import {
   isOwnerEmail, 
   clearAdminSession 
 } from './services/adminAuthService';
-import { 
-  Sparkles, 
-  User, 
-  ShieldCheck, 
-  Search, 
-  MapPin, 
-  Phone, 
-  Clock, 
-  CheckCircle2, 
-  Smartphone,
-  ChevronDown,
-  ArrowRight,
-  HelpCircle
-} from 'lucide-react';
 
 function AppContent() {
   const { user, profile, signOut } = useAuth();
 
-  // Navigation & Modals: default to 'apk' (The original deployed app)
+  // Navigation & View Mode: Default to modern responsive website UI/UX
   const [isAdminView, setIsAdminView] = useState(false);
   const [isPartnerView, setIsPartnerView] = useState(false);
-  const [customerViewMode, setCustomerViewMode] = useState<'apk' | 'catalog'>('apk');
+  const [customerViewMode, setCustomerViewMode] = useState<'website' | 'apk'>('website');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalDefaultRole, setAuthModalDefaultRole] = useState<'customer' | 'partner'>('customer');
   const [customerDashboardOpen, setCustomerDashboardOpen] = useState(false);
@@ -139,24 +118,9 @@ function AppContent() {
   useEffect(() => {
     const fetchBookings = async () => {
       const custId = user?.uid || profile?.uid;
-      const phone = user?.phoneNumber || profile?.phone;
-      if (custId || phone) {
-        const bks = await getAllBookings(custId, phone);
-        setMyBookings(bks);
-      } else {
-        const all = await getAllBookings();
-        try {
-          const recentIds: string[] = JSON.parse(localStorage.getItem('bharat_pro_recent_booking_ids') || '[]');
-          if (recentIds.length > 0) {
-            const guestBookings = all.filter(b => recentIds.includes(b.id));
-            setMyBookings(guestBookings.length > 0 ? guestBookings : all);
-          } else {
-            setMyBookings(all);
-          }
-        } catch {
-          setMyBookings(all);
-        }
-      }
+      const phone = user?.phoneNumber || profile?.phone || localStorage.getItem('bharat_pro_last_customer_phone') || undefined;
+      const bks = await getAllBookings(custId, phone);
+      setMyBookings(bks);
     };
     fetchBookings();
 
@@ -249,7 +213,7 @@ function AppContent() {
           }}
           onOpenAuth={(role) => handleOpenAuth(role)}
           onTrackBooking={(bk) => setActiveTrackingBooking(bk)}
-          onToggleCatalog={() => setCustomerViewMode('catalog')}
+          onToggleCatalog={() => setCustomerViewMode('website')}
         />
 
         <WhatsAppFloatingWidget />
@@ -274,131 +238,29 @@ function AppContent() {
     );
   }
 
-  // Web Marketplace View
+  // Modern Responsive Website UI/UX (Bharat Pro Expert Master Home Screen)
   return (
     <div className="relative min-h-screen bg-[#F8F9FB] flex flex-col font-['Inter',sans-serif]">
-      {/* Top Announcement Bar - Clean & Professional without phone numbers */}
-      <div className="bg-[#071321] text-white text-xs py-2 px-4 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="bg-blue-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
-              ISO Certified
-            </span>
-            <span className="text-blue-100 font-medium hidden sm:inline">
-              100% Hospital-Grade Diversey &amp; Taski sanitization standards across Delhi-NCR, Mumbai &amp; Bengaluru
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-slate-400 text-[11px]">
-            <button
-              onClick={() => setCustomerViewMode('apk')}
-              className="text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>📱 Switch to App View</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Navbar */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E5E5EA]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-6">
-            <button 
-              onClick={() => setCustomerViewMode('apk')}
-              className="cursor-pointer transition-transform hover:opacity-95"
-              title="Bharat Pro Expert"
-            >
-              <BharatProLogo size="md" />
-            </button>
-
-            {/* City Selector */}
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F8F9FB] border border-[#E5E5EA] text-xs font-semibold text-[#1C1C1E]">
-              <MapPin className="w-3.5 h-3.5 text-blue-600" />
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className="bg-transparent outline-none cursor-pointer text-xs font-bold text-[#1C1C1E]"
-              >
-                <option value="Gurugram">Gurugram (Cyber City, Golf Course Rd)</option>
-                <option value="Delhi NCR">South Delhi &amp; Saket</option>
-                <option value="Noida">Noida (Sector 62, 50, 137)</option>
-                <option value="Mumbai">Mumbai (Bandra, Andheri, Powai)</option>
-                <option value="Bengaluru">Bengaluru (Indiranagar, Whitefield)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Right Action Buttons */}
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setCustomerViewMode('apk')}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-xs font-bold text-[#1C1C1E] transition-all cursor-pointer"
-            >
-              <Smartphone className="w-3.5 h-3.5 text-blue-600" />
-              <span>Mobile App View</span>
-            </button>
-
-            <button
-              onClick={() => setHelpModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-xs font-semibold text-[#1C1C1E] transition-all cursor-pointer"
-            >
-              <HelpCircle className="w-3.5 h-3.5 text-blue-600" />
-              <span>Help &amp; Support</span>
-            </button>
-
-            {/* User Account / Login */}
-            {user || profile ? (
-              <button
-                onClick={() => setCustomerDashboardOpen(true)}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-all cursor-pointer shadow-xs"
-              >
-                <User className="w-3.5 h-3.5 text-white" />
-                <span className="hidden sm:inline">{profile?.name || user?.displayName || 'My Account'}</span>
-                {myBookings.length > 0 && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                )}
-              </button>
-            ) : (
-              <button
-                onClick={() => handleOpenAuth('customer')}
-                className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-all cursor-pointer shadow-xs"
-              >
-                Login
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Bumper Offer Banner Strip */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-6">
-        <BumperOfferBanner onSelectOffer={() => {
-          const first = INITIAL_SERVICES[0];
-          setSelectedService(first);
-        }} />
-      </div>
-
-      {/* Urban Company Cleaning Marketplace View */}
-      <UrbanCompanyCleaningView
-        categories={INITIAL_CATEGORIES}
-        services={liveServices}
+      <BharatProHomeView
+        user={user}
+        profile={profile}
+        myBookings={myBookings}
         selectedCity={selectedCity}
-        onSelectServiceDetails={(srv) => setSelectedService(srv)}
-        onProceedToBooking={(srv) => setBookingService(srv)}
-      />
-
-      {/* Professional Footer */}
-      <Footer 
-        onOpenPartner={() => {
-          window.location.hash = '#partner';
-          setIsPartnerView(true);
-        }} 
+        onSelectCity={(city) => setSelectedCity(city)}
+        onProceedToBooking={(service) => setBookingService(service)}
+        onTrackBooking={(booking) => setActiveTrackingBooking(booking)}
+        onOpenAuth={(role) => handleOpenAuth(role)}
+        onOpenCustomerDashboard={() => setCustomerDashboardOpen(true)}
         onOpenAdmin={() => {
           window.location.hash = '#admin-gateway';
           setIsAdminView(true);
         }}
+        onOpenPartner={() => {
+          window.location.hash = '#partner';
+          setIsPartnerView(true);
+        }}
         onOpenHelp={() => setHelpModalOpen(true)}
+        onToggleMobileView={() => setCustomerViewMode('apk')}
       />
 
       {/* Floating WhatsApp Widget */}

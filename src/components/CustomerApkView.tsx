@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BharatProLogo } from './BharatProLogo';
 import { useAuth } from '../context/AuthContext';
 import { Booking, HubLocation } from '../types';
@@ -152,7 +152,22 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
 
   // Customer Bookings
   const [customerBookings, setCustomerBookings] = useState<Booking[]>([]);
+  const [contactName, setContactName] = useState<string>(() => 
+    profile?.name || user?.displayName || localStorage.getItem('bharat_pro_last_customer_name') || ''
+  );
+  const [contactPhone, setContactPhone] = useState<string>(() => 
+    profile?.phone || user?.phoneNumber || localStorage.getItem('bharat_pro_last_customer_phone') || ''
+  );
+  const [refreshingBookings, setRefreshingBookings] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+
+  // Sync profile details if available
+  useEffect(() => {
+    if (profile?.name && !contactName) setContactName(profile.name);
+    if ((profile?.phone || user?.phoneNumber) && !contactPhone) {
+      setContactPhone(profile?.phone || user?.phoneNumber || '');
+    }
+  }, [profile, user]);
 
   // Available Hubs
   const [hubs, setHubs] = useState<HubLocation[]>([]);
@@ -181,19 +196,48 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
   }, [cart]);
 
   // Load bookings and hubs
+  const loadInit = useCallback(async () => {
+    try {
+      const activePhone = contactPhone || profile?.phone || user?.phoneNumber || localStorage.getItem('bharat_pro_last_customer_phone') || undefined;
+      const bks = await getAllBookings(user?.uid || profile?.uid, activePhone);
+      setCustomerBookings(prev => {
+        const map = new Map<string, Booking>();
+        bks.forEach(b => map.set(b.id, b));
+        prev.forEach(b => {
+          if (!map.has(b.id)) map.set(b.id, b);
+        });
+        return Array.from(map.values()).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      });
+      const hList = await getAllHubs();
+      setHubs(hList);
+    } catch (e) {
+      console.warn('Error loading APK data:', e);
+    }
+  }, [user, profile, contactPhone]);
+
   useEffect(() => {
-    const loadInit = async () => {
-      try {
-        const bks = await getAllBookings(user?.uid || profile?.uid);
-        setCustomerBookings(bks);
-        const hList = await getAllHubs();
-        setHubs(hList);
-      } catch (e) {
-        console.warn('Error loading APK data:', e);
+    loadInit();
+
+    const handleBookingUpdated = (e: any) => {
+      if (e.detail?.booking) {
+        const upd = e.detail.booking;
+        setCustomerBookings(prev => {
+          const idx = prev.findIndex(b => b.id === upd.id);
+          if (idx !== -1) {
+            const copy = [...prev];
+            copy[idx] = upd;
+            return copy;
+          }
+          return [upd, ...prev];
+        });
+      } else {
+        loadInit();
       }
     };
-    loadInit();
-  }, [user, profile, view]);
+
+    window.addEventListener('bharatpro_booking_updated', handleBookingUpdated);
+    return () => window.removeEventListener('bharatpro_booking_updated', handleBookingUpdated);
+  }, [loadInit]);
 
   // Service lookup
   const getService = (id: string) => {
@@ -393,12 +437,15 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
       const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
       const completionOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
+      const finalContactPhone = (contactPhone || '').trim() || profile?.phone || user?.phoneNumber || localStorage.getItem('bharat_pro_last_customer_phone') || '8920252647';
+      const finalContactName = (contactName || '').trim() || profile?.name || user?.displayName || localStorage.getItem('bharat_pro_last_customer_name') || 'Customer';
+
       const bookingPayload: BookingPayload = {
         bookingId,
         bookingNumber,
-        customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
-        customerName: profile?.name || user?.displayName || 'Customer',
-        customerPhone: profile?.phone || '8920252647',
+        customerId: user?.uid || profile?.uid || (finalContactPhone ? `cust_${finalContactPhone.replace(/\D/g, '').slice(-10)}` : 'guest_' + Math.random().toString(36).substring(2, 7)),
+        customerName: finalContactName,
+        customerPhone: finalContactPhone,
         customerEmail: user?.email || profile?.email || 'customer@bharatproexpert.com',
         serviceId: primaryService.id,
         serviceName: `${primaryService.n} (${pkg ? pkg[0] : 'Standard'})`,
@@ -449,7 +496,17 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
         onSuccess: async (savedBooking) => {
           setCart([]);
           localStorage.removeItem('bpe_cart_v3');
-          setCustomerBookings(prev => [savedBooking, ...prev]);
+          if (finalContactPhone) localStorage.setItem('bharat_pro_last_customer_phone', finalContactPhone);
+          if (finalContactName) localStorage.setItem('bharat_pro_last_customer_name', finalContactName);
+          try {
+            const recentIds: string[] = JSON.parse(localStorage.getItem('bharat_pro_recent_booking_ids') || '[]');
+            if (!recentIds.includes(savedBooking.id)) {
+              recentIds.unshift(savedBooking.id);
+              localStorage.setItem('bharat_pro_recent_booking_ids', JSON.stringify(recentIds.slice(0, 20)));
+            }
+          } catch {}
+
+          setCustomerBookings(prev => [savedBooking, ...prev.filter(b => b.id !== savedBooking.id)]);
           showToast(paymentMethod === 'cash' 
             ? '🎉 Booking Confirmed! Finding Best Pro...' 
             : '🎉 Payment Verified & Booking Confirmed! Finding Best Pro...'
@@ -1707,6 +1764,46 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 </div>
               </div>
 
+              {/* Contact Information for OTP & Live Dispatch */}
+              <div className="pt-2 border-t border-slate-100 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-[#0b3ba8] block">
+                    👤 Contact Details for Service &amp; OTP
+                  </label>
+                  <span className="text-[10px] text-slate-500">Required</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-semibold text-[#111827] block mb-1">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Rahul Sharma"
+                      value={contactName}
+                      onChange={(e) => setContactName(e.target.value)}
+                      className="w-full border border-[#e5e7eb] rounded-xl p-2.5 text-xs focus:outline-[#0b3ba8]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-[#111827] block mb-1">
+                      Mobile Number (10 Digits) *
+                    </label>
+                    <input
+                      type="tel"
+                      maxLength={10}
+                      placeholder="e.g. 9876543210"
+                      value={contactPhone}
+                      onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, ''))}
+                      className="w-full border border-[#e5e7eb] rounded-xl p-2.5 text-xs focus:outline-[#0b3ba8] font-mono"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  📱 Job start OTP, technician dispatch details and booking receipt will be linked to this mobile number.
+                </p>
+              </div>
+
               {/* Address Type Chips */}
               <div className="pt-2">
                 <label className="text-xs font-bold text-[#111827] block mb-1.5">
@@ -1737,6 +1834,13 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                   showToast('Please enter your house and street address');
                   return;
                 }
+                const cleaned = (contactPhone || '').replace(/\D/g, '');
+                if (cleaned.length < 10) {
+                  showToast('Please enter a valid 10-digit mobile number for booking OTP');
+                  return;
+                }
+                if (contactPhone) localStorage.setItem('bharat_pro_last_customer_phone', contactPhone);
+                if (contactName) localStorage.setItem('bharat_pro_last_customer_name', contactName);
                 setView('slot');
                 window.scrollTo(0, 0);
               }}
@@ -1938,27 +2042,87 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
         {view === 'bk' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-[#111827]">
-                My Bookings &amp; Live Tracking
-              </h2>
-              <button 
-                onClick={() => setView('home')}
-                className="text-xs text-[#0b3ba8] font-bold hover:underline"
-              >
-                + New Service
-              </button>
+              <div>
+                <h2 className="text-xl font-bold text-[#111827]">
+                  My Bookings &amp; Live Tracking
+                </h2>
+                <p className="text-xs text-[#6b7280]">
+                  Real-time status, OTPs &amp; direct professional assignment
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    setRefreshingBookings(true);
+                    await loadInit();
+                    setTimeout(() => setRefreshingBookings(false), 400);
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl border border-[#0b3ba8]/30 bg-[#eaf0ff] text-xs font-bold text-[#0b3ba8] hover:bg-[#d5e2ff] flex items-center gap-1 cursor-pointer transition-all"
+                  title="Reload Bookings"
+                >
+                  <span className={refreshingBookings ? 'animate-spin' : ''}>🔄</span>
+                  <span>{refreshingBookings ? 'Refreshing...' : 'Refresh'}</span>
+                </button>
+                <button 
+                  onClick={() => setView('home')}
+                  className="text-xs text-[#0b3ba8] font-bold hover:underline"
+                >
+                  + New Service
+                </button>
+              </div>
             </div>
 
             {customerBookings.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 text-center shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb]">
-                <div className="text-5xl mb-2">📋</div>
-                <p className="text-sm text-[#6b7280] mb-3">No active bookings found.</p>
-                <button
-                  onClick={() => setView('home')}
-                  className="px-4 py-2 rounded-xl bg-[#0b3ba8] text-white text-xs font-bold"
-                >
-                  Book a Cleaning Service
-                </button>
+              <div className="bg-white rounded-2xl p-6 sm:p-8 text-center shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb] space-y-4">
+                <div className="text-5xl">📋</div>
+                <div>
+                  <h3 className="text-base font-bold text-[#111827]">No active bookings found</h3>
+                  <p className="text-xs text-[#6b7280] mt-1 max-w-md mx-auto">
+                    Agar aapne booking kiya hai aur yahan nahi dikh raha hai, toh apna 10-digit mobile number enter karke check karein:
+                  </p>
+                </div>
+
+                <div className="max-w-sm mx-auto flex gap-2">
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    placeholder="Enter 10-digit mobile"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value.replace(/\D/g, ''))}
+                    className="flex-1 border border-slate-300 rounded-xl px-3 py-2 text-xs font-mono focus:outline-[#0b3ba8]"
+                  />
+                  <button
+                    onClick={async () => {
+                      const cleaned = contactPhone.replace(/\D/g, '');
+                      if (cleaned.length < 10) {
+                        showToast('Please enter a valid 10-digit mobile');
+                        return;
+                      }
+                      localStorage.setItem('bharat_pro_last_customer_phone', contactPhone);
+                      setRefreshingBookings(true);
+                      const bks = await getAllBookings(undefined, contactPhone);
+                      setCustomerBookings(bks);
+                      setRefreshingBookings(false);
+                      if (bks.length > 0) {
+                        showToast(`Found ${bks.length} booking(s)!`);
+                      } else {
+                        showToast('Is number par koi booking nahi mili.');
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-[#0b3ba8] text-white text-xs font-bold hover:bg-blue-800 transition-all cursor-pointer shrink-0"
+                  >
+                    Find Bookings
+                  </button>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => setView('home')}
+                    className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-black transition-all"
+                  >
+                    Book a Cleaning Service
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">

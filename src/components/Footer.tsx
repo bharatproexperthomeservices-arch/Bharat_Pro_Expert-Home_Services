@@ -11,13 +11,23 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onOpenPartner, onOpenHelp, onOpenAdmin }) => {
   return (
-    <footer className="bg-slate-900 text-slate-300 font-['Inter',sans-serif] border-t border-slate-800 mt-16">
+    <footer className="bg-[#061C38] text-slate-300 font-['Inter',sans-serif] border-t border-slate-800 mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           
           {/* Brand Info */}
           <div className="space-y-4">
-            <BharatProLogo size="lg" />
+            <div className="flex items-center gap-3 select-none">
+              <BharatProLogo size="md" />
+              <div className="flex flex-col">
+                <span className="text-xl font-black text-white tracking-tight leading-tight">
+                  Bharat Pro Expert
+                </span>
+                <span className="text-xs font-bold text-[#E5A812] tracking-normal">
+                  Home Services
+                </span>
+              </div>
+            </div>
             <p className="text-xs text-slate-400 leading-relaxed">
               India's premier technology-driven home deep cleaning &amp; sanitization platform. 100% verified professionals, Diversey hospital-grade eco-certified solutions, and upfront transparent pricing.
             </p>

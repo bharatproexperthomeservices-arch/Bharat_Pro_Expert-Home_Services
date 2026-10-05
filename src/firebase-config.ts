@@ -62,10 +62,8 @@ if (typeof window !== 'undefined') {
   setTimeout(async () => {
     try {
       await getDocFromServer(doc(db, 'test', 'connection'));
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('the client is offline')) {
-        console.warn("Firestore operates in offline/local-cache mode until connection is established.");
-      }
+    } catch {
+      // Quiet offline check
     }
   }, 2000);
 }
