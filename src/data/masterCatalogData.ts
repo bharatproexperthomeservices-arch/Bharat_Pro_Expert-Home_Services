@@ -13,6 +13,15 @@ export interface CatalogItem {
   description: string;
   rating: number;
   reviewCount: number;
+  // Optional fields (agar aage add karne ho to)
+  inclusions?: string[];
+  exclusions?: string[];
+  tools?: string[];
+  processSteps?: { order: number; title: string; description: string; estimatedMinutes: number }[];
+  addOns?: any[];
+  cancellationPolicy?: string;
+  active?: boolean;
+  sortOrder?: number;
 }
 
 export interface CatalogCategory {
@@ -22,6 +31,8 @@ export interface CatalogCategory {
   iconName: string;
   heroImage: string;
   startingPrice: number;
+  active?: boolean;
+  sortOrder?: number;
   items: CatalogItem[];
 }
 
@@ -1199,6 +1210,20 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
 
 // Helper to convert CatalogItem to CleaningService for booking modal compatibility
 export function catalogItemToCleaningService(item: CatalogItem): CleaningService {
+  // Calculate duration in minutes
+  let minutes = 60;
+  if (item.duration) {
+    if (item.duration.toLowerCase().includes('full day')) {
+      minutes = 480; // 8 hours
+    } else if (item.duration.includes('hr')) {
+      const val = parseFloat(item.duration);
+      if (!isNaN(val)) minutes = Math.round(val * 60);
+    } else if (item.duration.includes('min')) {
+      const val = parseInt(item.duration);
+      if (!isNaN(val)) minutes = val;
+    }
+  }
+
   return {
     id: item.id,
     categoryId: item.categoryId,
@@ -1208,35 +1233,33 @@ export function catalogItemToCleaningService(item: CatalogItem): CleaningService
     detailedDesc: item.description,
     referencePrice: item.originalPrice,
     competitorPrice: item.originalPrice,
-    discountPct: Math.round(((item.originalPrice - item.offerPrice) / item.originalPrice) * 100),
+    discountPct: item.originalPrice > 0 ? Math.round(((item.originalPrice - item.offerPrice) / item.originalPrice) * 100) : 0,
     basePrice: item.offerPrice,
     pricingMode: 'REFERENCE_PERCENT',
     priceVersion: 'v2.0.0',
     active: true,
-    estimatedMinutes: item.duration.includes('hr') 
-      ? parseFloat(item.duration) * 60 
-      : parseInt(item.duration) || 60,
+    estimatedMinutes: minutes,
     rating: item.rating,
     reviewCount: item.reviewCount,
     imageUrl: item.imageUrl,
     beforeAfterImage: item.imageUrl,
     demoVideoBadge: 'Diversey Certified',
     popular: item.popular,
-    steps: [
+    steps: item.processSteps || [
       { order: 1, title: 'Inspection & Preparation', description: 'Pre-service check of fabric, stains and water points.', estimatedMinutes: 15 },
       { order: 2, title: 'Deep Treatment', description: 'Application of Diversey neutral pH cleaning agent with power machine.', estimatedMinutes: 45 },
       { order: 3, title: 'Extraction & Sanitization', description: 'High-power suction moisture extraction and UV anti-microbial wipe.', estimatedMinutes: 30 }
     ],
-    inclusions: [
+    inclusions: item.inclusions || [
       'Industrial grade German Kärcher extraction',
       'Neutral pH Diversey Taski chemicals',
       'Trained & background-verified professionals',
       'Post-service quality check'
     ],
-    exclusions: [
+    exclusions: item.exclusions || [
       'Structural electrical rewiring',
       'Wall paint touch-ups'
     ],
-    addons: []
+    addons: item.addOns || []
   };
 }
