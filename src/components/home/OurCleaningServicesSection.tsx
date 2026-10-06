@@ -4,11 +4,13 @@ import { ArrowRight, ChevronRight, Star, Clock, Shield, Users } from 'lucide-rea
 interface OurCleaningServicesSectionProps {
   onSelectCategory: (categoryId: string) => void;
   onViewAll: () => void;
+  onBookDirect?: (serviceId: string) => void;
 }
 
 export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProps> = ({
   onSelectCategory,
-  onViewAll
+  onViewAll,
+  onBookDirect
 }) => {
   const cards = [
     {
@@ -66,7 +68,11 @@ export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProp
   ];
 
   return (
-    <section className="py-16 sm:py-20 bg-gradient-to-b from-[#F8F9FB] to-white font-['Inter',sans-serif] relative overflow-hidden">
+    <section 
+      id="our-cleaning-services" 
+      className="py-16 sm:py-20 bg-gradient-to-b from-[#F8F9FB] to-white font-['Inter',sans-serif] relative overflow-hidden scroll-mt-20"
+    >
+      <div id="services" className="absolute -top-20" />
 
       {/* पृष्ठभूमि अलंकरण */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-40">
@@ -201,7 +207,11 @@ export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProp
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelectCategory(c.id);
+                      if (onBookDirect) {
+                        onBookDirect(c.id);
+                      } else {
+                        onSelectCategory(c.id);
+                      }
                     }}
                     className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00A86B] to-[#008f5b] hover:from-[#008f5b] hover:to-[#006b44] text-white text-sm font-black transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
                   >

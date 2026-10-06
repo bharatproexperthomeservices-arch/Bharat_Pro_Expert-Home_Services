@@ -17,6 +17,9 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_RAZORPAY_KEY_ID': JSON.stringify(razorpayKey),
       'import.meta.env.RAZORPAY_KEY_ID': JSON.stringify(razorpayKey),
     },
+    build: {
+      chunkSizeWarningLimit: 2500,
+    },
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

@@ -10,8 +10,7 @@ import {
   PhoneCall, 
   Calendar,
   Sparkles,
-  HelpCircle,
-  Smartphone
+  HelpCircle
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -235,19 +234,6 @@ export const Header: React.FC<HeaderProps> = ({
                 className="w-full py-2.5 px-4 rounded-xl bg-slate-100 text-slate-800 text-xs font-bold text-center"
               >
                 Customer Sign In / Register
-              </button>
-            )}
-
-            {onToggleMobileView && (
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onToggleMobileView();
-                }}
-                className="w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Smartphone className="w-4 h-4 text-blue-600" />
-                <span>Switch to Mobile App View</span>
               </button>
             )}
 

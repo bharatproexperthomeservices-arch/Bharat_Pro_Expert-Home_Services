@@ -518,86 +518,31 @@ export const CustomerDashboardModal: React.FC<CustomerDashboardModalProps> = ({
                   <span>Available Coupons &amp; Instant Discounts</span>
                 </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3.5 rounded-xl border-2 border-dashed border-[#D4A24E]/50 bg-amber-50/40 relative">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-mono font-black text-xs text-[#0B2A4A] bg-[#D4A24E]/20 px-2 py-0.5 rounded">
-                        BHARATPRO20
+                <div className="p-4 rounded-xl border-2 border-dashed border-[#D4A24E] bg-gradient-to-r from-amber-50 to-orange-50 relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-black text-sm text-[#0B2A4A] bg-[#D4A24E]/30 px-3 py-1 rounded-lg border border-[#D4A24E]/60 shadow-xs">
+                        BHARAT10
                       </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText('BHARATPRO20');
-                          showToast('Coupon BHARATPRO20 copied!');
-                        }}
-                        className="text-[11px] font-bold text-[#0B2A4A] hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>Copy</span>
-                      </button>
-                    </div>
-                    <h5 className="text-xs font-bold text-[#0B2A4A]">Flat 20% Instant Discount</h5>
-                    <p className="text-[11px] text-gray-500 mt-0.5">Valid on all Deep Cleaning, Kitchen &amp; Bathroom services across India.</p>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 relative">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-mono font-black text-xs text-emerald-900 bg-emerald-200/60 px-2 py-0.5 rounded">
-                        SHINE300
+                      <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                        10% OFF Active
                       </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText('SHINE300');
-                          showToast('Coupon SHINE300 copied!');
-                        }}
-                        className="text-[11px] font-bold text-emerald-800 hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>Copy</span>
-                      </button>
                     </div>
-                    <h5 className="text-xs font-bold text-emerald-950">₹300 Off on Cart &gt; ₹1,499</h5>
-                    <p className="text-[11px] text-emerald-700/80 mt-0.5">Applies directly at checkout for full home and villa sanitize packages.</p>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText('BHARAT10');
+                        showToast('Coupon BHARAT10 copied!');
+                      }}
+                      className="text-xs font-bold text-[#0B2A4A] hover:underline flex items-center gap-1.5 px-3 py-1 bg-white rounded-lg border border-slate-200 shadow-xs cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Code</span>
+                    </button>
                   </div>
-
-                  <div className="p-3.5 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/40 relative">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-mono font-black text-xs text-blue-900 bg-blue-200/60 px-2 py-0.5 rounded">
-                        WELCOME500
-                      </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText('WELCOME500');
-                          showToast('Coupon WELCOME500 copied!');
-                        }}
-                        className="text-[11px] font-bold text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>Copy</span>
-                      </button>
-                    </div>
-                    <h5 className="text-xs font-bold text-blue-950">₹500 Welcome Discount</h5>
-                    <p className="text-[11px] text-blue-700/80 mt-0.5">For verified mobile &amp; Google customer profiles on first booking.</p>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl border-2 border-dashed border-purple-300 bg-purple-50/40 relative">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-mono font-black text-xs text-purple-900 bg-purple-200/60 px-2 py-0.5 rounded">
-                        FREEINSPECT
-                      </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText('FREEINSPECT');
-                          showToast('Coupon FREEINSPECT copied!');
-                        }}
-                        className="text-[11px] font-bold text-purple-800 hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>Copy</span>
-                      </button>
-                    </div>
-                    <h5 className="text-xs font-bold text-purple-950">Free Pro Inspection</h5>
-                    <p className="text-[11px] text-purple-700/80 mt-0.5">Free 45-point hygiene check with any cleaning service booked today.</p>
-                  </div>
+                  <h5 className="text-sm font-black text-[#0B2A4A]">Flat 10% Instant Discount (Only 10% Discount)</h5>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Get an instant 10% discount on every cleaning service booked across India. Use promo code <b>BHARAT10</b> at checkout.
+                  </p>
                 </div>
               </div>
             </div>

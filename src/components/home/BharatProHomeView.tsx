@@ -34,7 +34,6 @@ interface BharatProHomeViewProps {
   onOpenAdmin: () => void;
   onOpenPartner: () => void;
   onOpenHelp: () => void;
-  onToggleMobileView?: () => void;
 }
 
 export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
@@ -49,8 +48,7 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
   onOpenCustomerDashboard,
   onOpenAdmin,
   onOpenPartner,
-  onOpenHelp,
-  onToggleMobileView
+  onOpenHelp
 }) => {
   const [activeNav, setActiveNav] = useState('home');
   const [locationModalOpen, setLocationModalOpen] = useState(false);
@@ -121,7 +119,7 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
   };
 
   const handleScrollToCatalogue = () => {
-    const el = document.getElementById('service-catalogue-sections');
+    const el = document.getElementById('our-cleaning-services') || document.getElementById('service-catalogue-sections');
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
     }
@@ -132,7 +130,8 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
     } else {
-      handleScrollToCatalogue();
+      const catEl = document.getElementById('service-catalogue-sections');
+      if (catEl) catEl.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -141,12 +140,24 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
     onProceedToBooking(service);
   };
 
+  const handleBookDirectFromCard = (cardId: string) => {
+    const targetCat = MASTER_CATALOG_CATEGORIES.find(c => c.id === cardId);
+    if (targetCat && targetCat.items.length > 0) {
+      handleSelectDirectService(targetCat.items[0]);
+    } else {
+      handleSelectCategory(cardId);
+    }
+  };
+
   const handleNavigate = (sectionId: string) => {
     setActiveNav(sectionId);
     if (sectionId === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (sectionId === 'services') {
-      handleScrollToCatalogue();
+      const el = document.getElementById('our-cleaning-services') || document.getElementById('service-catalogue-sections');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
     } else if (sectionId === 'about') {
       setAboutModalOpen(true);
     } else if (sectionId === 'locations') {
@@ -172,7 +183,6 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
         onOpenAuth={() => onOpenAuth('customer')}
         onOpenCustomerDashboard={onOpenCustomerDashboard}
         onOpenHelp={onOpenHelp}
-        onToggleMobileView={onToggleMobileView}
         user={user}
         profile={profile}
         bookingsCount={myBookings.length}
@@ -193,6 +203,7 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
       <OurCleaningServicesSection
         onSelectCategory={handleSelectCategory}
         onViewAll={handleScrollToCatalogue}
+        onBookDirect={handleBookDirectFromCard}
       />
 
       {/* 5. Complete Service Catalogue (5-Column Desktop Grid for all 10 Categories) */}

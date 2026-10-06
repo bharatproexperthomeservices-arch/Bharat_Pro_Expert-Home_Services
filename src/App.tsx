@@ -260,7 +260,6 @@ function AppContent() {
           setIsPartnerView(true);
         }}
         onOpenHelp={() => setHelpModalOpen(true)}
-        onToggleMobileView={() => setCustomerViewMode('apk')}
       />
 
       {/* Floating WhatsApp Widget */}
@@ -292,9 +291,11 @@ function AppContent() {
       {/* Booking Checkout Flow */}
       <BookingFlowModal
         service={bookingService}
+        selectedCity={selectedCity}
         onClose={() => setBookingService(null)}
         onBookingSuccess={handleBookingSuccess}
         onRequireAuth={() => handleOpenAuth('customer')}
+        onTrackBooking={(bk) => setActiveTrackingBooking(bk)}
       />
 
       {/* Real-Time Live Tracking Modal */}

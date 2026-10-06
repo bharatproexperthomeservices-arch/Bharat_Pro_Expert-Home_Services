@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { CleaningService, ServiceAddon, Booking, HubLocation } from '../types';
-import { BUMPER_OFFERS, INITIAL_HUBS, WHATSAPP_NUMBER } from '../data';
+import { BUMPER_OFFERS, INITIAL_HUBS } from '../data';
 import { useAuth } from '../context/AuthContext';
 import { createNewBooking, getAllHubs } from '../services/dbService';
-import { openRazorpayPaymentModal, getRazorpayKeyId, loadRazorpayScript } from '../services/razorpayService';
-import { useRazorpayBooking, BookingPayload } from '../hooks/useRazorpayBooking';
+import { getRazorpayKeyId, loadRazorpayScript } from '../services/razorpayService';
+import { BookingPayload } from '../hooks/useRazorpayBooking';
 import confetti from 'canvas-confetti';
 import { 
   Calendar, 
@@ -14,7 +14,6 @@ import {
   Check, 
   ArrowRight, 
   ShieldCheck, 
-  Sparkles, 
   CreditCard, 
   Banknote,
   X,
@@ -25,21 +24,27 @@ import {
   Compass,
   Navigation,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Copy,
+  Activity
 } from 'lucide-react';
 
 interface BookingFlowModalProps {
   service: CleaningService | null;
+  selectedCity?: string;
   onClose: () => void;
   onBookingSuccess: (booking: Booking) => void;
   onRequireAuth: () => void;
+  onTrackBooking?: (booking: Booking) => void;
 }
 
 export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   service,
+  selectedCity,
   onClose,
   onBookingSuccess,
-  onRequireAuth
+  onRequireAuth,
+  onTrackBooking
 }) => {
   const { user, profile } = useAuth();
   
@@ -48,22 +53,59 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
   // Steps: 1: Add-ons & Schedule -> 2: Address & Location -> 3: Billing & Payment -> 4: Confirmation
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [homeSize, setHomeSize] = useState<'1 BHK' | '2 BHK' | '3 BHK' | '4 BHK' | 'Villa'>('2 BHK');
-  const [selectedAddons, setSelectedAddons] = useState<ServiceAddon[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  // Configuration tailored to service
+  const isFullHome = service ? /home|house|villa/i.test(service.name) : true;
+  const isBathroom = service ? /bath/i.test(service.name) : false;
+  const isSofa = service ? /sofa|couch|carpet/i.test(service.name) : false;
+
+  const [serviceConfig, setServiceConfig] = useState<string>(
+    isFullHome ? '2 BHK' : isBathroom ? '2 Bathrooms' : isSofa ? '3 Seater' : 'Standard'
   );
-  const [selectedSlot, setSelectedSlot] = useState<string>('9 AM - 12 PM');
+
+  const [selectedAddons, setSelectedAddons] = useState<ServiceAddon[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return d.toISOString().split('T')[0];
+  });
+  const [selectedSlot, setSelectedSlot] = useState<string>('10 AM - 1 PM');
   
   // Address & Hub selection
-  const [selectedHub, setSelectedHub] = useState<HubLocation>(INITIAL_HUBS[0]);
-  const [selectedSector, setSelectedSector] = useState(INITIAL_HUBS[0].coveredSectors[0]);
+  const [selectedHub, setSelectedHub] = useState<HubLocation>(() => {
+    if (selectedCity) {
+      const match = INITIAL_HUBS.find(h => h.city.toLowerCase() === selectedCity.toLowerCase());
+      if (match) return match;
+    }
+    return INITIAL_HUBS[0];
+  });
+
+  const [selectedSector, setSelectedSector] = useState<string>(() => {
+    return selectedHub.coveredSectors?.[0] || 'Central Area';
+  });
+
   const [streetAddress, setStreetAddress] = useState('');
   const [landmark, setLandmark] = useState('');
-  const [pincode, setPincode] = useState('122002');
-  const [phone, setPhone] = useState(profile?.phone || '8920252647');
-  const [name, setName] = useState(profile?.name || '');
-  const [email, setEmail] = useState(profile?.email || user?.email || 'customer@gmail.com');
+  const [pincode, setPincode] = useState(() => {
+    if (selectedCity?.toLowerCase() === 'patna') return '800001';
+    if (selectedCity?.toLowerCase() === 'delhi') return '110001';
+    if (selectedCity?.toLowerCase() === 'mumbai') return '400050';
+    if (selectedCity?.toLowerCase() === 'bengaluru') return '560034';
+    return '122002';
+  });
+
+  // User contact details — NO random hardcoded phone number!
+  const [name, setName] = useState<string>(() => {
+    return profile?.name || user?.displayName || localStorage.getItem('bharat_pro_last_customer_name') || '';
+  });
+
+  const [phone, setPhone] = useState<string>(() => {
+    return profile?.phone || user?.phoneNumber || localStorage.getItem('bharat_pro_last_customer_phone') || '';
+  });
+
+  const [email, setEmail] = useState<string>(() => {
+    return profile?.email || user?.email || '';
+  });
+
   const [confirmedBookingRecord, setConfirmedBookingRecord] = useState<Booking | null>(null);
 
   // Live Geolocation / Geography Coordinates
@@ -71,23 +113,40 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [geoStatusMsg, setGeoStatusMsg] = useState<string | null>(null);
   
-  // Coupons & Payment
-  const [couponCode, setCouponCode] = useState('');
+  // Coupons: strictly 10% discount with BHARAT10
+  const [couponCode, setCouponCode] = useState('BHARAT10');
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [couponMessage, setCouponMessage] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'UPI / Cards / Netbanking' | 'Pay after service'>('UPI / Cards / Netbanking');
-  const [loading, setLoading] = useState(false);
-  const { processBooking } = useRazorpayBooking();
+  const [couponMessage, setCouponMessage] = useState<string | null>('🎉 BHARAT10 applied! 10% discount unlocked.');
+  const [isCouponApplied, setIsCouponApplied] = useState(true);
 
-  // Standard Add-ons specified in requirements
+  // Payment method
+  const [paymentMethod, setPaymentMethod] = useState<'Pay after service' | 'UPI / Cards / Netbanking'>('Pay after service');
+  const [loading, setLoading] = useState(false);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{ name?: boolean; phone?: boolean; street?: boolean }>({});
+
+  // Standard Add-ons
   const STANDARD_ADDONS: ServiceAddon[] = [
-    { id: 'add-fridge', name: 'Fridge Cleaning', price: 249, description: 'Interior shelves sanitized and odor removed', icon: '❄️' },
-    { id: 'add-chimney', name: 'Chimney Cleaning', price: 449, description: 'Baffle filter descaling & motor oil residue removal', icon: '🍳' },
-    { id: 'add-fan', name: 'Fan Cleaning', price: 99, description: 'Motor & blade stubborn grease wiped', icon: '🌀' },
-    { id: 'add-balcony', name: 'Balcony Cleaning', price: 299, description: 'Railing & floor machine wash', icon: '🌿' },
-    { id: 'add-bathroom', name: 'Extra Bathroom', price: 599, description: 'Intense tile descaling & sanitization', icon: '🚿' },
-    { id: 'add-window', name: 'Window Cleaning', price: 299, description: 'Streak-free crystal clear glass squeegee', icon: '🪟' },
+    { id: 'add-fridge', name: 'Fridge Deep Clean', price: 249, description: 'Interior sanitize & odor neutralizer', icon: '❄️' },
+    { id: 'add-chimney', name: 'Chimney Degreasing', price: 449, description: 'Baffle filter descaling & oil removal', icon: '🍳' },
+    { id: 'add-fan', name: 'Ceiling Fan Detail', price: 99, description: 'Blades & motor wipe with polish', icon: '🌀' },
+    { id: 'add-balcony', name: 'Balcony Jet Wash', price: 299, description: 'Railing & floor machine wash', icon: '🌿' },
+    { id: 'add-bathroom', name: 'Extra Bathroom Clean', price: 599, description: 'Tile descaling & germicidal sanitize', icon: '🚿' },
+    { id: 'add-window', name: 'Glass Window Cleaning', price: 299, description: 'Streak-free crystal squeegee finish', icon: '🪟' },
   ];
+
+  // Sync selectedCity to matching hub on mount or city change
+  useEffect(() => {
+    if (selectedCity && availableHubs.length > 0) {
+      const match = availableHubs.find(h => h.city.toLowerCase() === selectedCity.toLowerCase());
+      if (match) {
+        setSelectedHub(match);
+        if (match.coveredSectors?.length > 0) {
+          setSelectedSector(match.coveredSectors[0]);
+        }
+      }
+    }
+  }, [selectedCity, availableHubs]);
 
   // Load latest hubs from DB / Storage
   useEffect(() => {
@@ -95,15 +154,22 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       const hubsList = await getAllHubs();
       if (hubsList && hubsList.length > 0) {
         setAvailableHubs(hubsList);
+        if (selectedCity) {
+          const match = hubsList.find(h => h.city.toLowerCase() === selectedCity.toLowerCase());
+          if (match) {
+            setSelectedHub(match);
+            if (match.coveredSectors?.length > 0) setSelectedSector(match.coveredSectors[0]);
+            return;
+          }
+        }
         setSelectedHub(hubsList[0]);
-        if (hubsList[0].coveredSectors && hubsList[0].coveredSectors.length > 0) {
+        if (hubsList[0].coveredSectors?.length > 0) {
           setSelectedSector(hubsList[0].coveredSectors[0]);
         }
       }
     };
     fetchHubs();
 
-    // Listen for real-time hub updates from Admin
     const handleHubsUpdated = (e: any) => {
       if (e.detail && Array.isArray(e.detail)) {
         setAvailableHubs(e.detail);
@@ -111,13 +177,39 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     };
     window.addEventListener('bharatpro_hubs_updated', handleHubsUpdated);
     return () => window.removeEventListener('bharatpro_hubs_updated', handleHubsUpdated);
-  }, []);
+  }, [selectedCity]);
 
-  // Set default phone & name when profile loads
+  // Set default phone & name when profile or user state updates
   useEffect(() => {
-    if (profile?.phone) setPhone(profile.phone);
-    if (profile?.name) setName(profile.name);
-  }, [profile]);
+    if (profile?.phone && !phone) setPhone(profile.phone);
+    if (profile?.name && !name) setName(profile.name);
+    if (profile?.email && !email) setEmail(profile.email);
+    else if (user?.email && !email) setEmail(user.email);
+  }, [profile, user]);
+
+  // Calculate Subtotal & Math
+  const addonsTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0);
+  const rawSubtotal = (service?.basePrice || 0) + addonsTotal;
+  const taxesGst = Math.round(rawSubtotal * 0.18);
+  const convenienceFee = 49;
+  const grossBeforeDiscount = rawSubtotal + taxesGst + convenienceFee;
+
+  // Auto calculate 10% discount when coupon is applied
+  useEffect(() => {
+    if (isCouponApplied && rawSubtotal > 0) {
+      const disc = Math.round(rawSubtotal * 0.10);
+      setDiscountAmount(disc);
+    } else {
+      setDiscountAmount(0);
+    }
+  }, [rawSubtotal, isCouponApplied]);
+
+  const netTotal = Math.max(0, grossBeforeDiscount - discountAmount);
+
+  // Auto detect Bumper Offer
+  const unlockedOffer = [...BUMPER_OFFERS]
+    .reverse()
+    .find(offer => rawSubtotal >= offer.tierMinAmount);
 
   if (!service) return null;
 
@@ -133,12 +225,13 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   // Live Geolocation Auto-Detection
   const handleDetectLiveLocation = () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      setErrorBanner('Geolocation is not supported by your browser. Please enter your address manually.');
       return;
     }
 
     setDetectingLocation(true);
-    setGeoStatusMsg('Detecting precise GPS satellites...');
+    setGeoStatusMsg('Detecting precise GPS coordinates...');
+    setErrorBanner(null);
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -147,7 +240,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         setGeoStatusMsg(`Locked: ${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° E (±${Math.round(accuracy)}m)`);
 
         try {
-          // Free Nominatim reverse geocode
           const resp = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
             { headers: { 'Accept-Language': 'en' } }
@@ -167,7 +259,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               setPincode(detectedPincode);
             }
 
-            // Find matching Hub for detected city or nearest
             if (detectedCity) {
               const matchedHub = availableHubs.find(h => 
                 h.city.toLowerCase().includes(detectedCity.toLowerCase()) ||
@@ -196,47 +287,82 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     );
   };
 
-  // Math Calculations
-  const addonsTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0);
-  const rawSubtotal = service.basePrice + addonsTotal;
-  const taxesGst = Math.round(rawSubtotal * 0.18);
-  const convenienceFee = 49;
-  const grossBeforeDiscount = rawSubtotal + taxesGst + convenienceFee;
-  const netTotal = Math.max(0, grossBeforeDiscount - discountAmount);
-
-  // Auto detect Bumper Offer
-  const unlockedOffer = [...BUMPER_OFFERS]
-    .reverse()
-    .find(offer => rawSubtotal >= offer.tierMinAmount);
-
+  // Coupon handler (Strictly 10% Discount)
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     const clean = couponCode.trim().toUpperCase();
-    if (clean === 'BHARAT500' || clean === 'PRO500') {
-      setDiscountAmount(500);
-      setCouponMessage('🎉 Promo code applied! ₹500 Discount unlocked.');
-    } else if (clean === 'FIRST15') {
-      const disc = Math.round(rawSubtotal * 0.15);
+    if (clean === 'BHARAT10' || clean === 'PRO10' || clean === 'FIRST10' || clean === 'CLEAN10' || clean === 'SAVE10' || clean.includes('10')) {
+      setIsCouponApplied(true);
+      const disc = Math.round(rawSubtotal * 0.10);
       setDiscountAmount(disc);
-      setCouponMessage(`🎉 15% First-time discount applied! Saved ₹${disc}`);
+      setCouponMessage(`🎉 10% Discount applied! Saved ₹${disc}`);
+      setErrorBanner(null);
     } else {
-      setCouponMessage('Invalid coupon code. Try "BHARAT500" or "FIRST15"');
+      setIsCouponApplied(false);
+      setDiscountAmount(0);
+      setCouponMessage(null);
+      setErrorBanner('Invalid coupon code. Use "BHARAT10" to get 10% OFF on all bookings.');
     }
   };
 
+  // Step 1 to Step 2 Validation
+  const handleContinueFromStep1 = () => {
+    if (!selectedDate) {
+      setErrorBanner('Please select a preferred service date.');
+      return;
+    }
+    if (!selectedSlot) {
+      setErrorBanner('Please select a time slot.');
+      return;
+    }
+    setErrorBanner(null);
+    setStep(2);
+  };
+
+  // Step 2 to Step 3 Validation
+  const handleContinueFromStep2 = () => {
+    const errs: { name?: boolean; phone?: boolean; street?: boolean } = {};
+    if (!name.trim()) errs.name = true;
+    const cleanPhone = phone.trim().replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) errs.phone = true;
+    if (!streetAddress.trim()) errs.street = true;
+
+    setValidationErrors(errs);
+
+    if (errs.name) {
+      setErrorBanner('Please enter your full name.');
+      return;
+    }
+    if (errs.phone) {
+      setErrorBanner('Please enter a valid 10-digit mobile number for technician dispatch.');
+      return;
+    }
+    if (errs.street) {
+      setErrorBanner('Please enter your house/flat number and street address.');
+      return;
+    }
+
+    // Save to local storage for subsequent bookings
+    try {
+      localStorage.setItem('bharat_pro_last_customer_name', name.trim());
+      localStorage.setItem('bharat_pro_last_customer_phone', cleanPhone);
+    } catch {}
+
+    setErrorBanner(null);
+    setStep(3);
+  };
+
+  // Final Confirmation Execution
   const handleConfirmBooking = async () => {
-    if (!streetAddress) {
-      alert('Please enter your house, flat, or street address.');
+    setErrorBanner(null);
+    const cleanPhone = phone.trim().replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setErrorBanner('Please provide a valid 10-digit phone number.');
       setStep(2);
       return;
     }
-    if (!name) {
-      alert('Please enter your name.');
-      setStep(2);
-      return;
-    }
-    if (!phone) {
-      alert('Please enter your mobile number.');
+    if (!streetAddress.trim()) {
+      setErrorBanner('Please provide your complete service address.');
       setStep(2);
       return;
     }
@@ -255,17 +381,17 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       bookingId,
       bookingNumber,
       customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
-      customerName: name,
-      customerPhone: phone,
-      customerEmail: user?.email || profile?.email || email || 'customer@bharatproexpert.com',
+      customerName: name.trim(),
+      customerPhone: cleanPhone,
+      customerEmail: user?.email || profile?.email || email.trim() || 'customer@bharatproexpert.com',
       serviceId: service.id,
-      serviceName: `${service.name}${homeSize ? ` (${homeSize})` : ''}`,
-      categoryName: service.categoryName,
+      serviceName: `${service.name}${serviceConfig ? ` (${serviceConfig})` : ''}`,
+      categoryName: service.categoryName || 'Deep Cleaning',
       date: selectedDate,
       timeSlot: selectedSlot,
       assignedHubId: selectedHub.id,
       address: {
-        street: streetAddress,
+        street: streetAddress.trim(),
         sector: selectedSector || 'Central Area',
         city: selectedHub.city,
         state: selectedHub.state,
@@ -286,8 +412,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         basePrice: service.basePrice,
         referencePrice: service.referencePrice || Math.round(service.basePrice / 0.85),
         customerSavings: (service.referencePrice || Math.round(service.basePrice / 0.85)) - service.basePrice,
-        discountPct: service.discountPct || 15,
-        pricingMode: service.pricingMode || 'REFERENCE_PERCENT',
+        discountPct: 10,
+        pricingMode: 'REFERENCE_PERCENT',
         priceVersion: 'v1.0.0',
         addonsPrice: addonsTotal,
         taxesGst,
@@ -300,29 +426,29 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       completionOtp
     };
 
-    // 1. Identify if payment method is 'UPI / Cards / Netbanking'
+    // Case 1: Pay Online with Razorpay
     if (paymentMethod === 'UPI / Cards / Netbanking') {
       try {
         const keyId = getRazorpayKeyId();
         const scriptLoaded = await loadRazorpayScript();
+        
         if (!scriptLoaded || !(window as any).Razorpay) {
-          alert('Could not initialize Razorpay SDK. Please check your internet connection.');
+          setErrorBanner('Razorpay SDK could not be loaded. You can proceed with "Pay after service" instead.');
           setLoading(false);
           return;
         }
 
-        // Initiate the Razorpay instance using the SDK
         const rzpOptions = {
           key: keyId,
-          amount: Math.round(netTotal * 100), // amount in paise
+          amount: Math.round(netTotal * 100), // in paise
           currency: 'INR',
           name: 'Bharat Pro Expert',
           description: `${service.name} (${bookingNumber})`,
-          image: 'https://img.icons8.com/color/120/clean.png',
+          image: '/assets/images/BharatProExpert.png',
           prefill: {
-            name,
-            email: user?.email || profile?.email || email || 'customer@bharatproexpert.com',
-            contact: phone
+            name: name.trim(),
+            email: email.trim() || 'customer@bharatproexpert.com',
+            contact: cleanPhone
           },
           notes: {
             bookingNumber,
@@ -330,9 +456,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             hubId: selectedHub.id
           },
           theme: {
-            color: '#0b3ba8'
+            color: '#08213F'
           },
-          // Wrap the Firestore booking creation inside the Razorpay success callback
           handler: async (response: {
             razorpay_payment_id: string;
             razorpay_order_id?: string;
@@ -359,7 +484,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 updatedAt: new Date().toISOString()
               };
 
-              // Create booking in Firestore only upon verified payment success
               const created = await createNewBooking(paidBookingRecord);
               setConfirmedBookingRecord(created);
               setStep(4);
@@ -368,21 +492,21 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
               try {
                 confetti({
-                  particleCount: 80,
-                  spread: 70,
+                  particleCount: 100,
+                  spread: 80,
                   origin: { y: 0.6 }
                 });
               } catch {}
             } catch (err: any) {
               console.error('Firestore booking creation error:', err);
-              alert('Payment received successfully (Payment ID: ' + response.razorpay_payment_id + '), but booking creation encountered an issue. Our support team has been notified.');
+              setErrorBanner('Payment successful (ID: ' + response.razorpay_payment_id + '), but saving booking had a delay. Our team will verify.');
               setLoading(false);
             }
           },
           modal: {
             ondismiss: () => {
               setLoading(false);
-              setCouponMessage('Payment was cancelled. Booking has not been created.');
+              setErrorBanner('Payment was cancelled. You can retry or choose "Pay after service" to confirm immediately.');
             }
           }
         };
@@ -390,123 +514,146 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         const rzp = new (window as any).Razorpay(rzpOptions);
         rzp.on('payment.failed', (failResp: any) => {
           setLoading(false);
-          setCouponMessage(`Payment failed: ${failResp.error?.description || 'Transaction declined'}`);
+          setErrorBanner(`Payment failed: ${failResp.error?.description || 'Declined'}. You can choose "Pay after service".`);
         });
         rzp.open();
       } catch (err) {
         console.error('Razorpay invocation error:', err);
         setLoading(false);
-        alert('Could not start Razorpay payment gateway.');
+        setErrorBanner('Could not launch Razorpay gateway. Please switch to "Pay after service" below to book instantly.');
       }
       return;
     }
 
-    // 2. Only if the payment method is 'Pay after service', proceed with immediate booking creation
-    if (paymentMethod === 'Pay after service') {
+    // Case 2: Pay After Service (Cash / UPI upon completion)
+    try {
+      const cashBookingRecord: Booking = {
+        ...bookingPayload,
+        id: bookingId,
+        categoryName: bookingPayload.categoryName || service.categoryName || 'Deep Cleaning',
+        selectedAddons: selectedAddons || [],
+        paymentMethod: 'Pay after service',
+        paymentStatus: 'PENDING',
+        transactionId: 'PAY_LATER_' + Math.random().toString(36).substring(2, 9).toUpperCase(),
+        status: 'SEARCHING_PROFESSIONAL',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const created = await createNewBooking(cashBookingRecord);
+      setConfirmedBookingRecord(created);
+      setStep(4);
+      onBookingSuccess(created);
+      setLoading(false);
+
       try {
-        const cashBookingRecord: Booking = {
-          ...bookingPayload,
-          id: bookingId,
-          categoryName: bookingPayload.categoryName || service.categoryName || 'Deep Cleaning',
-          selectedAddons: selectedAddons || [],
-          paymentMethod: 'Pay after service',
-          paymentStatus: 'PENDING',
-          transactionId: 'CASH_' + Math.random().toString(36).substring(2, 9).toUpperCase(),
-          status: 'SEARCHING_PROFESSIONAL',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        const created = await createNewBooking(cashBookingRecord);
-        setConfirmedBookingRecord(created);
-        setStep(4);
-        onBookingSuccess(created);
-        setLoading(false);
-
-        try {
-          confetti({
-            particleCount: 80,
-            spread: 70,
-            origin: { y: 0.6 }
-          });
-        } catch {}
-      } catch (err) {
-        console.error('Failed to create booking in Firestore:', err);
-        setLoading(false);
-        alert('Failed to place booking. Please check connection and retry.');
-      }
-      return;
+        confetti({
+          particleCount: 100,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      } catch {}
+    } catch (err) {
+      console.error('Failed to create booking:', err);
+      setLoading(false);
+      setErrorBanner('Failed to place booking. Please check connection and retry.');
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-xl overflow-y-auto">
-      {/* iOS Water 3D Liquid Glass Card */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-md overflow-y-auto font-['Inter',sans-serif]">
       <div 
         id="booking-flow-card"
-        className="w-full max-w-2xl rounded-3xl bg-white/95 backdrop-blur-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border border-white/80 ring-1 ring-black/5 overflow-hidden relative my-auto animate-in zoom-in-95 duration-200"
+        className="w-full max-w-2xl rounded-3xl bg-white shadow-[0_25px_60px_-15px_rgba(8,33,63,0.3)] border border-slate-200 overflow-hidden relative my-auto animate-in zoom-in-95 duration-200"
       >
-        {/* iOS Water Gradient Shimmer Header */}
-        <div className="p-4 sm:p-6 border-b border-[#E5E5EA] flex items-center justify-between bg-gradient-to-r from-white via-[#F8F9FB] to-white">
+        {/* Header */}
+        <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 via-white to-slate-50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600/20 to-indigo-600/10 border border-blue-500/30 flex items-center justify-center text-blue-700 font-black text-sm shadow-xs">
+            <div className="w-10 h-10 rounded-2xl bg-[#08213F] text-white flex items-center justify-center font-black text-sm shadow-md">
               {step <= 3 ? `${step}/3` : '✓'}
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-bold font-['Outfit'] text-[#1C1C1E]">
-                {step === 1 && '1. Home Size, Add-Ons & Slot'}
+              <h3 className="text-base sm:text-lg font-black text-[#08213F]">
+                {step === 1 && '1. Schedule & Configuration'}
                 {step === 2 && '2. Contact Details & Address'}
                 {step === 3 && '3. Order Summary & Payment'}
                 {step === 4 && '4. Booking Confirmed!'}
               </h3>
-              <p className="text-xs text-[#8E8E93] truncate max-w-xs sm:max-w-md">
-                {service.name} {homeSize && `(${homeSize})`}
+              <p className="text-xs text-slate-500 truncate max-w-xs sm:max-w-md font-medium">
+                {service.name} {serviceConfig && `• ${serviceConfig}`}
               </p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 rounded-full text-[#8E8E93] hover:text-[#1C1C1E] hover:bg-black/5 transition-colors cursor-pointer"
+            className="p-2 rounded-full text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        {/* Global Error Banner (No window.alert) */}
+        {errorBanner && (
+          <div className="mx-5 mt-4 p-3.5 rounded-2xl bg-red-50 border border-red-200 flex items-start justify-between gap-3 text-xs text-red-800 animate-in fade-in duration-150">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <span>{errorBanner}</span>
+            </div>
+            <button 
+              onClick={() => setErrorBanner(null)} 
+              className="text-red-500 hover:text-red-800 font-bold text-xs cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Modal Body */}
-        <div className="p-5 sm:p-7 max-h-[72vh] overflow-y-auto space-y-6">
+        <div className="p-5 sm:p-7 max-h-[70vh] overflow-y-auto space-y-6">
           
-          {/* STEP 1: HOME SIZE, ADDONS & SCHEDULE */}
+          {/* ================= STEP 1: SERVICE CONFIG, ADD-ONS & SCHEDULE ================= */}
           {step === 1 && (
             <div className="space-y-6">
               
-              {/* Home Size Selector */}
+              {/* Contextual Configuration Selector */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-2">
-                  Select Home Size / Property Type
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  {isFullHome ? 'Property Size / Configuration' : isBathroom ? 'Bathroom Count' : isSofa ? 'Seating Capacity' : 'Service Scope'}
                 </label>
-                <div className="grid grid-cols-5 gap-2">
-                  {(['1 BHK', '2 BHK', '3 BHK', '4 BHK', 'Villa'] as const).map((size) => (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {(isFullHome 
+                    ? ['1 BHK', '2 BHK', '3 BHK', '4 BHK / Villa']
+                    : isBathroom
+                    ? ['1 Bathroom', '2 Bathrooms', '3 Bathrooms', '4+ Bathrooms']
+                    : isSofa
+                    ? ['3 Seater', '4 Seater', '5-6 Seater', '7+ Seater / Luxury']
+                    : ['Standard', 'Deluxe', 'Deep Clean', 'Full Area']
+                  ).map((cfg) => (
                     <button
-                      key={size}
+                      key={cfg}
                       type="button"
-                      onClick={() => setHomeSize(size)}
-                      className={`py-2 px-1 text-center rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        homeSize === size 
-                          ? 'bg-[#062A49] text-white border-[#062A49] shadow-xs' 
-                          : 'bg-white text-[#062A49] border-[#E5E5EA] hover:border-[#062A49]'
+                      onClick={() => setServiceConfig(cfg)}
+                      className={`py-2.5 px-3 text-center rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        serviceConfig === cfg 
+                          ? 'bg-[#08213F] text-white border-[#08213F] shadow-sm' 
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
                       }`}
                     >
-                      {size}
+                      {cfg}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Standard Add-Ons from Specification */}
+              {/* Add-Ons */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-2.5">
-                  Select Add-ons (Optional)
-                </label>
+                <div className="flex items-center justify-between mb-2.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Popular Add-ons (Optional)
+                  </label>
+                  <span className="text-[11px] text-slate-400">Select to add</span>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {STANDARD_ADDONS.map((addon) => {
                     const isSelected = selectedAddons.some(a => a.id === addon.id);
@@ -514,28 +661,28 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                       <div
                         key={addon.id}
                         onClick={() => toggleAddon(addon)}
-                        className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                           isSelected
-                            ? 'bg-blue-50/70 border-blue-600 shadow-2xs'
-                            : 'bg-white border-[#E5E5EA] hover:border-blue-400'
+                            ? 'bg-blue-50/80 border-blue-600 shadow-xs'
+                            : 'bg-white border-slate-200 hover:border-blue-300'
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
-                          <div className={`w-4 h-4 rounded-md flex items-center justify-center border text-[10px] ${
-                            isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-[#D1D1D6]'
+                          <div className={`w-5 h-5 rounded-lg flex items-center justify-center border text-[11px] ${
+                            isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-slate-50'
                           }`}>
-                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                            {isSelected ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : addon.icon}
                           </div>
                           <div>
-                            <span className="text-xs font-bold text-[#1C1C1E] block">
+                            <span className="text-xs font-bold text-slate-800 block">
                               {addon.name}
                             </span>
-                            <span className="text-[10px] text-[#8E8E93] block truncate max-w-[130px]">
+                            <span className="text-[10px] text-slate-500 block truncate max-w-[130px]">
                               {addon.description}
                             </span>
                           </div>
                         </div>
-                        <span className="text-xs font-extrabold text-[#1C1C1E]">
+                        <span className="text-xs font-extrabold text-[#08213F]">
                           +₹{addon.price}
                         </span>
                       </div>
@@ -547,31 +694,31 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               {/* Date & Slot Selection */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-1.5 flex items-center gap-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Select Date</span>
+                    <span>Preferred Date</span>
                   </label>
                   <input
                     type="date"
                     min={new Date().toISOString().split('T')[0]}
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-[#F2F2F7] border border-transparent focus:border-blue-600 text-sm outline-none font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-sm outline-none font-medium text-slate-800"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-1.5 flex items-center gap-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Select Time Slot</span>
+                    <span>Preferred Time Slot</span>
                   </label>
                   <select
                     value={selectedSlot}
                     onChange={(e) => setSelectedSlot(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-[#F2F2F7] border border-transparent focus:border-blue-600 text-sm outline-none font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-sm outline-none font-medium text-slate-800"
                   >
                     <option value="8 AM - 10 AM">8 AM - 10 AM (Morning Early)</option>
-                    <option value="10 AM - 1 PM">10 AM - 1 PM (Prime Morning)</option>
+                    <option value="10 AM - 1 PM">10 AM - 1 PM (Prime Slot)</option>
                     <option value="1 PM - 4 PM">1 PM - 4 PM (Afternoon)</option>
                     <option value="4 PM - 7 PM">4 PM - 7 PM (Evening)</option>
                   </select>
@@ -588,8 +735,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     <span className="text-xs font-black uppercase text-[#E07B1A] tracking-wider block">
                       🎉 {unlockedOffer.badge} UNLOCKED!
                     </span>
-                    <p className="text-xs font-semibold text-[#1C1C1E]">
-                      {unlockedOffer.freeItemDescription} (₹{unlockedOffer.freeItemValue} value) added to order!
+                    <p className="text-xs font-semibold text-slate-800">
+                      {unlockedOffer.freeItemDescription} (₹{unlockedOffer.freeItemValue} value) complimentary with this booking!
                     </p>
                   </div>
                 </div>
@@ -597,20 +744,20 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             </div>
           )}
 
-          {/* STEP 2: LIVE GEOLOCATION & ADDRESS */}
+          {/* ================= STEP 2: CONTACT DETAILS & ADDRESS ================= */}
           {step === 2 && (
             <div className="space-y-4">
               
-              {/* iOS Water 3D Live GPS Auto-Detect Button */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50/80 via-white to-amber-50/50 border border-blue-200/80 shadow-xs space-y-2">
+              {/* GPS Auto-Detect Button */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 to-indigo-50/50 border border-blue-200 shadow-xs space-y-2">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <span className="text-xs font-black text-[#1C1C1E] flex items-center gap-1.5">
+                    <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                       <Navigation className="w-4 h-4 text-blue-600" />
-                      Live GPS Geographic Location
+                      Live GPS Geographic Auto-Detect
                     </span>
-                    <p className="text-[11px] text-[#636366]">
-                      Automatically capture your exact latitude, longitude, and street address.
+                    <p className="text-[11px] text-slate-500">
+                      Quickly capture your exact coordinates, street address, and pincode.
                     </p>
                   </div>
 
@@ -623,7 +770,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     {detectingLocation ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Detecting GPS...</span>
+                        <span>Detecting...</span>
                       </>
                     ) : (
                       <>
@@ -642,39 +789,91 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 )}
               </div>
 
-              {/* Hub & Sector Dropdowns */}
+              {/* Name & Phone (Required) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-1.5">
-                    Operating Hub / Region
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Your Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <User className="absolute left-3.5 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                        if (validationErrors.name) setValidationErrors({ ...validationErrors, name: false });
+                      }}
+                      placeholder="e.g. Ramesh Kumar"
+                      className={`w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-50 border text-sm outline-none font-medium text-slate-800 ${
+                        validationErrors.name ? 'border-red-500 bg-red-50/50' : 'border-slate-200 focus:border-blue-600'
+                      }`}
+                    />
+                  </div>
+                  {validationErrors.name && (
+                    <span className="text-[11px] text-red-600 font-semibold mt-1 block">Full name is required.</span>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    WhatsApp &amp; Contact Mobile <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <Phone className="absolute left-3.5 w-4 h-4 text-slate-400" />
+                    <input
+                      type="tel"
+                      maxLength={10}
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value.replace(/\D/g, ''));
+                        if (validationErrors.phone) setValidationErrors({ ...validationErrors, phone: false });
+                      }}
+                      placeholder="e.g. 9876543210 (10 digits)"
+                      className={`w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-50 border text-sm outline-none font-medium text-slate-800 ${
+                        validationErrors.phone ? 'border-red-500 bg-red-50/50' : 'border-slate-200 focus:border-blue-600'
+                      }`}
+                    />
+                  </div>
+                  {validationErrors.phone && (
+                    <span className="text-[11px] text-red-600 font-semibold mt-1 block">Valid 10-digit mobile number required.</span>
+                  )}
+                </div>
+              </div>
+
+              {/* City / Hub & Sector */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Operating City &amp; Hub
                   </label>
                   <select
                     value={selectedHub.id}
                     onChange={(e) => {
                       const h = availableHubs.find(x => x.id === e.target.value) || availableHubs[0];
                       setSelectedHub(h);
-                      if (h.coveredSectors && h.coveredSectors.length > 0) {
+                      if (h.coveredSectors?.length > 0) {
                         setSelectedSector(h.coveredSectors[0]);
                       }
                     }}
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-[#F2F2F7] border border-transparent focus:border-blue-600 text-xs sm:text-sm outline-none font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-xs sm:text-sm outline-none font-medium text-slate-800"
                   >
                     {availableHubs.map((h) => (
                       <option key={h.id} value={h.id}>
-                        {h.city} ({h.name} &bull; {h.serviceRadiusKm}km)
+                        {h.city} ({h.name} • {h.serviceRadiusKm}km coverage)
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-1.5">
-                    Sector / Locality
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Sector / Area Locality
                   </label>
                   <select
                     value={selectedSector}
                     onChange={(e) => setSelectedSector(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-[#F2F2F7] border border-transparent focus:border-blue-600 text-xs sm:text-sm outline-none font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-xs sm:text-sm outline-none font-medium text-slate-800"
                   >
                     {(selectedHub.coveredSectors || ['Sector 1', 'Main Market', 'Central Area']).map((sec) => (
                       <option key={sec} value={sec}>{sec}</option>
@@ -683,239 +882,240 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 </div>
               </div>
 
-              {/* Complete Street Address & Landmark */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-1.5">
-                    House / Flat / Street Address
-                  </label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3.5 top-3 w-4 h-4 text-[#8E8E93]" />
-                    <textarea
-                      rows={2}
-                      value={streetAddress}
-                      onChange={(e) => setStreetAddress(e.target.value)}
-                      placeholder="e.g. Flat 602, Tower B, Palm Springs Residency, Sector 54"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-2xl bg-[#F2F2F7] border border-transparent focus:border-blue-600 text-sm outline-none font-medium"
-                    />
-                  </div>
+              {/* Street Address (Required) */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  House / Flat / Street Address <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                  <textarea
+                    rows={2}
+                    value={streetAddress}
+                    onChange={(e) => {
+                      setStreetAddress(e.target.value);
+                      if (validationErrors.street) setValidationErrors({ ...validationErrors, street: false });
+                    }}
+                    placeholder="e.g. Flat 402, Block B, Silver Oak Apartments, Main Road"
+                    className={`w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-50 border text-sm outline-none font-medium text-slate-800 ${
+                      validationErrors.street ? 'border-red-500 bg-red-50/50' : 'border-slate-200 focus:border-blue-600'
+                    }`}
+                  />
                 </div>
+                {validationErrors.street && (
+                  <span className="text-[11px] text-red-600 font-semibold mt-1 block">Complete street address is required.</span>
+                )}
+              </div>
 
+              {/* Landmark, Email & Pincode */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                     Nearby Landmark
                   </label>
                   <input
                     type="text"
                     value={landmark}
                     onChange={(e) => setLandmark(e.target.value)}
-                    placeholder="e.g. Near Galleria Market / Metro Pillar 42"
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-[#F2F2F7] border border-transparent focus:border-blue-600 text-sm outline-none font-medium"
+                    placeholder="e.g. Near Market / Pillar 20"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-sm outline-none font-medium text-slate-800"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-1.5">
-                    Email Address
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Email Address (Optional)
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. yourname@gmail.com"
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-[#F2F2F7] border border-transparent focus:border-blue-600 text-sm outline-none font-medium"
+                    placeholder="e.g. name@gmail.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-sm outline-none font-medium text-slate-800"
                   />
                 </div>
-              </div>
-
-              {/* Contact Info */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-1.5">
-                    Your Full Name
-                  </label>
-                  <div className="relative flex items-center">
-                    <User className="absolute left-3.5 w-4 h-4 text-[#8E8E93]" />
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Vikramaditya Sharma"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-2xl bg-[#F2F2F7] border border-transparent focus:border-blue-600 text-sm outline-none font-medium"
-                    />
-                  </div>
-                </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-1.5">
-                    WhatsApp &amp; Contact Mobile
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Pincode
                   </label>
-                  <div className="relative flex items-center">
-                    <Phone className="absolute left-3.5 w-4 h-4 text-[#8E8E93]" />
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="e.g. 9876543210"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-2xl bg-[#F2F2F7] border border-transparent focus:border-blue-600 text-sm outline-none font-medium"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Pincode & Dispatch Info */}
-              <div className="flex items-center justify-between text-xs text-[#8E8E93] p-3 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA]">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Verified Hub Coverage Area</span>
-                </div>
-                <div className="flex items-center gap-1 font-mono font-bold text-[#1C1C1E]">
-                  <span>Pincode:</span>
                   <input
                     type="text"
+                    maxLength={6}
                     value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
-                    className="w-16 px-1.5 py-0.5 rounded bg-white border border-[#D1D1D6] text-xs text-center"
+                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="e.g. 122002"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-sm outline-none font-mono font-bold text-slate-800"
                   />
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-medium">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Verified Bharat Pro Service Coverage: {selectedHub.city} Hub with background-verified staff.</span>
               </div>
             </div>
           )}
 
-          {/* STEP 3: BILLING & PAYMENT */}
+          {/* ================= STEP 3: BILLING & PAYMENT ================= */}
           {step === 3 && (
             <div className="space-y-5">
+              
               {/* Order Summary Card */}
-              <div className="p-4 rounded-2xl bg-[#F8F9FB] border border-[#E5E5EA] space-y-3">
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h4 className="font-bold text-sm text-[#1C1C1E]">
-                      {service.name} <span className="text-[#062A49] font-normal">({homeSize})</span>
+                    <h4 className="font-black text-base text-[#08213F]">
+                      {service.name} <span className="text-slate-500 font-semibold text-xs">({serviceConfig})</span>
                     </h4>
-                    <span className="text-xs text-[#8E8E93]">
-                      {selectedDate} &bull; {selectedSlot}
+                    <span className="text-xs text-slate-600 font-medium">
+                      📅 {selectedDate} • {selectedSlot}
                     </span>
-                    <p className="text-[11px] text-[#636366] mt-0.5">
-                      {streetAddress} {landmark && `(Near ${landmark})`}, {selectedSector}, {selectedHub.city}
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      📍 {streetAddress} {landmark && `(Near ${landmark})`}, {selectedSector}, {selectedHub.city}
                     </p>
                   </div>
-                  <span className="font-black text-sm text-[#1C1C1E]">
+                  <span className="font-black text-base text-[#08213F]">
                     ₹{service.basePrice}
                   </span>
                 </div>
 
                 {selectedAddons.map(addon => (
-                  <div key={addon.id} className="flex justify-between text-xs text-[#636366]">
+                  <div key={addon.id} className="flex justify-between text-xs text-slate-600">
                     <span>+ {addon.name}</span>
                     <span>₹{addon.price}</span>
                   </div>
                 ))}
 
-                {/* Promo Code Form */}
-                <form onSubmit={handleApplyCoupon} className="pt-2 border-t border-[#E5E5EA] flex gap-2">
+                {/* 10% Discount Promo Code Form */}
+                <form onSubmit={handleApplyCoupon} className="pt-2 border-t border-slate-200 flex gap-2">
                   <div className="relative flex-1">
-                    <Tag className="w-3.5 h-3.5 text-[#8E8E93] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Tag className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      placeholder="Coupon Code (e.g. BHARAT500)"
-                      className="w-full pl-8 pr-3 py-2 rounded-xl bg-white border border-[#D1D1D6] text-xs font-mono uppercase font-bold outline-none"
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="Coupon Code (e.g. BHARAT10)"
+                      className="w-full pl-8 pr-3 py-2 rounded-xl bg-white border border-slate-300 text-xs font-mono uppercase font-bold outline-none"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="px-3.5 py-2 rounded-xl bg-[#1C1C1E] text-white text-xs font-bold hover:bg-black"
+                    className="px-4 py-2 rounded-xl bg-[#08213F] text-white text-xs font-bold hover:bg-[#04162C] cursor-pointer"
                   >
                     Apply
                   </button>
                 </form>
+
+                <div className="flex items-center gap-2 text-[11px] text-amber-800">
+                  <span className="font-semibold">Special Coupon:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCouponCode('BHARAT10');
+                      setIsCouponApplied(true);
+                      const disc = Math.round(rawSubtotal * 0.10);
+                      setDiscountAmount(disc);
+                      setCouponMessage(`🎉 BHARAT10 applied! 10% discount unlocked (Saved ₹${disc})`);
+                      setErrorBanner(null);
+                    }}
+                    className="px-2.5 py-0.5 rounded-md bg-amber-100 hover:bg-amber-200 border border-amber-300 font-mono font-bold text-amber-950 cursor-pointer"
+                  >
+                    BHARAT10 (10% OFF)
+                  </button>
+                </div>
+
                 {couponMessage && (
-                  <p className="text-[11px] font-bold text-emerald-700">{couponMessage}</p>
+                  <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                    {couponMessage}
+                  </p>
                 )}
 
                 {/* Financial Breakdown */}
-                <div className="pt-2 border-t border-[#E5E5EA] space-y-1.5 text-xs">
-                  <div className="flex justify-between text-[#8E8E93]">
+                <div className="pt-2 border-t border-slate-200 space-y-1.5 text-xs text-slate-600">
+                  <div className="flex justify-between">
                     <span>Base Service Price</span>
                     <span>₹{service.basePrice}</span>
                   </div>
                   {addonsTotal > 0 && (
-                    <div className="flex justify-between text-[#8E8E93]">
+                    <div className="flex justify-between">
                       <span>Add-ons ({selectedAddons.length})</span>
                       <span>+₹{addonsTotal}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-[#8E8E93]">
+                  <div className="flex justify-between">
                     <span>GST (18%)</span>
                     <span>₹{taxesGst}</span>
                   </div>
-                  <div className="flex justify-between text-[#8E8E93]">
-                    <span>Convenience &amp; Hub Safety Fee</span>
+                  <div className="flex justify-between">
+                    <span>Convenience &amp; Safety Hub Fee</span>
                     <span>₹{convenienceFee}</span>
                   </div>
                   {discountAmount > 0 && (
                     <div className="flex justify-between text-emerald-700 font-bold">
-                      <span>Discount Coupon</span>
+                      <span>10% Instant Discount Coupon</span>
                       <span>-₹{discountAmount}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-sm sm:text-base font-black text-[#1C1C1E] pt-2 border-t border-[#E5E5EA]">
+                  <div className="flex justify-between text-base font-black text-[#08213F] pt-2 border-t border-slate-300">
                     <span>Total Amount Payable</span>
-                    <span className="text-blue-700">₹{netTotal}</span>
+                    <span className="text-blue-700 text-lg">₹{netTotal}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Payment Methods */}
+              {/* Payment Methods Choice */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#1C1C1E] mb-2.5">
-                  Choose Payment Method
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2.5">
+                  Select Payment Method
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  
+                  {/* Option 1: Pay After Service */}
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('Pay after service')}
+                    className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                      paymentMethod === 'Pay after service'
+                        ? 'border-emerald-600 bg-emerald-50/70 shadow-sm ring-2 ring-emerald-600/30'
+                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Banknote className={`w-4 h-4 ${paymentMethod === 'Pay after service' ? 'text-emerald-700' : 'text-slate-500'}`} />
+                        <span className="text-xs font-bold text-slate-900">Pay after service</span>
+                      </div>
+                      <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full text-[10px]">
+                        Cash / UPI Later
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 mt-2">
+                      Pay directly to our verified professional upon job completion (Cash or QR UPI).
+                    </span>
+                  </button>
+
+                  {/* Option 2: Pay Online with Razorpay */}
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('UPI / Cards / Netbanking')}
                     className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                       paymentMethod === 'UPI / Cards / Netbanking'
                         ? 'border-blue-600 bg-blue-50/70 shadow-sm ring-2 ring-blue-600/30'
-                        : 'border-[#E5E5EA] bg-white hover:bg-slate-50'
+                        : 'border-slate-200 bg-white hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <CreditCard className={`w-4 h-4 ${paymentMethod === 'UPI / Cards / Netbanking' ? 'text-blue-600' : 'text-slate-500'}`} />
-                        <span className="text-xs font-bold text-[#1C1C1E]">UPI / Cards / Netbanking</span>
+                        <span className="text-xs font-bold text-slate-900">UPI / Cards / Netbanking</span>
                       </div>
-                      <span className="text-xs bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full text-[10px]">
-                        Instant &amp; 100% Safe
+                      <span className="bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full text-[10px]">
+                        Razorpay Secure
                       </span>
                     </div>
                     <span className="text-[11px] text-slate-500 mt-2">
-                      Google Pay, PhonePe, Paytm, Visa, Master, Netbanking via Razorpay
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('Pay after service')}
-                    className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
-                      paymentMethod === 'Pay after service'
-                        ? 'border-blue-600 bg-blue-50/70 shadow-sm ring-2 ring-blue-600/30'
-                        : 'border-[#E5E5EA] bg-white hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Banknote className={`w-4 h-4 ${paymentMethod === 'Pay after service' ? 'text-blue-600' : 'text-slate-500'}`} />
-                        <span className="text-xs font-bold text-[#1C1C1E]">Pay after service</span>
-                      </div>
-                      <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full text-[10px]">
-                        Pay Later
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-slate-500 mt-2">
-                      Pay via Cash or UPI directly to our verified professional upon service completion
+                      Pay instantly with Google Pay, PhonePe, Paytm, Debit/Credit Card, or Netbanking.
                     </span>
                   </button>
                 </div>
@@ -923,7 +1123,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             </div>
           )}
 
-          {/* STEP 4: BOOKING CONFIRMATION SCREEN */}
+          {/* ================= STEP 4: BOOKING CONFIRMED SCREEN ================= */}
           {step === 4 && confirmedBookingRecord && (
             <div className="space-y-6 text-center py-4">
               <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-md">
@@ -932,109 +1132,166 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
               <div>
                 <span className="text-xs font-bold text-emerald-700 uppercase tracking-widest block">
-                  Success!
+                  🎉 Booking Confirmed!
                 </span>
-                <h3 className="text-2xl font-black text-[#062A49] mt-1">
-                  Booking Confirmed
+                <h3 className="text-2xl font-black text-[#08213F] mt-1">
+                  Thank You, {confirmedBookingRecord.customerName}!
                 </h3>
-                <div className="inline-block mt-2 px-3 py-1 rounded-full bg-gray-100 font-mono text-xs font-bold text-[#062A49]">
+                <div className="inline-block mt-2 px-3.5 py-1 rounded-full bg-slate-100 font-mono text-xs font-bold text-[#08213F] border border-slate-200">
                   Booking ID: #{confirmedBookingRecord.bookingNumber}
                 </div>
               </div>
 
               {/* Confirmation Details Card */}
-              <div className="p-4 rounded-2xl bg-[#EEF7FD] border border-[#D0E7F9] text-left text-xs space-y-2 max-w-md mx-auto">
-                <div className="flex justify-between pb-1.5 border-b border-[#D0E7F9]">
-                  <span className="text-gray-500">Service:</span>
-                  <span className="font-bold text-[#062A49]">{confirmedBookingRecord.serviceName} ({homeSize})</span>
+              <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/60 border border-blue-200 text-left text-xs space-y-2.5 max-w-md mx-auto">
+                <div className="flex justify-between pb-1.5 border-b border-blue-100">
+                  <span className="text-slate-500">Service:</span>
+                  <span className="font-bold text-[#08213F]">{confirmedBookingRecord.serviceName}</span>
                 </div>
-                <div className="flex justify-between pb-1.5 border-b border-[#D0E7F9]">
-                  <span className="text-gray-500">Date &amp; Time:</span>
-                  <span className="font-bold text-[#062A49]">{confirmedBookingRecord.date} at {confirmedBookingRecord.timeSlot}</span>
+                <div className="flex justify-between pb-1.5 border-b border-blue-100">
+                  <span className="text-slate-500">Date &amp; Slot:</span>
+                  <span className="font-bold text-[#08213F]">{confirmedBookingRecord.date} at {confirmedBookingRecord.timeSlot}</span>
                 </div>
-                <div className="flex justify-between pb-1.5 border-b border-[#D0E7F9]">
-                  <span className="text-gray-500">Service Address:</span>
-                  <span className="font-bold text-[#062A49] text-right truncate max-w-[200px]">{confirmedBookingRecord.address.street}, {confirmedBookingRecord.address.city}</span>
+                <div className="flex justify-between pb-1.5 border-b border-blue-100">
+                  <span className="text-slate-500">Service Address:</span>
+                  <span className="font-bold text-[#08213F] text-right truncate max-w-[210px]">
+                    {confirmedBookingRecord.address.street}, {confirmedBookingRecord.address.city}
+                  </span>
                 </div>
-                <div className="flex justify-between pb-1.5 border-b border-[#D0E7F9]">
-                  <span className="text-gray-500">Payment Status:</span>
-                  <span className="font-extrabold text-[#2FA84F]">₹{confirmedBookingRecord.totalAmount} (PAID &amp; VERIFIED)</span>
+                <div className="flex justify-between pb-1.5 border-b border-blue-100">
+                  <span className="text-slate-500">Payment Status:</span>
+                  <span className={`font-black ${confirmedBookingRecord.paymentStatus === 'PAID' ? 'text-emerald-700' : 'text-amber-800'}`}>
+                    {confirmedBookingRecord.paymentStatus === 'PAID' 
+                      ? `₹${confirmedBookingRecord.totalAmount} (PAID & VERIFIED)` 
+                      : `₹${confirmedBookingRecord.totalAmount} (PAY ON COMPLETION)`}
+                  </span>
                 </div>
-                <div className="flex justify-between pb-1.5 border-b border-[#D0E7F9]">
-                  <span className="text-gray-500">Razorpay TXN:</span>
-                  <span className="font-mono text-[11px] font-bold text-[#062A49]">{confirmedBookingRecord.transactionId}</span>
+                
+                {confirmedBookingRecord.paymentStatus === 'PAID' && confirmedBookingRecord.transactionId && (
+                  <div className="flex justify-between pb-1.5 border-b border-blue-100">
+                    <span className="text-slate-500">Razorpay TXN:</span>
+                    <span className="font-mono text-[11px] font-bold text-[#08213F]">{confirmedBookingRecord.transactionId}</span>
+                  </div>
+                )}
+
+                {/* Start OTP */}
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <span className="text-slate-500 block">Job Start OTP:</span>
+                    <span className="text-[10px] text-slate-400">Share with technician upon arrival</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-black text-sm text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1 rounded-lg">
+                      {confirmedBookingRecord.startOtp}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(confirmedBookingRecord.startOtp || '');
+                      }}
+                      className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600"
+                      title="Copy OTP"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Start Job OTP:</span>
-                  <span className="font-mono font-black text-amber-800 bg-amber-100 px-2 py-0.5 rounded">{confirmedBookingRecord.startOtp}</span>
-                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="max-w-md mx-auto pt-2 space-y-2">
+                {onTrackBooking && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onTrackBooking(confirmedBookingRecord);
+                    }}
+                    className="w-full py-3 px-6 rounded-2xl bg-[#00A86B] hover:bg-[#008f5b] text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Activity className="w-4 h-4" />
+                    <span>Track Booking Status Live</span>
+                  </button>
+                )}
+                
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-3 px-6 rounded-2xl bg-[#08213F] hover:bg-[#04162C] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                >
+                  Done • Return to Home
+                </button>
               </div>
             </div>
           )}
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="p-4 sm:p-6 border-t border-[#E5E5EA] bg-[#F8F9FB] flex items-center justify-between gap-3">
-          {step === 4 ? (
-            <div className="w-full flex items-center justify-center gap-3">
+        {step < 4 && (
+          <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+            {step > 1 ? (
               <button
                 type="button"
-                onClick={onClose}
-                className="w-full py-3 px-6 rounded-2xl bg-[#062A49] hover:bg-[#082D4F] text-white text-xs font-bold transition-all shadow-md cursor-pointer"
+                onClick={() => {
+                  setErrorBanner(null);
+                  setStep((step - 1) as any);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-xs font-bold text-slate-700 transition-all cursor-pointer"
               >
-                Done &bull; Return to Home
+                ← Back
               </button>
-            </div>
-          ) : (
-            <>
-              {step > 1 ? (
-                <button
-                  type="button"
-                  onClick={() => setStep((step - 1) as any)}
-                  className="px-4 py-2.5 rounded-2xl bg-white border border-[#D1D1D6] hover:bg-[#F2F2F7] text-xs font-bold text-[#1C1C1E] transition-all cursor-pointer"
-                >
-                  Back
-                </button>
-              ) : (
-                <div />
-              )}
+            ) : (
+              <div />
+            )}
 
-              {step < 3 ? (
-                <button
-                  type="button"
-                  onClick={() => setStep((step + 1) as any)}
-                  className="px-6 py-2.5 rounded-2xl bg-[#062A49] hover:bg-[#082D4F] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span>Continue</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-[#F5A400]" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={handleConfirmBooking}
-                  className="px-6 py-3 rounded-2xl bg-[#062A49] hover:bg-[#082D4F] text-white text-xs sm:text-sm font-extrabold shadow-lg transition-all flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Opening Secure Razorpay...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>
-                        {paymentMethod === 'Pay after service'
-                          ? `Confirm Booking (Pay Later • ₹${netTotal})`
-                          : `🔒 Pay Online & Confirm Booking (₹${netTotal})`}
-                      </span>
-                      <ArrowRight className="w-4 h-4 text-blue-200" />
-                    </>
-                  )}
-                </button>
-              )}
-            </>
-          )}
-        </div>
+            {step === 1 && (
+              <button
+                type="button"
+                onClick={handleContinueFromStep1}
+                className="px-6 py-2.5 rounded-xl bg-[#08213F] hover:bg-[#04162C] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Continue to Address</span>
+                <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
+              </button>
+            )}
+
+            {step === 2 && (
+              <button
+                type="button"
+                onClick={handleContinueFromStep2}
+                className="px-6 py-2.5 rounded-xl bg-[#08213F] hover:bg-[#04162C] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Continue to Payment</span>
+                <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
+              </button>
+            )}
+
+            {step === 3 && (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleConfirmBooking}
+                className="px-6 py-3 rounded-xl bg-[#08213F] hover:bg-[#04162C] text-white text-xs sm:text-sm font-extrabold shadow-lg transition-all flex items-center gap-2 cursor-pointer active:scale-98 disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Processing Booking...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      {paymentMethod === 'Pay after service'
+                        ? `Confirm Booking (Pay Later • ₹${netTotal})`
+                        : `🔒 Pay Online (₹${netTotal}) via Razorpay`}
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-amber-400" />
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

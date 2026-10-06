@@ -278,12 +278,8 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
     }, 0);
 
     let discount = 0;
-    if (coupon === 'FIRST10') {
-      discount = Math.min(150, Math.round(subtotal * 0.10));
-    } else if (coupon === 'BHARAT500' && subtotal >= 1000) {
-      discount = 500;
-    } else if (coupon === 'COMBO200' && subtotal >= 600) {
-      discount = 200;
+    if (coupon === 'BHARAT10' || coupon === 'FIRST10' || coupon === 'PRO10' || coupon === 'CLEAN10' || coupon.includes('10')) {
+      discount = Math.round(subtotal * 0.10);
     }
 
     const net = Math.max(0, subtotal - discount);
@@ -294,24 +290,16 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
 
   const tot = calculateTotal();
 
-  // Apply Coupon
+  // Apply Coupon (Strictly 10% Discount)
   const handleApplyCoupon = (codeToApply?: string) => {
     const code = (codeToApply || couponInput).trim().toUpperCase();
-    if (code === 'FIRST10') {
-      setCoupon('FIRST10');
-      setCouponFeedback('🎉 10% First Booking discount applied (up to ₹150)!');
-      showToast('Coupon FIRST10 applied!');
-    } else if (code === 'BHARAT500') {
-      setCoupon('BHARAT500');
-      setCouponFeedback('🎉 ₹500 Mega Discount applied on orders ₹1000+!');
-      showToast('Coupon BHARAT500 applied!');
-    } else if (code === 'COMBO200') {
-      setCoupon('COMBO200');
-      setCouponFeedback('🎉 ₹200 Combo Discount applied!');
-      showToast('Coupon COMBO200 applied!');
+    if (code === 'BHARAT10' || code === 'FIRST10' || code === 'PRO10' || code === 'CLEAN10' || code === 'SAVE10' || code.includes('10')) {
+      setCoupon('BHARAT10');
+      setCouponFeedback('🎉 10% Discount applied! (10% OFF)');
+      showToast('Coupon BHARAT10 applied (10% OFF)!');
     } else {
-      setCouponFeedback('Invalid coupon code. Try FIRST10, BHARAT500, or COMBO200');
-      showToast('Invalid Coupon');
+      setCouponFeedback('Invalid coupon code. Use "BHARAT10" for 10% OFF');
+      showToast('Invalid Coupon. Use BHARAT10');
     }
   };
 
@@ -1034,43 +1022,41 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb]">
-                  <span className="bg-[#fff3dc] text-[#b45309] text-[11px] font-bold px-2 py-0.5 rounded">
-                    COMBO OFFER
+                <div className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border-2 border-dashed border-blue-300">
+                  <span className="bg-blue-100 text-[#0b3ba8] text-[11px] font-bold px-2 py-0.5 rounded">
+                    SPECIAL 10% OFFER
                   </span>
                   <h4 className="text-base font-bold text-[#111827] mt-2 mb-1">
-                    Bathroom + Sofa Cleaning
+                    All Cleaning Services
                   </h4>
                   <div className="text-[#16a34a] font-bold text-sm mb-3">
-                    Save ₹200 (Auto Discount)
+                    Flat 10% OFF with code BHARAT10
                   </div>
                   <button
                     onClick={() => {
-                      setQty('bath', 0, 1);
-                      setQty('sofa', 0, 1);
-                      handleApplyCoupon('COMBO200');
-                      setView('cart');
+                      handleApplyCoupon('BHARAT10');
+                      setView('sv');
                       window.scrollTo(0, 0);
                     }}
-                    className="px-4 py-2 rounded-xl border border-[#0b3ba8] text-[#0b3ba8] font-bold text-xs hover:bg-[#eaf0ff] cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-[#0b3ba8] text-white font-bold text-xs hover:bg-blue-800 cursor-pointer shadow-xs"
                   >
-                    Book Combo →
+                    Apply 10% OFF →
                   </button>
                 </div>
 
                 <div className="rounded-2xl p-4 bg-[#eaf0ff] shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-blue-200">
                   <span className="bg-[#0b3ba8] text-white text-[11px] font-bold px-2 py-0.5 rounded">
-                    FIRST BOOKING
+                    EXCLUSIVE COUPON
                   </span>
                   <h4 className="text-base font-bold text-[#111827] mt-2 mb-1">
-                    Get 10% OFF on First Booking
+                    Get 10% OFF on Any Service
                   </h4>
                   <p className="text-xs text-[#6b7280] mb-3">
-                    Use code <b>FIRST10</b> (save up to ₹150)
+                    Use code <b>BHARAT10</b> at checkout
                   </p>
                   <button
                     onClick={() => {
-                      handleApplyCoupon('FIRST10');
+                      handleApplyCoupon('BHARAT10');
                       setSelectedServiceId('bath');
                       setView('sv');
                       window.scrollTo(0, 0);
@@ -1607,7 +1593,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 <div className="bg-white rounded-2xl p-3 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb] flex gap-2">
                   <input
                     type="text"
-                    placeholder="Enter code (try FIRST10, BHARAT500)"
+                    placeholder="Enter code (e.g. BHARAT10 for 10% OFF)"
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value)}
                     className="flex-1 border border-[#e5e7eb] rounded-xl px-3 py-2 text-xs font-mono uppercase font-bold focus:outline-[#0b3ba8]"
@@ -2229,72 +2215,26 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
             </h2>
 
             <div className="space-y-3">
-              <div className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb] flex items-center justify-between">
+              <div className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border-2 border-dashed border-[#0b3ba8] flex items-center justify-between">
                 <div>
                   <span className="bg-[#0b3ba8] text-white text-[10px] font-bold px-2 py-0.5 rounded font-mono">
-                    FIRST10
+                    BHARAT10
                   </span>
                   <h4 className="text-sm font-bold text-[#111827] mt-1">
-                    10% OFF on First Booking
+                    Flat 10% OFF on All Cleaning Services
                   </h4>
                   <p className="text-xs text-[#6b7280]">
-                    Save up to ₹150 on any bathroom, sofa, or kitchen service.
+                    Instant 10% discount applied to your entire order at checkout.
                   </p>
                 </div>
                 <button
                   onClick={() => {
-                    handleApplyCoupon('FIRST10');
+                    handleApplyCoupon('BHARAT10');
                     setView('sv');
                   }}
-                  className="px-3.5 py-1.5 rounded-xl border border-[#0b3ba8] text-[#0b3ba8] font-bold text-xs hover:bg-[#eaf0ff] cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl bg-[#0b3ba8] text-white font-bold text-xs hover:bg-blue-800 cursor-pointer shadow-xs"
                 >
-                  Apply
-                </button>
-              </div>
-
-              <div className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb] flex items-center justify-between">
-                <div>
-                  <span className="bg-[#b45309] text-white text-[10px] font-bold px-2 py-0.5 rounded font-mono">
-                    BHARAT500
-                  </span>
-                  <h4 className="text-sm font-bold text-[#111827] mt-1">
-                    Flat ₹500 OFF on Full Home
-                  </h4>
-                  <p className="text-xs text-[#6b7280]">
-                    Valid on order totals of ₹1000 and above.
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    handleApplyCoupon('BHARAT500');
-                    setView('sv');
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl border border-[#0b3ba8] text-[#0b3ba8] font-bold text-xs hover:bg-[#eaf0ff] cursor-pointer"
-                >
-                  Apply
-                </button>
-              </div>
-
-              <div className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb] flex items-center justify-between">
-                <div>
-                  <span className="bg-[#16a34a] text-white text-[10px] font-bold px-2 py-0.5 rounded font-mono">
-                    COMBO200
-                  </span>
-                  <h4 className="text-sm font-bold text-[#111827] mt-1">
-                    ₹200 Instant Combo Savings
-                  </h4>
-                  <p className="text-xs text-[#6b7280]">
-                    Book 2 or more cleaning services together.
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    handleApplyCoupon('COMBO200');
-                    setView('sv');
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl border border-[#0b3ba8] text-[#0b3ba8] font-bold text-xs hover:bg-[#eaf0ff] cursor-pointer"
-                >
-                  Apply
+                  Apply 10%
                 </button>
               </div>
             </div>
@@ -2706,54 +2646,20 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
             </div>
 
             <div className="space-y-2.5">
-              <div className="p-3 bg-[#eaf0ff] rounded-xl border border-blue-200 flex items-center justify-between">
+              <div className="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 flex items-center justify-between">
                 <div>
-                  <span className="bg-[#0b3ba8] text-white text-[9px] font-black px-1.5 py-0.5 rounded">NEW USER</span>
-                  <b className="text-xs text-[#111827] block mt-1">10% OFF with FIRST10</b>
-                  <span className="text-[10px] text-[#6b7280]">Save up to ₹150 instantly</span>
+                  <span className="bg-[#0b3ba8] text-white text-[9px] font-black px-1.5 py-0.5 rounded">EXCLUSIVE</span>
+                  <b className="text-xs text-[#111827] block mt-1">10% OFF on All Services (BHARAT10)</b>
+                  <span className="text-[10px] text-[#6b7280]">10% instant discount applied at checkout</span>
                 </div>
                 <button
                   onClick={() => {
-                    handleApplyCoupon('FIRST10');
+                    handleApplyCoupon('BHARAT10');
                     setNotificationModalOpen(false);
                   }}
-                  className="px-3 py-1 rounded-lg bg-[#0b3ba8] text-white text-xs font-bold hover:bg-blue-800"
+                  className="px-3.5 py-1.5 rounded-lg bg-[#0b3ba8] text-white text-xs font-bold hover:bg-blue-800 shadow-xs cursor-pointer"
                 >
-                  Apply
-                </button>
-              </div>
-
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-center justify-between">
-                <div>
-                  <span className="bg-amber-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded">FULL HOME</span>
-                  <b className="text-xs text-[#111827] block mt-1">Flat ₹500 OFF (BHARAT500)</b>
-                  <span className="text-[10px] text-[#6b7280]">Valid on orders ₹1000+</span>
-                </div>
-                <button
-                  onClick={() => {
-                    handleApplyCoupon('BHARAT500');
-                    setNotificationModalOpen(false);
-                  }}
-                  className="px-3 py-1 rounded-lg bg-amber-600 text-white text-xs font-bold hover:bg-amber-700"
-                >
-                  Apply
-                </button>
-              </div>
-
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between">
-                <div>
-                  <span className="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded">COMBO DEAL</span>
-                  <b className="text-xs text-[#111827] block mt-1">₹200 OFF on Bath + Sofa</b>
-                  <span className="text-[10px] text-[#6b7280]">Use code COMBO200</span>
-                </div>
-                <button
-                  onClick={() => {
-                    handleApplyCoupon('COMBO200');
-                    setNotificationModalOpen(false);
-                  }}
-                  className="px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
-                >
-                  Apply
+                  Apply 10%
                 </button>
               </div>
             </div>
