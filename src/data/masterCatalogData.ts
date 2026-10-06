@@ -522,6 +522,11 @@ export function catalogItemToCleaningService(item: CatalogItem): CleaningService
     steps: item.processSteps,
     inclusions: item.inclusions,
     exclusions: item.exclusions,
-    addons: item.addOns || [],
+    addons: (item.addOns || []).map((a, idx) => ({
+      id: a.addOnId || `addon-${item.id}-${idx}`,
+      name: a.name,
+      price: a.price,
+      description: a.description
+    })),
   };
 }

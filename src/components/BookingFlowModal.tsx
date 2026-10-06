@@ -179,6 +179,23 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     return () => window.removeEventListener('bharatpro_hubs_updated', handleHubsUpdated);
   }, [selectedCity]);
 
+  // Sync service changes & cart add-ons
+  useEffect(() => {
+    if (service) {
+      if (service.addons && service.addons.length > 0) {
+        setSelectedAddons(service.addons);
+      } else {
+        setSelectedAddons([]);
+      }
+      const isFull = /home|house|villa/i.test(service.name);
+      const isBath = /bath/i.test(service.name);
+      const isSof = /sofa|couch|carpet/i.test(service.name);
+      setServiceConfig(isFull ? '2 BHK' : isBath ? '2 Bathrooms' : isSof ? '3 Seater' : 'Standard');
+      setStep(1);
+      setErrorBanner(null);
+    }
+  }, [service]);
+
   // Set default phone & name when profile or user state updates
   useEffect(() => {
     if (profile?.phone && !phone) setPhone(profile.phone);
@@ -323,8 +340,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const handleContinueFromStep2 = () => {
     const errs: { name?: boolean; phone?: boolean; street?: boolean } = {};
     if (!name.trim()) errs.name = true;
-    const cleanPhone = phone.trim().replace(/\D/g, '');
-    if (!cleanPhone || cleanPhone.length < 10) errs.phone = true;
+    const cleanPhone = phone.trim().replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0(?=\d{10}$)/, '');
+    if (!cleanPhone || cleanPhone.length !== 10) errs.phone = true;
     if (!streetAddress.trim()) errs.street = true;
 
     setValidationErrors(errs);
@@ -355,8 +372,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   // Final Confirmation Execution
   const handleConfirmBooking = async () => {
     setErrorBanner(null);
-    const cleanPhone = phone.trim().replace(/\D/g, '');
-    if (!cleanPhone || cleanPhone.length < 10) {
+    const cleanPhone = phone.trim().replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0(?=\d{10}$)/, '');
+    if (!cleanPhone || cleanPhone.length !== 10) {
       setErrorBanner('Please provide a valid 10-digit phone number.');
       setStep(2);
       return;
@@ -592,6 +609,63 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Interactive Step Indicator Tabs */}
+        {step <= 3 && (
+          <div className="grid grid-cols-3 border-b border-slate-200 bg-slate-50/80 text-xs font-bold text-center">
+            <button
+              type="button"
+              onClick={() => { setErrorBanner(null); setStep(1); }}
+              className={`py-3 px-2 border-b-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                step === 1
+                  ? 'border-[#08213F] text-[#08213F] bg-white shadow-xs'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span className={`w-5 h-5 rounded-full text-[10px] flex items-center justify-center font-bold ${step > 1 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                {step > 1 ? '✓' : '1'}
+              </span>
+              <span className="truncate">1. Schedule</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (step >= 2) { setErrorBanner(null); setStep(2); }
+                else { handleContinueFromStep1(); }
+              }}
+              className={`py-3 px-2 border-b-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                step === 2
+                  ? 'border-[#08213F] text-[#08213F] bg-white shadow-xs'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span className={`w-5 h-5 rounded-full text-[10px] flex items-center justify-center font-bold ${step > 2 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                {step > 2 ? '✓' : '2'}
+              </span>
+              <span className="truncate">2. Address</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (step >= 3) { setErrorBanner(null); setStep(3); }
+                else if (step === 2) { handleContinueFromStep2(); }
+                else {
+                  handleContinueFromStep1();
+                }
+              }}
+              className={`py-3 px-2 border-b-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                step === 3
+                  ? 'border-[#08213F] text-[#08213F] bg-white shadow-xs'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span className={`w-5 h-5 rounded-full text-[10px] flex items-center justify-center font-bold ${step === 3 ? 'bg-[#08213F] text-white' : 'bg-slate-200 text-slate-700'}`}>
+                3
+              </span>
+              <span className="truncate">3. Payment</span>
+            </button>
+          </div>
+        )}
 
         {/* Global Error Banner (No window.alert) */}
         {errorBanner && (
@@ -868,17 +942,34 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Sector / Area Locality
+                    Sector / Colony / Locality Area
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={selectedSector}
                     onChange={(e) => setSelectedSector(e.target.value)}
+                    placeholder="e.g. Sector 45, Indirapuram, Boring Road"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-xs sm:text-sm outline-none font-medium text-slate-800"
-                  >
-                    {(selectedHub.coveredSectors || ['Sector 1', 'Main Market', 'Central Area']).map((sec) => (
-                      <option key={sec} value={sec}>{sec}</option>
-                    ))}
-                  </select>
+                  />
+                  {selectedHub.coveredSectors && selectedHub.coveredSectors.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                      <span className="text-[10px] text-slate-400 font-medium">Suggestions:</span>
+                      {selectedHub.coveredSectors.slice(0, 4).map((sec) => (
+                        <button
+                          key={sec}
+                          type="button"
+                          onClick={() => setSelectedSector(sec)}
+                          className={`text-[10px] px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
+                            selectedSector === sec
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {sec}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
