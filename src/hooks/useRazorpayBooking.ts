@@ -110,44 +110,12 @@ export const useRazorpayBooking = () => {
       return;
     }
 
-    // 2. BRANCH A: "Pay after service" (Cash / Pay Later)
-    // Directly creates booking in Firestore with PENDING payment status, bypassing Razorpay
+    // 2. Reject COD / Pay after service (Strictly Online Payment Only)
     if (isPayAfterServiceSelection(paymentMethod)) {
-      try {
-        const cashBookingRecord: Booking = {
-          ...payload,
-          id: payload.bookingId,
-          bookingNumber: payload.bookingNumber,
-          categoryName: payload.categoryName || 'Deep Cleaning',
-          selectedAddons: payload.selectedAddons || [],
-          paymentMethod: 'PAY_AFTER_SERVICE',
-          paymentStatus: 'PENDING',
-          transactionId: 'TXN_' + Math.random().toString(36).substring(2, 10).toUpperCase(),
-          status: 'SEARCHING_PROFESSIONAL',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        // Write to Firestore inside createNewBooking
-        const savedBooking = await createNewBooking(cashBookingRecord);
-
-        try {
-          confetti({
-            particleCount: 80,
-            spread: 70,
-            origin: { y: 0.6 }
-          });
-        } catch {}
-
-        setIsProcessing(false);
-        await options.onSuccess(savedBooking);
-      } catch (err: any) {
-        console.error('[useRazorpayBooking] Pay After Service booking error:', err);
-        const errMsg = err?.message || 'Failed to place booking. Please retry.';
-        setError(errMsg);
-        setIsProcessing(false);
-        options.onError?.(errMsg);
-      }
+      const msg = 'COD (Cash on Delivery) is disabled. Please pay online via UPI, Cards, or Netbanking to confirm your booking.';
+      setError(msg);
+      setIsProcessing(false);
+      options.onError?.(msg);
       return;
     }
 

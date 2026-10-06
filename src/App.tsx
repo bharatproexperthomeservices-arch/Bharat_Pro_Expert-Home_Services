@@ -37,8 +37,26 @@ function AppContent() {
   const [selectedCity, setSelectedCity] = useState('Gurugram');
   const [selectedService, setSelectedService] = useState<CleaningService | null>(null);
   const [bookingService, setBookingService] = useState<CleaningService | null>(null);
+  const [pendingBookingService, setPendingBookingService] = useState<CleaningService | null>(null);
   const [activeTrackingBooking, setActiveTrackingBooking] = useState<Booking | null>(null);
   const [liveServices, setLiveServices] = useState<CleaningService[]>(INITIAL_SERVICES);
+
+  // Require login for booking: if user logs in while booking is pending, immediately open booking
+  const handleProceedToBooking = (service: CleaningService) => {
+    if (!user && !profile) {
+      setPendingBookingService(service);
+      handleOpenAuth('customer');
+    } else {
+      setBookingService(service);
+    }
+  };
+
+  useEffect(() => {
+    if ((user || profile) && pendingBookingService) {
+      setBookingService(pendingBookingService);
+      setPendingBookingService(null);
+    }
+  }, [user, profile, pendingBookingService]);
 
   // Load and sync live services from database
   useEffect(() => {
@@ -247,7 +265,7 @@ function AppContent() {
         myBookings={myBookings}
         selectedCity={selectedCity}
         onSelectCity={(city) => setSelectedCity(city)}
-        onProceedToBooking={(service) => setBookingService(service)}
+        onProceedToBooking={handleProceedToBooking}
         onTrackBooking={(booking) => setActiveTrackingBooking(booking)}
         onOpenAuth={(role) => handleOpenAuth(role)}
         onOpenCustomerDashboard={() => setCustomerDashboardOpen(true)}
@@ -284,7 +302,7 @@ function AppContent() {
         onClose={() => setSelectedService(null)}
         onBookNow={(srv) => {
           setSelectedService(null);
-          setBookingService(srv);
+          handleProceedToBooking(srv);
         }}
       />
 

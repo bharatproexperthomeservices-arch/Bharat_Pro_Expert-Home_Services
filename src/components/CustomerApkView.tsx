@@ -142,7 +142,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
   const [slotTimeIdx, setSlotTimeIdx] = useState<number>(-1);
 
   // Payment & Coupon
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('online');
+  const [paymentMethod] = useState<'online'>('online');
   const [coupon, setCoupon] = useState<string>('');
   const [couponInput, setCouponInput] = useState<string>('');
   const [couponFeedback, setCouponFeedback] = useState<string | null>(null);
@@ -368,12 +368,22 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
       showToast('Your cart is empty');
       return;
     }
+    if (!user && !profile) {
+      showToast('🔒 Booking ke liye login karna zaroori hai.');
+      onOpenAuth('customer');
+      return;
+    }
     setView('addr');
     window.scrollTo(0, 0);
   };
 
   // Confirm booking
   const handleConfirmOrder = async () => {
+    if (!user && !profile) {
+      showToast('🔒 Booking ke liye login karna zaroori hai.');
+      onOpenAuth('customer');
+      return;
+    }
     if (!address.house && !address.line) {
       showToast('Please enter your house or street address');
       setView('addr');
@@ -431,7 +441,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
       const bookingPayload: BookingPayload = {
         bookingId,
         bookingNumber,
-        customerId: user?.uid || profile?.uid || (finalContactPhone ? `cust_${finalContactPhone.replace(/\D/g, '').slice(-10)}` : 'guest_' + Math.random().toString(36).substring(2, 7)),
+        customerId: (user?.uid || profile?.uid)!,
         customerName: finalContactName,
         customerPhone: finalContactPhone,
         customerEmail: user?.email || profile?.email || 'customer@bharatproexpert.com',
@@ -495,10 +505,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
           } catch {}
 
           setCustomerBookings(prev => [savedBooking, ...prev.filter(b => b.id !== savedBooking.id)]);
-          showToast(paymentMethod === 'cash' 
-            ? '🎉 Booking Confirmed! Finding Best Pro...' 
-            : '🎉 Payment Verified & Booking Confirmed! Finding Best Pro...'
-          );
+          showToast('🎉 Payment Verified & Booking Confirmed! Finding Best Pro...');
           setBookingLoading(false);
           onTrackBooking(savedBooking);
           setView('bk');
@@ -1960,39 +1967,23 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
 
             {/* Payment Method Selector */}
             <h3 className="text-base font-bold text-[#111827] mt-3 mb-2">
-              Choose Payment method
+              Payment Method (Strictly Online Pre-Paid)
             </h3>
             <div className="space-y-2">
               <div 
-                onClick={() => setPaymentMethod('online')}
-                className={`bg-white rounded-2xl p-4 shadow-[0_2px_8px_rgba(15,23,42,0.07)] cursor-pointer border-2 transition-all flex items-center justify-between ${
-                  paymentMethod === 'online' ? 'border-[#0b3ba8] bg-[#eaf0ff]' : 'border-transparent hover:border-[#e5e7eb]'
-                }`}
+                className="bg-white rounded-2xl p-4 shadow-[0_2px_8px_rgba(15,23,42,0.07)] border-2 border-[#0b3ba8] bg-[#eaf0ff] flex items-center justify-between"
               >
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">💳</span>
                   <div>
-                    <b className="text-sm text-[#111827] block">UPI / Cards / Netbanking</b>
-                    <span className="text-xs text-[#6b7280]">GPay, PhonePe, Paytm, or Credit/Debit Card</span>
+                    <b className="text-sm text-[#111827] block">100% Secure Online Payment</b>
+                    <span className="text-xs text-[#6b7280]">GPay, PhonePe, Paytm, UPI, Cards &amp; Netbanking</span>
                   </div>
                 </div>
-                {paymentMethod === 'online' && <span className="text-[#0b3ba8] font-bold text-sm">✓ Selected</span>}
+                <span className="text-[#0b3ba8] font-bold text-xs bg-blue-100 px-2.5 py-1 rounded-md">✓ Razorpay Secure</span>
               </div>
-
-              <div 
-                onClick={() => setPaymentMethod('cash')}
-                className={`bg-white rounded-2xl p-4 shadow-[0_2px_8px_rgba(15,23,42,0.07)] cursor-pointer border-2 transition-all flex items-center justify-between ${
-                  paymentMethod === 'cash' ? 'border-[#0b3ba8] bg-[#eaf0ff]' : 'border-transparent hover:border-[#e5e7eb]'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">💵</span>
-                  <div>
-                    <b className="text-sm text-[#111827] block">Pay after service</b>
-                    <span className="text-xs text-[#6b7280]">Cash or UPI directly to professional after job completion</span>
-                  </div>
-                </div>
-                {paymentMethod === 'cash' && <span className="text-[#0b3ba8] font-bold text-sm">✓ Selected</span>}
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 font-medium">
+                🛡️ <b>Notice:</b> Cash on Delivery (COD) is disabled across all hubs. All bookings are confirmed instantly after secure online payment.
               </div>
             </div>
 

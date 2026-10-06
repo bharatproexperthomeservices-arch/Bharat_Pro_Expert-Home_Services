@@ -119,8 +119,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [couponMessage, setCouponMessage] = useState<string | null>('🎉 BHARAT10 applied! 10% discount unlocked.');
   const [isCouponApplied, setIsCouponApplied] = useState(true);
 
-  // Payment method
-  const [paymentMethod, setPaymentMethod] = useState<'Pay after service' | 'UPI / Cards / Netbanking'>('Pay after service');
+  // Payment method: Strictly Online (No COD)
+  const [paymentMethod] = useState<'UPI / Cards / Netbanking'>('UPI / Cards / Netbanking');
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{ name?: boolean; phone?: boolean; street?: boolean }>({});
@@ -324,6 +324,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
   // Step 1 to Step 2 Validation
   const handleContinueFromStep1 = () => {
+    if (!user && !profile) {
+      setErrorBanner('🔒 Login required: Please sign in or register with your mobile/email to book.');
+      onRequireAuth();
+      return;
+    }
     if (!selectedDate) {
       setErrorBanner('Please select a preferred service date.');
       return;
@@ -338,6 +343,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
   // Step 2 to Step 3 Validation
   const handleContinueFromStep2 = () => {
+    if (!user && !profile) {
+      setErrorBanner('🔒 Login required: Please sign in or register with your mobile/email to book.');
+      onRequireAuth();
+      return;
+    }
     const errs: { name?: boolean; phone?: boolean; street?: boolean } = {};
     if (!name.trim()) errs.name = true;
     const cleanPhone = phone.trim().replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0(?=\d{10}$)/, '');
@@ -372,6 +382,12 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   // Final Confirmation Execution
   const handleConfirmBooking = async () => {
     setErrorBanner(null);
+    if (!user && !profile) {
+      setErrorBanner('🔒 Login required: Please sign in or register before completing your booking.');
+      setLoading(false);
+      onRequireAuth();
+      return;
+    }
     const cleanPhone = phone.trim().replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0(?=\d{10}$)/, '');
     if (!cleanPhone || cleanPhone.length !== 10) {
       setErrorBanner('Please provide a valid 10-digit phone number.');
@@ -397,7 +413,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     const bookingPayload: BookingPayload = {
       bookingId,
       bookingNumber,
-      customerId: user?.uid || profile?.uid || 'guest_' + Math.random().toString(36).substring(2, 7),
+      customerId: (user?.uid || profile?.uid)!,
       customerName: name.trim(),
       customerPhone: cleanPhone,
       customerEmail: user?.email || profile?.email || email.trim() || 'customer@bharatproexpert.com',
@@ -443,137 +459,100 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       completionOtp
     };
 
-    // Case 1: Pay Online with Razorpay
-    if (paymentMethod === 'UPI / Cards / Netbanking') {
-      try {
-        const keyId = getRazorpayKeyId();
-        const scriptLoaded = await loadRazorpayScript();
-        
-        if (!scriptLoaded || !(window as any).Razorpay) {
-          setErrorBanner('Razorpay SDK could not be loaded. You can proceed with "Pay after service" instead.');
-          setLoading(false);
-          return;
-        }
-
-        const rzpOptions = {
-          key: keyId,
-          amount: Math.round(netTotal * 100), // in paise
-          currency: 'INR',
-          name: 'Bharat Pro Expert',
-          description: `${service.name} (${bookingNumber})`,
-          image: '/assets/images/BharatProExpert.png',
-          prefill: {
-            name: name.trim(),
-            email: email.trim() || 'customer@bharatproexpert.com',
-            contact: cleanPhone
-          },
-          notes: {
-            bookingNumber,
-            serviceName: service.name,
-            hubId: selectedHub.id
-          },
-          theme: {
-            color: '#08213F'
-          },
-          handler: async (response: {
-            razorpay_payment_id: string;
-            razorpay_order_id?: string;
-            razorpay_signature?: string;
-          }) => {
-            try {
-              const paidBookingRecord: Booking = {
-                ...bookingPayload,
-                id: bookingId,
-                categoryName: bookingPayload.categoryName || service.categoryName || 'Deep Cleaning',
-                selectedAddons: selectedAddons || [],
-                paymentMethod: 'UPI / Cards / Netbanking',
-                paymentStatus: 'PAID',
-                transactionId: response.razorpay_payment_id,
-                razorpayDetails: {
-                  paymentId: response.razorpay_payment_id,
-                  orderId: response.razorpay_order_id || '',
-                  signature: response.razorpay_signature || '',
-                  verifiedAt: new Date().toISOString(),
-                  verificationStatus: 'SUCCESS_VERIFIED'
-                },
-                status: 'SEARCHING_PROFESSIONAL',
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              };
-
-              const created = await createNewBooking(paidBookingRecord);
-              setConfirmedBookingRecord(created);
-              setStep(4);
-              onBookingSuccess(created);
-              setLoading(false);
-
-              try {
-                confetti({
-                  particleCount: 100,
-                  spread: 80,
-                  origin: { y: 0.6 }
-                });
-              } catch {}
-            } catch (err: any) {
-              console.error('Firestore booking creation error:', err);
-              setErrorBanner('Payment successful (ID: ' + response.razorpay_payment_id + '), but saving booking had a delay. Our team will verify.');
-              setLoading(false);
-            }
-          },
-          modal: {
-            ondismiss: () => {
-              setLoading(false);
-              setErrorBanner('Payment was cancelled. You can retry or choose "Pay after service" to confirm immediately.');
-            }
-          }
-        };
-
-        const rzp = new (window as any).Razorpay(rzpOptions);
-        rzp.on('payment.failed', (failResp: any) => {
-          setLoading(false);
-          setErrorBanner(`Payment failed: ${failResp.error?.description || 'Declined'}. You can choose "Pay after service".`);
-        });
-        rzp.open();
-      } catch (err) {
-        console.error('Razorpay invocation error:', err);
-        setLoading(false);
-        setErrorBanner('Could not launch Razorpay gateway. Please switch to "Pay after service" below to book instantly.');
-      }
-      return;
-    }
-
-    // Case 2: Pay After Service (Cash / UPI upon completion)
+    // Strictly Pay Online with Razorpay (No COD allowed)
     try {
-      const cashBookingRecord: Booking = {
-        ...bookingPayload,
-        id: bookingId,
-        categoryName: bookingPayload.categoryName || service.categoryName || 'Deep Cleaning',
-        selectedAddons: selectedAddons || [],
-        paymentMethod: 'Pay after service',
-        paymentStatus: 'PENDING',
-        transactionId: 'PAY_LATER_' + Math.random().toString(36).substring(2, 9).toUpperCase(),
-        status: 'SEARCHING_PROFESSIONAL',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const keyId = getRazorpayKeyId();
+      const scriptLoaded = await loadRazorpayScript();
+      
+      if (!scriptLoaded || !(window as any).Razorpay) {
+        setErrorBanner('Could not load secure payment gateway. Please check your internet connection and retry.');
+        setLoading(false);
+        return;
+      }
+
+      const rzpOptions = {
+        key: keyId,
+        amount: Math.round(netTotal * 100), // in paise
+        currency: 'INR',
+        name: 'Bharat Pro Expert',
+        description: `${service.name} (${bookingNumber})`,
+        image: '/assets/images/BharatProExpert.png',
+        prefill: {
+          name: name.trim(),
+          email: email.trim() || 'customer@bharatproexpert.com',
+          contact: cleanPhone
+        },
+        notes: {
+          bookingNumber,
+          serviceName: service.name,
+          hubId: selectedHub.id
+        },
+        theme: {
+          color: '#08213F'
+        },
+        handler: async (response: {
+          razorpay_payment_id: string;
+          razorpay_order_id?: string;
+          razorpay_signature?: string;
+        }) => {
+          try {
+            const paidBookingRecord: Booking = {
+              ...bookingPayload,
+              id: bookingId,
+              categoryName: bookingPayload.categoryName || service.categoryName || 'Deep Cleaning',
+              selectedAddons: selectedAddons || [],
+              paymentMethod: 'UPI / Cards / Netbanking',
+              paymentStatus: 'PAID',
+              transactionId: response.razorpay_payment_id,
+              razorpayDetails: {
+                paymentId: response.razorpay_payment_id,
+                orderId: response.razorpay_order_id || '',
+                signature: response.razorpay_signature || '',
+                verifiedAt: new Date().toISOString(),
+                verificationStatus: 'SUCCESS_VERIFIED'
+              },
+              status: 'SEARCHING_PROFESSIONAL',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+
+            const created = await createNewBooking(paidBookingRecord);
+            setConfirmedBookingRecord(created);
+            setStep(4);
+            onBookingSuccess(created);
+            setLoading(false);
+
+            try {
+              confetti({
+                particleCount: 100,
+                spread: 80,
+                origin: { y: 0.6 }
+              });
+            } catch {}
+          } catch (err: any) {
+            console.error('Firestore booking creation error:', err);
+            setErrorBanner('Payment received (ID: ' + response.razorpay_payment_id + '). Booking sync in progress...');
+            setLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+            setErrorBanner('⚠️ Online payment was not completed. As per policy, bookings are confirmed only after online payment.');
+          }
+        }
       };
 
-      const created = await createNewBooking(cashBookingRecord);
-      setConfirmedBookingRecord(created);
-      setStep(4);
-      onBookingSuccess(created);
-      setLoading(false);
-
-      try {
-        confetti({
-          particleCount: 100,
-          spread: 80,
-          origin: { y: 0.6 }
-        });
-      } catch {}
+      const rzp = new (window as any).Razorpay(rzpOptions);
+      rzp.on('payment.failed', (failResp: any) => {
+        setLoading(false);
+        setErrorBanner(`Payment failed: ${failResp.error?.description || 'Declined'}. Please retry with UPI, Google Pay, PhonePe, or Card.`);
+      });
+      rzp.open();
     } catch (err) {
-      console.error('Failed to create booking:', err);
+      console.error('Razorpay invocation error:', err);
       setLoading(false);
-      setErrorBanner('Failed to place booking. Please check connection and retry.');
+      setErrorBanner('Could not launch payment gateway. Please check your internet connection and retry.');
     }
   };
 
@@ -679,6 +658,26 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               className="text-red-500 hover:text-red-800 font-bold text-xs cursor-pointer"
             >
               ✕
+            </button>
+          </div>
+        )}
+
+        {/* Unauthenticated User Login Required Banner */}
+        {!user && !profile && (
+          <div className="mx-5 mt-4 p-3.5 rounded-2xl bg-amber-50 border border-amber-300 flex items-center justify-between gap-3 text-xs text-amber-950 animate-in fade-in duration-150">
+            <div className="flex items-center gap-2.5">
+              <span className="text-base shrink-0">🔒</span>
+              <div>
+                <p className="font-bold">Customer Login Required</p>
+                <p className="text-[11px] text-amber-800">Please sign in or register with your mobile number to book services.</p>
+              </div>
+            </div>
+            <button 
+              type="button"
+              onClick={onRequireAuth} 
+              className="px-3.5 py-1.5 rounded-xl bg-[#08213F] hover:bg-[#04162C] text-white font-bold text-xs shrink-0 cursor-pointer shadow-sm transition-all active:scale-95"
+            >
+              Sign In / Register
             </button>
           </div>
         )}
@@ -1155,60 +1154,58 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 </div>
               </div>
 
-              {/* Payment Methods Choice */}
+              {/* Payment Method: Strictly 100% Online Payment */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2.5">
-                  Select Payment Method
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                  Payment Method
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  
-                  {/* Option 1: Pay After Service */}
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('Pay after service')}
-                    className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
-                      paymentMethod === 'Pay after service'
-                        ? 'border-emerald-600 bg-emerald-50/70 shadow-sm ring-2 ring-emerald-600/30'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Banknote className={`w-4 h-4 ${paymentMethod === 'Pay after service' ? 'text-emerald-700' : 'text-slate-500'}`} />
-                        <span className="text-xs font-bold text-slate-900">Pay after service</span>
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-blue-50/90 border-2 border-blue-600 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                        <CreditCard className="w-5 h-5" />
                       </div>
-                      <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full text-[10px]">
-                        Cash / UPI Later
-                      </span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-[#08213F]">
+                            100% Secure Online Payment
+                          </span>
+                          <span className="bg-emerald-600 text-white font-extrabold px-2 py-0.5 rounded-full text-[10px]">
+                            Verified
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 font-medium">
+                          UPI (GPay, PhonePe, Paytm), Debit/Credit Cards &amp; Netbanking via Razorpay
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-[11px] text-slate-500 mt-2">
-                      Pay directly to our verified professional upon job completion (Cash or QR UPI).
+                    <span className="text-blue-700 font-black text-xs sm:text-sm bg-blue-100/80 px-2.5 py-1 rounded-lg">
+                      ✓ Selected
                     </span>
-                  </button>
+                  </div>
 
-                  {/* Option 2: Pay Online with Razorpay */}
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('UPI / Cards / Netbanking')}
-                    className={`p-4 rounded-2xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
-                      paymentMethod === 'UPI / Cards / Netbanking'
-                        ? 'border-blue-600 bg-blue-50/70 shadow-sm ring-2 ring-blue-600/30'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className={`w-4 h-4 ${paymentMethod === 'UPI / Cards / Netbanking' ? 'text-blue-600' : 'text-slate-500'}`} />
-                        <span className="text-xs font-bold text-slate-900">UPI / Cards / Netbanking</span>
-                      </div>
-                      <span className="bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full text-[10px]">
-                        Razorpay Secure
-                      </span>
+                  <div className="pt-2.5 border-t border-blue-200/80 flex items-center justify-between flex-wrap gap-2 text-[11px]">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold text-slate-700">Supported:</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-bold text-slate-800 text-[10px]">Google Pay</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-bold text-slate-800 text-[10px]">PhonePe</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-bold text-slate-800 text-[10px]">Paytm</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-bold text-slate-800 text-[10px]">Cards</span>
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-bold text-slate-800 text-[10px]">Netbanking</span>
                     </div>
-                    <span className="text-[11px] text-slate-500 mt-2">
-                      Pay instantly with Google Pay, PhonePe, Paytm, Debit/Credit Card, or Netbanking.
-                    </span>
-                  </button>
+                    <div className="flex items-center gap-1 text-emerald-700 font-bold">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>256-Bit SSL Encrypted</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* COD Disabled Policy Notice */}
+                <div className="mt-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2.5 text-xs text-amber-900">
+                  <span className="text-sm shrink-0">🛡️</span>
+                  <p className="text-[11px] leading-relaxed">
+                    <strong>Pre-Paid Booking Only:</strong> Cash on Delivery (COD) is disabled across all service hubs to ensure guaranteed technician allocation and eliminate fake bookings. 100% Free Re-clean or Money-Back Guarantee.
+                  </p>
                 </div>
               </div>
             </div>
@@ -1251,10 +1248,9 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 </div>
                 <div className="flex justify-between pb-1.5 border-b border-blue-100">
                   <span className="text-slate-500">Payment Status:</span>
-                  <span className={`font-black ${confirmedBookingRecord.paymentStatus === 'PAID' ? 'text-emerald-700' : 'text-amber-800'}`}>
-                    {confirmedBookingRecord.paymentStatus === 'PAID' 
-                      ? `₹${confirmedBookingRecord.totalAmount} (PAID & VERIFIED)` 
-                      : `₹${confirmedBookingRecord.totalAmount} (PAY ON COMPLETION)`}
+                  <span className="font-black text-emerald-700 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>₹{confirmedBookingRecord.totalAmount} (PAID &amp; VERIFIED ONLINE)</span>
                   </span>
                 </div>
                 
@@ -1371,11 +1367,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                   </>
                 ) : (
                   <>
-                    <span>
-                      {paymentMethod === 'Pay after service'
-                        ? `Confirm Booking (Pay Later • ₹${netTotal})`
-                        : `🔒 Pay Online (₹${netTotal}) via Razorpay`}
-                    </span>
+                    <span>🔒 Pay Online (₹{netTotal}) &amp; Confirm Booking</span>
                     <ArrowRight className="w-4 h-4 text-amber-400" />
                   </>
                 )}
