@@ -13,6 +13,10 @@ export interface CatalogItem {
   description: string;
   rating: number;
   reviewCount: number;
+  inclusions: string[];
+  exclusions: string[];
+  tools: string[];
+  processSteps: string[];
 }
 
 export interface CatalogCategory {
@@ -26,13 +30,12 @@ export interface CatalogCategory {
 }
 
 export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
-  // 1. SOFA SHAMPOOING & DEEP CLEAN
   {
     id: 'sofa-shampooing',
     name: 'Sofa Shampooing & Deep Clean',
     subtitle: 'Fabric & leather upholstery injection-extraction shampooing and stain elimination.',
     iconName: 'Armchair',
-    heroImage: '/src/assets/images/sofa_deep_cleaning_1790693680475.jpg',
+    heroImage: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80',
     startingPrice: 549,
     items: [
       {
@@ -40,27 +43,35 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         categoryId: 'sofa-shampooing',
         categoryName: 'Sofa Shampooing & Deep Clean',
         name: '3 Sofa Seats',
-        duration: '1 hr',
+        duration: '40 mins',
         originalPrice: 999,
         offerPrice: 549,
-        imageUrl: '/src/assets/images/sofa_deep_cleaning_1790693680475.jpg',
+        imageUrl: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80',
         popular: true,
-        description: 'Deep vacuuming, organic foam shampooing & machine extraction for 3-seater sofa.',
+        description: '3-seater sofa की गहरी धुलाई, दाग-धब्बे हटाना और सैनिटाइज़ करना।',
         rating: 4.88,
-        reviewCount: 1420
+        reviewCount: 1420,
+        inclusions: ['सोफे के आगे और पीछे की तरफ़ ड्राई वैक्यूमिंग', 'प्रोफेशनल ग्रेड शैम्पू से वेट शैम्पूइंग', 'दाग-धब्बों का स्पॉट ट्रीटमेंट', 'सैनिटाइज़ेशन स्प्रे', 'मशीन से सुखाना'],
+        exclusions: ['पानी से जाने वाले पुराने दाग', 'स्याही, गोंद या पेंट के दाग पूरी तरह नहीं हटेंगे', 'सोफे का रंग बदलना या ब्लीच करना', 'फर्नीचर की मरम्मत या सिलाई'],
+        tools: ['वेट-ड्राई वैक्यूम क्लीनर', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर कपड़ा', 'प्रोफेशनल शैम्पू'],
+        processSteps: ['सोफे की जाँच', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'मशीन से सुखाना']
       },
       {
         id: 'sofa-4-seat',
         categoryId: 'sofa-shampooing',
         categoryName: 'Sofa Shampooing & Deep Clean',
         name: '4 Sofa Seats',
-        duration: '1.5 hrs',
-        originalPrice: 1299,
-        offerPrice: 749,
-        imageUrl: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80',
-        description: 'Complete front, back & cushion fabric sanitization with German Kärcher spray extraction.',
+        duration: '1 hr',
+        originalPrice: 1199,
+        offerPrice: 699,
+        imageUrl: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=600&q=80',
+        description: '4-seater sofa की पूरी सफाई।',
         rating: 4.86,
-        reviewCount: 980
+        reviewCount: 980,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'कुशन कवर की सफाई', 'एंटी-एलर्जी ट्रीटमेंट', 'मशीन से सुखाना'],
+        exclusions: ['पुराने दाग', 'लेदर पॉलिश', 'मरम्मत'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['निरीक्षण', 'ड्राई वैक्यूमिंग', 'कुशन हटाना', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'sofa-7-seat',
@@ -70,11 +81,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2 hrs',
         originalPrice: 2199,
         offerPrice: 1299,
-        imageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=600&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80',
         popular: true,
-        description: 'Large sectional or 3+2+2 sofa set deep shampoo & anti-allergen treatment.',
+        description: 'बड़े सेक्शनल या 3+2+2 सोफा सेट की गहरी सफाई।',
         rating: 4.92,
-        reviewCount: 650
+        reviewCount: 650,
+        inclusions: ['पूरे सोफे की ड्राई वैक्यूमिंग', 'सभी कुशन की सफाई', 'दाग-धब्बों का इलाज', 'एंटी-एलर्जेन ट्रीटमेंट', 'मशीन से सुखाना'],
+        exclusions: ['लेदर पॉलिश', 'पुराने दाग', 'मरम्मत'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['निरीक्षण', 'ड्राई वैक्यूमिंग', 'कुशन अलग करना', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'sofa-8-seat',
@@ -84,10 +99,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2.5 hrs',
         originalPrice: 2499,
         offerPrice: 1449,
-        imageUrl: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=600&q=80',
-        description: 'L-shape or extended family couch thorough dirt extraction and rapid drying.',
+        imageUrl: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=600&q=80',
+        description: 'L-shape या बड़े फैमिली सोफे की सफाई।',
         rating: 4.89,
-        reviewCount: 430
+        reviewCount: 430,
+        inclusions: ['L-shape सोफे की पूरी सफाई', 'सभी कुशन की सफाई', 'दाग-धब्बों का इलाज', 'एंटी-बैक्टीरियल ट्रीटमेंट', 'मशीन से सुखाना'],
+        exclusions: ['लेदर पॉलिश', 'पुराने दाग', 'मरम्मत'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['निरीक्षण', 'ड्राई वैक्यूमिंग', 'कुशन अलग करना', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'sofa-9-seat',
@@ -97,10 +116,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2.5 hrs',
         originalPrice: 2799,
         offerPrice: 1599,
-        imageUrl: 'https://images.unsplash.com/photo-1540574163026-643ea20ade25?auto=format&fit=crop&w=600&q=80',
-        description: 'Extensive 9-seat living room sectional wet shampoo and stain buffing.',
+        imageUrl: 'https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=600&q=80',
+        description: '9-seater बड़े सोफे की गहरी धुलाई।',
         rating: 4.85,
-        reviewCount: 310
+        reviewCount: 310,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्पॉट ट्रीटमेंट', 'सैनिटाइज़ेशन', 'मशीन से सुखाना'],
+        exclusions: ['लेदर पॉलिश', 'पुराने दाग', 'मरम्मत'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['निरीक्षण', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'sofa-11-seat',
@@ -110,10 +133,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '3 hrs',
         originalPrice: 3299,
         offerPrice: 1899,
-        imageUrl: '/src/assets/images/sofa_deep_cleaning_1790693680475.jpg',
-        description: 'Villa or luxury duplex large sofa setup with fabric conditioning.',
+        imageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80',
+        description: 'विला या लक्ज़री डुप्लेक्स के बड़े सोफे की सफाई।',
         rating: 4.91,
-        reviewCount: 220
+        reviewCount: 220,
+        inclusions: ['पूरे सोफे की गहरी सफाई', 'सभी कुशन अलग सफाई', 'फैब्रिक कंडीशनिंग', 'सैनिटाइज़ेशन', 'मशीन से सुखाना'],
+        exclusions: ['लेदर पॉलिश', 'पुराने दाग', 'मरम्मत'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['निरीक्षण', 'ड्राई वैक्यूमिंग', 'कुशन अलग करना', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'sofa-12-seat',
@@ -123,10 +150,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '3.5 hrs',
         originalPrice: 3599,
         offerPrice: 2099,
-        imageUrl: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80',
-        description: 'Corporate lounge or grand living room 12-seater complete deep clean.',
+        imageUrl: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80',
+        description: 'कॉर्पोरेट लाउंज की पूरी सफाई।',
         rating: 4.90,
-        reviewCount: 180
+        reviewCount: 180,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्पॉट ट्रीटमेंट', 'सैनिटाइज़ेशन', 'मशीन से सुखाना'],
+        exclusions: ['लेदर पॉलिश', 'पुराने दाग', 'मरम्मत'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['निरीक्षण', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'sofa-13-seat',
@@ -136,10 +167,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '3.5 hrs',
         originalPrice: 3899,
         offerPrice: 2249,
-        imageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=600&q=80',
-        description: 'Executive club or home theatre 13-seat upholstery sanitization.',
+        imageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=600&q=80',
+        description: 'एग्जीक्यूटिव क्लब की सोफा सफाई।',
         rating: 4.87,
-        reviewCount: 140
+        reviewCount: 140,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्पॉट ट्रीटमेंट', 'सैनिटाइज़ेशन', 'मशीन से सुखाना'],
+        exclusions: ['लेदर पॉलिश', 'पुराने दाग', 'मरम्मत'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['निरीक्षण', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'sofa-14-seat',
@@ -149,10 +184,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '4 hrs',
         originalPrice: 4199,
         offerPrice: 2399,
-        imageUrl: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=600&q=80',
-        description: 'Full hall 14-seater configuration deep steam & hot water extraction.',
+        imageUrl: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?w=600&q=80',
+        description: 'पूरे हॉल की 14-seater सोफा की सफाई।',
         rating: 4.89,
-        reviewCount: 110
+        reviewCount: 110,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्टीम ट्रीटमेंट', 'सैनिटाइज़ेशन', 'मशीन से सुखाना'],
+        exclusions: ['लेदर पॉलिश', 'पुराने दाग', 'मरम्मत'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'स्टीम क्लीनर', 'सॉफ्ट ब्रश'],
+        processSteps: ['निरीक्षण', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'sofa-15-seat',
@@ -162,100 +201,23 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '4 hrs',
         originalPrice: 4499,
         offerPrice: 2549,
-        imageUrl: 'https://images.unsplash.com/photo-1540574163026-643ea20ade25?auto=format&fit=crop&w=600&q=80',
-        description: 'Commercial lobby or banquet 15-seater deep cleaning package.',
+        imageUrl: 'https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=600&q=80',
+        description: 'कमर्शियल लॉबी की 15-seater सोफा सफाई।',
         rating: 4.93,
-        reviewCount: 95
+        reviewCount: 95,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्टीम ट्रीटमेंट', 'सैनिटाइज़ेशन', 'मशीन से सुखाना'],
+        exclusions: ['लेदर पॉलिश', 'पुराने दाग', 'मरम्मत'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'स्टीम क्लीनर', 'सॉफ्ट ब्रश'],
+        processSteps: ['निरीक्षण', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       }
     ]
   },
-
-  // 2. POWER JET AC SERVICE
-  {
-    id: 'power-jet-ac',
-    name: 'Power Jet AC Service',
-    subtitle: 'High-pressure water pump foam jet wash for 2x cooling & 30% electricity saving.',
-    iconName: 'Wind',
-    heroImage: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80',
-    startingPrice: 499,
-    items: [
-      {
-        id: 'ac-1-unit',
-        categoryId: 'power-jet-ac',
-        categoryName: 'Power Jet AC Service',
-        name: '1 AC Power Jet Service',
-        duration: '45 mins',
-        originalPrice: 799,
-        offerPrice: 499,
-        imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80',
-        popular: true,
-        description: 'Indoor cooling coil foam wash, blower fan clean, filter sanitization & drain line flush.',
-        rating: 4.94,
-        reviewCount: 2890
-      },
-      {
-        id: 'ac-2-unit',
-        categoryId: 'power-jet-ac',
-        categoryName: 'Power Jet AC Service',
-        name: '2 AC Power Jet Service',
-        duration: '1.5 hrs',
-        originalPrice: 1499,
-        offerPrice: 899,
-        imageUrl: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?auto=format&fit=crop&w=600&q=80',
-        popular: true,
-        description: 'Combo package for 2 split or window ACs with outdoor condenser power rinse.',
-        rating: 4.96,
-        reviewCount: 1740
-      },
-      {
-        id: 'ac-3-unit',
-        categoryId: 'power-jet-ac',
-        categoryName: 'Power Jet AC Service',
-        name: '3 AC Power Jet Service',
-        duration: '2 hrs',
-        originalPrice: 2199,
-        offerPrice: 1299,
-        imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80',
-        description: 'Complete home AC servicing for 3 units including gas pressure check & anti-rust spray.',
-        rating: 4.92,
-        reviewCount: 880
-      },
-      {
-        id: 'ac-split-foam',
-        categoryId: 'power-jet-ac',
-        categoryName: 'Power Jet AC Service',
-        name: 'Split AC Deep Foam Clean',
-        duration: '1 hr',
-        originalPrice: 899,
-        offerPrice: 549,
-        imageUrl: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?auto=format&fit=crop&w=600&q=80',
-        description: 'Jacket protection bag setup, antimicrobial coil foam wash & outdoor unit blast.',
-        rating: 4.91,
-        reviewCount: 1120
-      },
-      {
-        id: 'ac-window-wash',
-        categoryId: 'power-jet-ac',
-        categoryName: 'Power Jet AC Service',
-        name: 'Window AC Power Wash',
-        duration: '45 mins',
-        originalPrice: 699,
-        offerPrice: 449,
-        imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=600&q=80',
-        description: 'Full body pullout, deep radiator coil fin wash & fan blower grease removal.',
-        rating: 4.88,
-        reviewCount: 640
-      }
-    ]
-  },
-
-  // 3. CARPET & MATTRESS CLEANING
   {
     id: 'carpet-mattress',
     name: 'Carpet & Mattress Cleaning',
     subtitle: 'Hospital-grade sanitization removing dust mites, pet hair & beverage spills.',
     iconName: 'BedDouble',
-    heroImage: '/src/assets/images/carpet_cleaning_1790693701155.jpg',
+    heroImage: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
     startingPrice: 349,
     items: [
       {
@@ -266,10 +228,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '30 mins',
         originalPrice: 599,
         offerPrice: 349,
-        imageUrl: '/src/assets/images/carpet_cleaning_1790693701155.jpg',
-        description: 'Small bedside runner or entry mat shampooing & rapid moisture extraction.',
+        imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
+        description: 'छोटे रग या एंट्री मैट की गहरी धुलाई।',
         rating: 4.85,
-        reviewCount: 520
+        reviewCount: 520,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सैनिटाइज़ेशन'],
+        exclusions: ['पुराने दाग', 'गोंद या पेंट के दाग', 'कालीन की मरम्मत'],
+        tools: ['वैक्यूम क्लीनर', 'हैंड ब्रश', 'क्लीनिंग सॉल्यूशन', 'माइक्रोफाइबर'],
+        processSteps: ['जाँच', 'ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'carpet-25-50',
@@ -279,10 +245,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '45 mins',
         originalPrice: 799,
         offerPrice: 449,
-        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
-        description: 'Medium accent rug deep pile rotary scrub and Taski Tapi neutralizer.',
+        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
+        description: 'मध्यम आकार के रग की गहरी सफाई।',
         rating: 4.87,
-        reviewCount: 680
+        reviewCount: 680,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सैनिटाइज़ेशन'],
+        exclusions: ['पुराने दाग', 'मरम्मत'],
+        tools: ['वैक्यूम क्लीनर', 'हैंड ब्रश', 'क्लीनिंग सॉल्यूशन', 'माइक्रोफाइबर'],
+        processSteps: ['जाँच', 'ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'carpet-51-100',
@@ -292,11 +262,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '1 hr',
         originalPrice: 1199,
         offerPrice: 699,
-        imageUrl: '/src/assets/images/carpet_cleaning_1790693701155.jpg',
+        imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
         popular: true,
-        description: 'Standard living room area rug deep wash, fringe cleaning & odor elimination.',
+        description: 'मानक लिविंग रूम कालीन की गहरी धुलाई।',
         rating: 4.90,
-        reviewCount: 1140
+        reviewCount: 1140,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'गंध हटाना', 'सैनिटाइज़ेशन'],
+        exclusions: ['पुराने दाग', 'मरम्मत'],
+        tools: ['वैक्यूम क्लीनर', 'हैंड ब्रश', 'क्लीनिंग सॉल्यूशन', 'माइक्रोफाइबर'],
+        processSteps: ['जाँच', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'carpet-101-150',
@@ -306,10 +280,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '1.5 hrs',
         originalPrice: 1599,
         offerPrice: 949,
-        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
-        description: 'Large center carpet wet injection shampooing with color revival.',
+        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
+        description: 'बड़े कालीन की गहरी सफाई।',
         rating: 4.89,
-        reviewCount: 420
+        reviewCount: 420,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'रंग वापस लाना', 'सैनिटाइज़ेशन'],
+        exclusions: ['पुराने दाग', 'मरम्मत'],
+        tools: ['वैक्यूम क्लीनर', 'हैंड ब्रश', 'क्लीनिंग सॉल्यूशन', 'माइक्रोफाइबर'],
+        processSteps: ['जाँच', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'carpet-150-250',
@@ -319,10 +297,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2 hrs',
         originalPrice: 2299,
         offerPrice: 1399,
-        imageUrl: '/src/assets/images/carpet_cleaning_1790693701155.jpg',
-        description: 'Executive room or master bedroom wall-to-wall carpet section wash.',
+        imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
+        description: 'मास्टर बेडरूम के कालीन की सफाई।',
         rating: 4.88,
-        reviewCount: 290
+        reviewCount: 290,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सैनिटाइज़ेशन'],
+        exclusions: ['पुराने दाग', 'मरम्मत'],
+        tools: ['वैक्यूम क्लीनर', 'हैंड ब्रश', 'क्लीनिंग सॉल्यूशन', 'माइक्रोफाइबर'],
+        processSteps: ['जाँच', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'carpet-451-550',
@@ -332,10 +314,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2.5 hrs',
         originalPrice: 3499,
         offerPrice: 2199,
-        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
-        description: 'Spacious hall commercial or residential carpet deep machine extraction.',
+        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
+        description: 'बड़े हॉल के कालीन की सफाई।',
         rating: 4.91,
-        reviewCount: 160
+        reviewCount: 160,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सैनिटाइज़ेशन'],
+        exclusions: ['पुराने दाग', 'मरम्मत'],
+        tools: ['वैक्यूम क्लीनर', 'हैंड ब्रश', 'क्लीनिंग सॉल्यूशन', 'माइक्रोफाइबर'],
+        processSteps: ['जाँच', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'carpet-551-750',
@@ -345,10 +331,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '3 hrs',
         originalPrice: 4299,
         offerPrice: 2699,
-        imageUrl: '/src/assets/images/carpet_cleaning_1790693701155.jpg',
-        description: 'Full office bay or banquet carpet extraction with anti-bacterial rinse.',
+        imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
+        description: 'ऑफिस या बैंक्वेट कालीन की सफाई।',
         rating: 4.87,
-        reviewCount: 120
+        reviewCount: 120,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'एंटी-बैक्टीरियल ट्रीटमेंट'],
+        exclusions: ['पुराने दाग', 'मरम्मत'],
+        tools: ['वैक्यूम क्लीनर', 'हैंड ब्रश', 'क्लीनिंग सॉल्यूशन', 'माइक्रोफाइबर'],
+        processSteps: ['जाँच', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'carpet-751-1000',
@@ -358,10 +348,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '3.5 hrs',
         originalPrice: 5499,
         offerPrice: 3499,
-        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
-        description: 'Grand floor area carpet restoration, sanitization and high-speed blower drying.',
+        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
+        description: 'बड़े फर्श क्षेत्र की कालीन सफाई।',
         rating: 4.93,
-        reviewCount: 95
+        reviewCount: 95,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सैनिटाइज़ेशन', 'ब्लोअर से सुखाना'],
+        exclusions: ['पुराने दाग', 'मरम्मत'],
+        tools: ['वैक्यूम क्लीनर', 'हैंड ब्रश', 'क्लीनिंग सॉल्यूशन', 'माइक्रोफाइबर', 'एयर ब्लोअर'],
+        processSteps: ['जाँच', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'ब्लोअर से सुखाना']
       },
       {
         id: 'mattress-single',
@@ -371,10 +365,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '1 hr',
         originalPrice: 999,
         offerPrice: 599,
-        imageUrl: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=600&q=80',
-        description: 'Both sides dust-mite vacuuming, stain treatment & UV sanitization.',
+        imageUrl: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&q=80',
+        description: 'सिंगल बेड गद्दे की सफाई।',
         rating: 4.92,
-        reviewCount: 840
+        reviewCount: 840,
+        inclusions: ['दोनों तरफ की ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'दाग-धब्बों का इलाज', 'UV सैनिटाइज़ेशन'],
+        exclusions: ['गद्दे की मरम्मत', 'पुराने दाग'],
+        tools: ['वैक्यूम क्लीनर', 'हैंड ब्रश', 'क्लीनिंग सॉल्यूशन', 'UV सैनिटाइज़र'],
+        processSteps: ['जाँच', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'UV सैनिटाइज़ेशन', 'सुखाना']
       },
       {
         id: 'mattress-double',
@@ -384,23 +382,25 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '1.5 hrs',
         originalPrice: 1499,
         offerPrice: 899,
-        imageUrl: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=600&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&q=80',
         popular: true,
-        description: 'King/Queen mattress complete wet injection extraction, sweat stain removal & freshness shield.',
+        description: 'डबल बेड गद्दे की गहरी सफाई।',
         rating: 4.95,
-        reviewCount: 1650
+        reviewCount: 1650,
+        inclusions: ['दोनों तरफ की ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'पसीने के दाग हटाना', 'गंध हटाना', 'UV सैनिटाइज़ेशन'],
+        exclusions: ['गद्दे की मरम्मत', 'पुराने दाग'],
+        tools: ['वैक्यूम क्लीनर', 'हैंड ब्रश', 'क्लीनिंग सॉल्यूशन', 'UV सैनिटाइज़र'],
+        processSteps: ['जाँच', 'ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'UV सैनिटाइज़ेशन', 'सुखाना']
       }
     ]
   },
-
-  // 4. FULL HOME CLEANING
   {
     id: 'full-home-cleaning',
     name: 'Full Home Cleaning',
-    subtitle: 'Comprehensive 360° deep sanitization for apartments, villas, duplexes & independent houses.',
+    subtitle: 'Comprehensive 360 degree deep sanitization for apartments and villas.',
     iconName: 'Home',
-    heroImage: '/src/assets/images/full_home_deep_cleaning_1790693627652.jpg',
-    startingPrice: 1499,
+    heroImage: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
+    startingPrice: 1299,
     items: [
       {
         id: 'home-1-room',
@@ -410,10 +410,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '1.5 hrs',
         originalPrice: 1999,
         offerPrice: 1299,
-        imageUrl: '/src/assets/images/full_home_deep_cleaning_1790693627652.jpg',
-        description: 'Floor scrubbing, ceiling cobweb removal, doors, switches & glass window wipe.',
+        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
+        description: '1 कमरे की पूरी सफाई।',
         rating: 4.88,
-        reviewCount: 780
+        reviewCount: 780,
+        inclusions: ['फर्श की मशीन स्क्रबिंग', 'दीवारों और छत की डस्टिंग', 'खिड़कियों की सफाई', 'स्विचबोर्ड की सफाई', 'कोबवेब हटाना'],
+        exclusions: ['बर्तन धोना', 'दीवारों की धुलाई', 'फर्श पॉलिशिंग', 'सोफा वेट शैम्पूइंग'],
+        tools: ['स्क्रबिंग मशीन', 'वैक्यूम क्लीनर', 'माइक्रोफाइबर', 'फ्लोर क्लीनर'],
+        processSteps: ['कोबवेब हटाना', 'फर्श की स्क्रबिंग', 'खिड़कियों की सफाई', 'फर्श मॉपिंग']
       },
       {
         id: 'home-1rk-set',
@@ -423,10 +427,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2.5 hrs',
         originalPrice: 2499,
         offerPrice: 1699,
-        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
-        description: 'Full room deep clean plus complete kitchen slab degreasing & sink sanitization.',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
+        description: '1 कमरा + रसोई की सफाई।',
         rating: 4.89,
-        reviewCount: 610
+        reviewCount: 610,
+        inclusions: ['कमरे की पूरी सफाई', 'रसोई स्लैब डीग्रीज़िंग', 'सिंक की सफाई', 'कैबिनेट की सफाई', 'फर्श की स्क्रबिंग'],
+        exclusions: ['बर्तन धोना', 'दीवारों की धुलाई', 'फर्श पॉलिशिंग'],
+        tools: ['स्क्रबिंग मशीन', 'वैक्यूम क्लीनर', 'डीग्रीज़र', 'माइक्रोफाइबर'],
+        processSteps: ['कमरे की सफाई', 'रसोई की डीग्रीज़िंग', 'सिंक सफाई', 'कैबिनेट सफाई', 'फर्श स्क्रबिंग']
       },
       {
         id: 'home-1rk-bath',
@@ -436,11 +444,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '3 hrs',
         originalPrice: 2899,
         offerPrice: 1999,
-        imageUrl: '/src/assets/images/full_home_deep_cleaning_1790693627652.jpg',
+        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
         popular: true,
-        description: 'Bedroom deep clean + 1 bathroom descaling with acid-free Diversey chemical.',
+        description: '1 कमरा + 1 बाथरूम की सफाई।',
         rating: 4.93,
-        reviewCount: 1240
+        reviewCount: 1240,
+        inclusions: ['कमरे की पूरी सफाई', 'बाथरूम डीप क्लीनिंग', 'फर्श की स्क्रबिंग', 'टाइल्स सफाई', 'सैनिटाइज़ेशन'],
+        exclusions: ['बर्तन धोना', 'दीवारों की धुलाई', 'फर्श पॉलिशिंग'],
+        tools: ['स्क्रबिंग मशीन', 'वैक्यूम क्लीनर', 'बाथरूम क्लीनर', 'माइक्रोफाइबर'],
+        processSteps: ['कमरे की सफाई', 'बाथरूम की डीप क्लीनिंग', 'फर्श स्क्रबिंग', 'सैनिटाइज़ेशन']
       },
       {
         id: 'home-under-1201',
@@ -450,11 +462,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '4 hrs',
         originalPrice: 3899,
         offerPrice: 2499,
-        imageUrl: '/src/assets/images/full_home_deep_cleaning_1790693627652.jpg',
+        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
         popular: true,
-        description: 'Complete 2 BHK home scrubbing, kitchen chimney degrease, 2 bathrooms & balcony wash.',
+        description: '2 BHK घर की पूरी सफाई।',
         rating: 4.94,
-        reviewCount: 1890
+        reviewCount: 1890,
+        inclusions: ['सभी कमरों की सफाई', 'रसोई डीग्रीज़िंग', '2 बाथरूम सफाई', 'बालकनी सफाई', 'फर्श स्क्रबिंग'],
+        exclusions: ['बर्तन धोना', 'दीवारों की धुलाई', 'फर्श पॉलिशिंग'],
+        tools: ['स्क्रबिंग मशीन', 'वैक्यूम क्लीनर', 'डीग्रीज़र', 'बाथरूम क्लीनर'],
+        processSteps: ['सभी कमरों की सफाई', 'रसोई की डीग्रीज़िंग', 'बाथरूम सफाई', 'बालकनी सफाई', 'फर्श स्क्रबिंग']
       },
       {
         id: 'home-1201-2000',
@@ -464,11 +480,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '5 hrs',
         originalPrice: 4999,
         offerPrice: 3299,
-        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
         popular: true,
-        description: 'Full 3 BHK deep clean with single-disc rotary machine floor buffing.',
+        description: '3 BHK घर की सफाई।',
         rating: 4.96,
-        reviewCount: 1420
+        reviewCount: 1420,
+        inclusions: ['सभी कमरों की सफाई', 'रसोई डीग्रीज़िंग', '3 बाथरूम सफाई', 'बालकनी सफाई', 'फर्श बफिंग'],
+        exclusions: ['बर्तन धोना', 'दीवारों की धुलाई', 'फर्श पॉलिशिंग'],
+        tools: ['स्क्रबिंग मशीन', 'रोटरी मशीन', 'वैक्यूम क्लीनर', 'डीग्रीज़र'],
+        processSteps: ['सभी कमरों की सफाई', 'रसोई डीग्रीज़िंग', 'बाथरूम सफाई', 'बालकनी सफाई', 'फर्श बफिंग']
       },
       {
         id: 'home-2001-3000',
@@ -478,10 +498,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '6 hrs',
         originalPrice: 6499,
         offerPrice: 4299,
-        imageUrl: '/src/assets/images/full_home_deep_cleaning_1790693627652.jpg',
-        description: 'Large 4 BHK or independent floor deep clean by 4 certified specialists.',
+        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
+        description: '4 BHK या बड़े घर की सफाई।',
         rating: 4.91,
-        reviewCount: 890
+        reviewCount: 890,
+        inclusions: ['सभी कमरों की सफाई', 'रसोई डीग्रीज़िंग', 'सभी बाथरूम सफाई', 'बालकनी सफाई', 'फर्श बफिंग'],
+        exclusions: ['बर्तन धोना', 'दीवारों की धुलाई', 'फर्श पॉलिशिंग'],
+        tools: ['स्क्रबिंग मशीन', 'रोटरी मशीन', 'वैक्यूम क्लीनर', 'डीग्रीज़र'],
+        processSteps: ['सभी कमरों की सफाई', 'रसोई डीग्रीज़िंग', 'बाथरूम सफाई', 'बालकनी सफाई', 'फर्श बफिंग']
       },
       {
         id: 'home-3001-4000',
@@ -491,10 +515,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '7 hrs',
         originalPrice: 7999,
         offerPrice: 5399,
-        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
-        description: 'Executive villa or penthouse 360° deep sanitization with industrial equipment.',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
+        description: 'बड़े विला या पेंटहाउस की सफाई।',
         rating: 4.92,
-        reviewCount: 540
+        reviewCount: 540,
+        inclusions: ['सभी कमरों की सफाई', 'रसोई डीग्रीज़िंग', 'सभी बाथरूम सफाई', 'टेरेस सफाई', 'फर्श बफिंग'],
+        exclusions: ['बर्तन धोना', 'दीवारों की धुलाई', 'फर्श पॉलिशिंग'],
+        tools: ['स्क्रबिंग मशीन', 'रोटरी मशीन', 'वैक्यूम क्लीनर', 'डीग्रीज़र'],
+        processSteps: ['सभी कमरों की सफाई', 'रसोई डीग्रीज़िंग', 'बाथरूम सफाई', 'टेरेस सफाई', 'फर्श बफिंग']
       },
       {
         id: 'home-4001-5000',
@@ -504,34 +532,40 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '8 hrs',
         originalPrice: 9499,
         offerPrice: 6499,
-        imageUrl: '/src/assets/images/full_home_deep_cleaning_1790693627652.jpg',
-        description: 'Luxury estate 5-6 bedroom deep clean including terraces, garage & utility areas.',
+        imageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80',
+        description: 'लक्ज़री एस्टेट की सफाई।',
         rating: 4.90,
-        reviewCount: 320
+        reviewCount: 320,
+        inclusions: ['सभी कमरों की सफाई', 'रसोई डीग्रीज़िंग', 'सभी बाथरूम सफाई', 'गैराज सफाई', 'फर्श बफिंग'],
+        exclusions: ['बर्तन धोना', 'दीवारों की धुलाई', 'फर्श पॉलिशिंग'],
+        tools: ['स्क्रबिंग मशीन', 'रोटरी मशीन', 'वैक्यूम क्लीनर', 'डीग्रीज़र'],
+        processSteps: ['सभी कमरों की सफाई', 'रसोई डीग्रीज़िंग', 'बाथरूम सफाई', 'गैराज सफाई', 'फर्श बफिंग']
       },
       {
         id: 'home-5001-6000',
         categoryId: 'full-home-cleaning',
         categoryName: 'Full Home Cleaning',
         name: 'Independent Home 5001-6000 sqft',
-        duration: '8+ hrs',
+        duration: '8 hrs',
         originalPrice: 11999,
         offerPrice: 7899,
-        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
-        description: 'Grand luxury bungalow end-to-end deep clean with team lead supervision.',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
+        description: 'ग्रैंड लक्ज़री बंगले की सफाई।',
         rating: 4.95,
-        reviewCount: 210
+        reviewCount: 210,
+        inclusions: ['सभी कमरों की सफाई', 'रसोई डीग्रीज़िंग', 'सभी बाथरूम सफाई', 'गैराज सफाई', 'टीम लीड सुपरविज़न'],
+        exclusions: ['बर्तन धोना', 'दीवारों की धुलाई', 'फर्श पॉलिशिंग'],
+        tools: ['स्क्रबिंग मशीन', 'रोटरी मशीन', 'वैक्यूम क्लीनर', 'डीग्रीज़र'],
+        processSteps: ['सभी कमरों की सफाई', 'रसोई डीग्रीज़िंग', 'बाथरूम सफाई', 'गैराज सफाई', 'फर्श बफिंग']
       }
     ]
   },
-
-  // 5. BATHROOM DEEP CLEANING
   {
     id: 'bathroom-cleaning',
     name: 'Bathroom Deep Cleaning',
-    subtitle: 'Hard water tile descaling, toilet bowl sanitization, tap chrome shine & exhaust degreasing.',
+    subtitle: 'Hard water tile descaling, toilet bowl sanitization and tap chrome shine.',
     iconName: 'Bath',
-    heroImage: '/src/assets/images/bathroom_deep_cleaning_1790693663269.jpg',
+    heroImage: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&q=80',
     startingPrice: 399,
     items: [
       {
@@ -542,11 +576,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '45 mins',
         originalPrice: 699,
         offerPrice: 399,
-        imageUrl: '/src/assets/images/bathroom_deep_cleaning_1790693663269.jpg',
+        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&q=80',
         popular: true,
-        description: 'Tile scrubbing, shower glass descaling, mirror buffing & Diversey acid-free sanitized wash.',
+        description: '1 बाथरूम की गहरी सफाई।',
         rating: 4.92,
-        reviewCount: 3410
+        reviewCount: 3410,
+        inclusions: ['फर्श और दीवार की टाइल्स स्क्रबिंग', 'टॉयलेट बाउल सफाई', 'सिंक सफाई', 'शीशे सफाई', 'टैप चमक'],
+        exclusions: ['प्लंबिंग मरम्मत', 'लीकेज ठीक करना', 'दीवारों की पुताई'],
+        tools: ['स्क्रबिंग मशीन', 'टॉयलेट ब्रश', 'माइक्रोफाइबर', 'बाथरूम क्लीनर'],
+        processSteps: ['टॉयलेट बाउल सफाई', 'टाइल्स स्क्रबिंग', 'सिंक सफाई', 'शीशे सफाई', 'फर्श मॉपिंग']
       },
       {
         id: 'bath-2',
@@ -556,11 +594,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '1.5 hrs',
         originalPrice: 1299,
         offerPrice: 749,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&q=80',
         popular: true,
-        description: 'Master & guest washrooms deep scrub, yellow stain removal & chrome fixture shine.',
+        description: '2 बाथरूम की सफाई।',
         rating: 4.95,
-        reviewCount: 2890
+        reviewCount: 2890,
+        inclusions: ['टाइल्स स्क्रबिंग', 'टॉयलेट बाउल सफाई', 'सिंक सफाई', 'शीशे सफाई', 'पीले दाग हटाना'],
+        exclusions: ['प्लंबिंग मरम्मत', 'लीकेज', 'पुताई'],
+        tools: ['स्क्रबिंग मशीन', 'टॉयलेट ब्रश', 'माइक्रोफाइबर', 'बाथरूम क्लीनर'],
+        processSteps: ['टॉयलेट सफाई', 'टाइल्स स्क्रबिंग', 'सिंक सफाई', 'शीशे सफाई', 'फर्श मॉपिंग']
       },
       {
         id: 'bath-3',
@@ -570,10 +612,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2 hrs',
         originalPrice: 1899,
         offerPrice: 1099,
-        imageUrl: '/src/assets/images/bathroom_deep_cleaning_1790693663269.jpg',
-        description: '3 bathrooms deep descaling with grout cleaning & anti-bacterial fogging.',
+        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&q=80',
+        description: '3 बाथरूम की सफाई।',
         rating: 4.91,
-        reviewCount: 1540
+        reviewCount: 1540,
+        inclusions: ['टाइल्स स्क्रबिंग', 'टॉयलेट सफाई', 'सिंक सफाई', 'ग्राउट क्लीनिंग', 'फॉगिंग'],
+        exclusions: ['प्लंबिंग', 'लीकेज', 'पुताई'],
+        tools: ['स्क्रबिंग मशीन', 'टॉयलेट ब्रश', 'माइक्रोफाइबर', 'फॉगिंग मशीन'],
+        processSteps: ['टॉयलेट सफाई', 'टाइल्स स्क्रबिंग', 'सिंक सफाई', 'ग्राउट क्लीनिंग', 'फॉगिंग', 'फर्श मॉपिंग']
       },
       {
         id: 'bath-4',
@@ -583,10 +629,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2.5 hrs',
         originalPrice: 2499,
         offerPrice: 1399,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-        description: 'Villa or duplex 4 washrooms deep clean including vanity cabinets & exhaust.',
+        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&q=80',
+        description: '4 बाथरूम की सफाई।',
         rating: 4.90,
-        reviewCount: 880
+        reviewCount: 880,
+        inclusions: ['टाइल्स स्क्रबिंग', 'टॉयलेट सफाई', 'सिंक सफाई', 'वैनिटी कैबिनेट', 'एग्जॉस्ट फैन'],
+        exclusions: ['प्लंबिंग', 'लीकेज', 'पुताई'],
+        tools: ['स्क्रबिंग मशीन', 'टॉयलेट ब्रश', 'माइक्रोफाइबर', 'बाथरूम क्लीनर'],
+        processSteps: ['टॉयलेट सफाई', 'टाइल्स स्क्रबिंग', 'सिंक सफाई', 'वैनिटी सफाई', 'एग्जॉस्ट फैन', 'फर्श मॉपिंग']
       },
       {
         id: 'bath-5',
@@ -596,10 +646,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '3 hrs',
         originalPrice: 2999,
         offerPrice: 1699,
-        imageUrl: '/src/assets/images/bathroom_deep_cleaning_1790693663269.jpg',
-        description: '5 luxury washrooms complete hard-water scale removal and odor neutralizer.',
+        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&q=80',
+        description: '5 बाथरूम की सफाई।',
         rating: 4.89,
-        reviewCount: 460
+        reviewCount: 460,
+        inclusions: ['टाइल्स स्क्रबिंग', 'टॉयलेट सफाई', 'सिंक सफाई', 'हार्ड वाटर स्केल हटाना', 'गंध हटाना'],
+        exclusions: ['प्लंबिंग', 'लीकेज', 'पुताई'],
+        tools: ['स्क्रबिंग मशीन', 'टॉयलेट ब्रश', 'माइक्रोफाइबर', 'बाथरूम क्लीनर'],
+        processSteps: ['टॉयलेट सफाई', 'टाइल्स स्क्रबिंग', 'सिंक सफाई', 'स्केल हटाना', 'गंध हटाना', 'फर्श मॉपिंग']
       },
       {
         id: 'bath-6',
@@ -609,21 +663,23 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '3.5 hrs',
         originalPrice: 3599,
         offerPrice: 1999,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-        description: 'Grand home 6 bathrooms comprehensive sanitization with specialized scale remover.',
+        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&q=80',
+        description: '6 बाथरूम की सफाई।',
         rating: 4.94,
-        reviewCount: 290
+        reviewCount: 290,
+        inclusions: ['टाइल्स स्क्रबिंग', 'टॉयलेट सफाई', 'सिंक सफाई', 'स्केल हटाना', 'सैनिटाइज़ेशन'],
+        exclusions: ['प्लंबिंग', 'लीकेज', 'पुताई'],
+        tools: ['स्क्रबिंग मशीन', 'टॉयलेट ब्रश', 'माइक्रोफाइबर', 'बाथरूम क्लीनर'],
+        processSteps: ['टॉयलेट सफाई', 'टाइल्स स्क्रबिंग', 'सिंक सफाई', 'स्केल हटाना', 'सैनिटाइज़ेशन', 'फर्श मॉपिंग']
       }
     ]
   },
-
-  // 6. GLASS & WINDOW CLEANING
   {
     id: 'glass-window',
     name: 'Glass & Window Cleaning',
-    subtitle: 'Streak-free window panes, glass railings, sliding track dust removal & facade wiping.',
+    subtitle: 'Streak-free window panes, glass railings and sliding track dust removal.',
     iconName: 'Maximize2',
-    heroImage: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=600&q=80',
+    heroImage: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
     startingPrice: 399,
     items: [
       {
@@ -634,10 +690,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '45 mins',
         originalPrice: 699,
         offerPrice: 399,
-        imageUrl: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=600&q=80',
-        description: 'Balcony glass doors or small window section streak-free squeegee wash.',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
+        description: 'छोटी खिड़कियों की सफाई।',
         rating: 4.88,
-        reviewCount: 670
+        reviewCount: 670,
+        inclusions: ['काँच सफाई (दोनों तरफ)', 'फ्रेम सफाई', 'ट्रैक सफाई', 'स्ट्रीक-फ्री फिनिश'],
+        exclusions: ['खिड़की मरम्मत', 'काँच बदलना', 'पेंटिंग'],
+        tools: ['स्क्वीजी', 'माइक्रोफाइबर', 'ग्लास क्लीनर', 'वैक्यूम क्लीनर'],
+        processSteps: ['ट्रैक सफाई', 'फ्रेम सफाई', 'काँच सफाई', 'स्ट्रीक-फ्री फिनिश']
       },
       {
         id: 'glass-100-200',
@@ -647,24 +707,32 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '1 hr',
         originalPrice: 999,
         offerPrice: 599,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
         popular: true,
-        description: 'Standard apartment all bedroom windows & balcony glass pane cleaning.',
+        description: 'अपार्टमेंट की सभी खिड़कियों की सफाई।',
         rating: 4.91,
-        reviewCount: 940
+        reviewCount: 940,
+        inclusions: ['काँच सफाई', 'फ्रेम सफाई', 'ट्रैक सफाई', 'बालकनी काँच सफाई'],
+        exclusions: ['खिड़की मरम्मत', 'काँच बदलना'],
+        tools: ['स्क्वीजी', 'माइक्रोफाइबर', 'ग्लास क्लीनर'],
+        processSteps: ['ट्रैक सफाई', 'फ्रेम सफाई', 'काँच सफाई', 'स्ट्रीक-फ्री फिनिश']
       },
       {
         id: 'glass-200-300',
         categoryId: 'glass-window',
         categoryName: 'Glass & Window Cleaning',
-        name: '200-300 Sq ft',
+        name: '200-300 Sq.ft',
         duration: '1.5 hrs',
         originalPrice: 1399,
         offerPrice: 849,
-        imageUrl: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=600&q=80',
-        description: 'Double balcony glass railing & large living room French windows scrub.',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
+        description: 'बड़ी खिड़कियों की सफाई।',
         rating: 4.89,
-        reviewCount: 580
+        reviewCount: 580,
+        inclusions: ['काँच सफाई', 'फ्रेम सफाई', 'ट्रैक सफाई', 'स्ट्रीक-फ्री फिनिश'],
+        exclusions: ['खिड़की मरम्मत', 'काँच बदलना'],
+        tools: ['स्क्वीजी', 'माइक्रोफाइबर', 'ग्लास क्लीनर'],
+        processSteps: ['ट्रैक सफाई', 'फ्रेम सफाई', 'काँच सफाई', 'स्ट्रीक-फ्री फिनिश']
       },
       {
         id: 'glass-300-500',
@@ -674,10 +742,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2 hrs',
         originalPrice: 1899,
         offerPrice: 1199,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-        description: 'Duplex full glass facade, glass partitions and window tracks vacuuming.',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
+        description: 'डुप्लेक्स या बड़े घर की काँच सफाई।',
         rating: 4.90,
-        reviewCount: 410
+        reviewCount: 410,
+        inclusions: ['काँच सफाई', 'फ्रेम सफाई', 'ट्रैक सफाई', 'ग्लास पार्टीशन'],
+        exclusions: ['खिड़की मरम्मत', 'काँच बदलना'],
+        tools: ['स्क्वीजी', 'माइक्रोफाइबर', 'ग्लास क्लीनर'],
+        processSteps: ['ट्रैक सफाई', 'फ्रेम सफाई', 'काँच सफाई', 'स्ट्रीक-फ्री फिनिश']
       },
       {
         id: 'glass-500-750',
@@ -687,10 +759,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2.5 hrs',
         originalPrice: 2499,
         offerPrice: 1599,
-        imageUrl: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=600&q=80',
-        description: 'Commercial showroom or villa grand glass facade clean with anti-static solution.',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
+        description: 'शोरूम या विला की काँच सफाई।',
         rating: 4.87,
-        reviewCount: 260
+        reviewCount: 260,
+        inclusions: ['काँच सफाई', 'फ्रेम सफाई', 'ट्रैक सफाई', 'एंटी-स्टैटिक सॉल्यूशन'],
+        exclusions: ['खिड़की मरम्मत', 'काँच बदलना'],
+        tools: ['स्क्वीजी', 'माइक्रोफाइबर', 'ग्लास क्लीनर'],
+        processSteps: ['ट्रैक सफाई', 'फ्रेम सफाई', 'काँच सफाई', 'स्ट्रीक-फ्री फिनिश']
       },
       {
         id: 'glass-750-1000',
@@ -700,10 +776,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '3 hrs',
         originalPrice: 3199,
         offerPrice: 2099,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-        description: 'Large commercial glass facade, interior cabins & conference glass partitions.',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
+        description: 'बड़े कमर्शियल काँच की सफाई।',
         rating: 4.92,
-        reviewCount: 190
+        reviewCount: 190,
+        inclusions: ['काँच सफाई', 'फ्रेम सफाई', 'ट्रैक सफाई', 'स्ट्रीक-फ्री फिनिश'],
+        exclusions: ['खिड़की मरम्मत', 'काँच बदलना'],
+        tools: ['स्क्वीजी', 'माइक्रोफाइबर', 'ग्लास क्लीनर'],
+        processSteps: ['ट्रैक सफाई', 'फ्रेम सफाई', 'काँच सफाई', 'स्ट्रीक-फ्री फिनिश']
       },
       {
         id: 'glass-1000-2000',
@@ -713,270 +793,23 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '4 hrs',
         originalPrice: 4999,
         offerPrice: 3299,
-        imageUrl: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=600&q=80',
-        description: 'Industrial or corporate tower extensive window & glass panel high-shine wash.',
+        imageUrl: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&q=80',
+        description: 'कॉर्पोरेट टॉवर की काँच सफाई।',
         rating: 4.94,
-        reviewCount: 140
+        reviewCount: 140,
+        inclusions: ['काँच सफाई', 'फ्रेम सफाई', 'ट्रैक सफाई', 'स्ट्रीक-फ्री फिनिश'],
+        exclusions: ['खिड़की मरम्मत', 'काँच बदलना'],
+        tools: ['स्क्वीजी', 'माइक्रोफाइबर', 'ग्लास क्लीनर', 'टेलीस्कोपिक रॉड'],
+        processSteps: ['ट्रैक सफाई', 'फ्रेम सफाई', 'काँच सफाई', 'स्ट्रीक-फ्री फिनिश']
       }
     ]
   },
-
-  // 7. WATER TANK CLEANING
-  {
-    id: 'water-tank',
-    name: 'Water Tank Cleaning',
-    subtitle: '6-stage mechanized dewatering, sludge vacuuming, high-pressure jet scrub & UV sanitization.',
-    iconName: 'Droplets',
-    heroImage: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-    startingPrice: 699,
-    items: [
-      {
-        id: 'tank-upto-500',
-        categoryId: 'water-tank',
-        categoryName: 'Water Tank Cleaning',
-        name: 'Upto 500L',
-        duration: '45 mins',
-        originalPrice: 1099,
-        offerPrice: 699,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-        popular: true,
-        description: 'Rooftop Sintex/PVC tank sludge extraction, potassium permanganate wash & UV disinfection.',
-        rating: 4.91,
-        reviewCount: 1820
-      },
-      {
-        id: 'tank-500-1000',
-        categoryId: 'water-tank',
-        categoryName: 'Water Tank Cleaning',
-        name: '500-1000L',
-        duration: '1 hr',
-        originalPrice: 1499,
-        offerPrice: 949,
-        imageUrl: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=600&q=80',
-        popular: true,
-        description: 'Standard 1000L overhead domestic tank mechanical scrub with antibacterial spray.',
-        rating: 4.93,
-        reviewCount: 2190
-      },
-      {
-        id: 'tank-1000-1500',
-        categoryId: 'water-tank',
-        categoryName: 'Water Tank Cleaning',
-        name: '1000-1500L',
-        duration: '1.5 hrs',
-        originalPrice: 1899,
-        offerPrice: 1199,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-        description: 'Large rooftop tank 6-stage scientific sanitization killing 99.9% germs & algae.',
-        rating: 4.89,
-        reviewCount: 840
-      },
-      {
-        id: 'tank-1001-2000',
-        categoryId: 'water-tank',
-        categoryName: 'Water Tank Cleaning',
-        name: '1001-2000L',
-        duration: '1.5 hrs',
-        originalPrice: 2299,
-        offerPrice: 1449,
-        imageUrl: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=600&q=80',
-        description: '2000 Litre overhead water storage deep vacuum sludge pump & high-pressure jet.',
-        rating: 4.92,
-        reviewCount: 650
-      },
-      {
-        id: 'tank-1501-3000',
-        categoryId: 'water-tank',
-        categoryName: 'Water Tank Cleaning',
-        name: '1501-3000L',
-        duration: '2 hrs',
-        originalPrice: 2799,
-        offerPrice: 1799,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-        description: 'Underground sump or commercial PVC overhead tank deep sludge extraction.',
-        rating: 4.90,
-        reviewCount: 420
-      },
-      {
-        id: 'tank-3001-5000',
-        categoryId: 'water-tank',
-        categoryName: 'Water Tank Cleaning',
-        name: '3001-5000L',
-        duration: '2.5 hrs',
-        originalPrice: 3999,
-        offerPrice: 2599,
-        imageUrl: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=600&q=80',
-        description: 'Society or school 5000L RCC/Masonry underground water tank scrub.',
-        rating: 4.94,
-        reviewCount: 310
-      },
-      {
-        id: 'tank-5001-8000',
-        categoryId: 'water-tank',
-        categoryName: 'Water Tank Cleaning',
-        name: '5001-8000L',
-        duration: '3.5 hrs',
-        originalPrice: 5499,
-        offerPrice: 3599,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-        description: 'Apartment building master reservoir 6-step mechanized sanitization.',
-        rating: 4.91,
-        reviewCount: 190
-      },
-      {
-        id: 'tank-8001-12000',
-        categoryId: 'water-tank',
-        categoryName: 'Water Tank Cleaning',
-        name: '8001-12000L',
-        duration: '4.5 hrs',
-        originalPrice: 7999,
-        offerPrice: 4999,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-        description: 'Hospital, hotel or large society heavy capacity tank decontamination.',
-        rating: 4.96,
-        reviewCount: 110
-      }
-    ]
-  },
-
-  // 8. COMMERCIAL SPACE CLEANING
-  {
-    id: 'commercial-cleaning',
-    name: 'Commercial Space Cleaning',
-    subtitle: 'Offices, clinics, showrooms, retail outlets & educational institutions deep sanitizing.',
-    iconName: 'Building2',
-    heroImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80',
-    startingPrice: 1499,
-    items: [
-      {
-        id: 'comm-under-500',
-        categoryId: 'commercial-cleaning',
-        categoryName: 'Commercial Space Cleaning',
-        name: '<500 sqft',
-        duration: '2 hrs',
-        originalPrice: 2299,
-        offerPrice: 1499,
-        imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80',
-        popular: true,
-        description: 'Doctor clinic, boutique shop or boutique studio floor scrubbing & workstation wipe.',
-        rating: 4.90,
-        reviewCount: 940
-      },
-      {
-        id: 'comm-501-1000',
-        categoryId: 'commercial-cleaning',
-        categoryName: 'Commercial Space Cleaning',
-        name: '501-1000 sqft',
-        duration: '3 hrs',
-        originalPrice: 3499,
-        offerPrice: 2299,
-        imageUrl: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=600&q=80',
-        popular: true,
-        description: 'Startup office or bank branch floor buffing, desk sanitization & washroom clean.',
-        rating: 4.92,
-        reviewCount: 820
-      },
-      {
-        id: 'comm-1001-2000',
-        categoryId: 'commercial-cleaning',
-        categoryName: 'Commercial Space Cleaning',
-        name: '1001-2000 sqft',
-        duration: '4 hrs',
-        originalPrice: 5499,
-        offerPrice: 3699,
-        imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80',
-        description: 'Corporate office floor scrubbing, conference room glass shine & pantry deep scrub.',
-        rating: 4.89,
-        reviewCount: 610
-      },
-      {
-        id: 'comm-2000-3000',
-        categoryId: 'commercial-cleaning',
-        categoryName: 'Commercial Space Cleaning',
-        name: '2000-3000 sqft',
-        duration: '5 hrs',
-        originalPrice: 7499,
-        offerPrice: 4999,
-        imageUrl: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=600&q=80',
-        description: 'Multi-bay workplace, gym or restaurant comprehensive commercial clean.',
-        rating: 4.91,
-        reviewCount: 430
-      },
-      {
-        id: 'comm-3001-4000',
-        categoryId: 'commercial-cleaning',
-        categoryName: 'Commercial Space Cleaning',
-        name: '3001-4000 sqft',
-        duration: '6 hrs',
-        originalPrice: 9499,
-        offerPrice: 6399,
-        imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80',
-        description: 'Full office floor complete vacuuming, rotary machine scrub & restroom disinfection.',
-        rating: 4.93,
-        reviewCount: 310
-      },
-      {
-        id: 'comm-4001-5000',
-        categoryId: 'commercial-cleaning',
-        categoryName: 'Commercial Space Cleaning',
-        name: '4001-5000 sqft',
-        duration: '7 hrs',
-        originalPrice: 11499,
-        offerPrice: 7799,
-        imageUrl: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=600&q=80',
-        description: 'Mid-sized IT facility or educational institution industrial standard cleaning.',
-        rating: 4.88,
-        reviewCount: 220
-      },
-      {
-        id: 'comm-5001-6000',
-        categoryId: 'commercial-cleaning',
-        categoryName: 'Commercial Space Cleaning',
-        name: '5001-6000 Sq Ft',
-        duration: '8 hrs',
-        originalPrice: 13499,
-        offerPrice: 8999,
-        imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80',
-        description: 'Large corporate facility 6-cleaner team with rotary buffers & industrial vacuums.',
-        rating: 4.95,
-        reviewCount: 160
-      },
-      {
-        id: 'comm-6001-7500',
-        categoryId: 'commercial-cleaning',
-        categoryName: 'Commercial Space Cleaning',
-        name: '6001-7500 Sq Ft',
-        duration: '8+ hrs',
-        originalPrice: 16999,
-        offerPrice: 11299,
-        imageUrl: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=600&q=80',
-        description: 'Enterprise office complex comprehensive night-shift or weekend deep cleaning.',
-        rating: 4.92,
-        reviewCount: 110
-      },
-      {
-        id: 'comm-7501-10000',
-        categoryId: 'commercial-cleaning',
-        categoryName: 'Commercial Space Cleaning',
-        name: '7501-10000 sqft',
-        duration: 'Full Day',
-        originalPrice: 21999,
-        offerPrice: 14499,
-        imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=600&q=80',
-        description: 'Full commercial building or mega showroom facility end-to-end hospital grade treatment.',
-        rating: 4.97,
-        reviewCount: 85
-      }
-    ]
-  },
-
-  // 9. KITCHEN DEEP CLEANING
   {
     id: 'kitchen-cleaning',
     name: 'Kitchen Deep Cleaning',
-    subtitle: 'Oil & grease degreasing, chimney baffle filter wash, tile grout scrub, fridge & stove shine.',
+    subtitle: 'Oil and grease degreasing, chimney baffle filter wash and fridge shine.',
     iconName: 'Utensils',
-    heroImage: '/src/assets/images/kitchen_deep_cleaning_1790693647667.jpg',
+    heroImage: 'https://images.unsplash.com/photo-1556909212-d5b604d0c90d?w=600&q=80',
     startingPrice: 399,
     items: [
       {
@@ -987,11 +820,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '45 mins',
         originalPrice: 699,
         offerPrice: 399,
-        imageUrl: 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=600&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=600&q=80',
         popular: true,
-        description: 'Single/Double door refrigerator interior defrost, rack scrub & anti-bacterial wipe.',
+        description: 'फ्रिज की अंदर और बाहर की सफाई।',
         rating: 4.91,
-        reviewCount: 1780
+        reviewCount: 1780,
+        inclusions: ['फ्रिज के अंदर सफाई', 'शेल्फ सफाई', 'दरवाज़े की सील सफाई', 'एंटी-बैक्टीरियल वाइप'],
+        exclusions: ['फ्रिज मरम्मत', 'गैस रीफिल', 'इलेक्ट्रिकल काम'],
+        tools: ['माइक्रोफाइबर', 'बेकिंग सोडा', 'एंटी-बैक्टीरियल स्प्रे'],
+        processSteps: ['फ्रिज खाली करना', 'शेल्फ सफाई', 'अंदर सफाई', 'बाहर सफाई', 'सूखा कर वापस रखना']
       },
       {
         id: 'kit-chimney',
@@ -1001,11 +838,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '1 hr',
         originalPrice: 899,
         offerPrice: 549,
-        imageUrl: '/src/assets/images/kitchen_deep_cleaning_1790693647667.jpg',
+        imageUrl: 'https://images.unsplash.com/photo-1556909212-d5b604d0c90d?w=600&q=80',
         popular: true,
-        description: 'Baffle filter caustic chemical dip, motor hood degreasing & exterior steel shine.',
+        description: 'चिमनी की गहरी सफाई।',
         rating: 4.94,
-        reviewCount: 2650
+        reviewCount: 2650,
+        inclusions: ['बैफल फिल्टर सफाई', 'मोटर हुड डीग्रीज़िंग', 'स्टील चमक', 'ऑयल कलेक्टर सफाई'],
+        exclusions: ['चिमनी मरम्मत', 'मोटर बदलना', 'इंस्टॉलेशन'],
+        tools: ['डीग्रीज़र', 'स्क्रब पैड', 'माइक्रोफाइबर', 'ब्रश'],
+        processSteps: ['फिल्टर निकालना', 'फिल्टर सफाई', 'हुड डीग्रीज़िंग', 'स्टील चमक', 'फिल्टर वापस लगाना']
       },
       {
         id: 'kit-chimney-fridge',
@@ -1015,11 +856,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '1.5 hrs',
         originalPrice: 1499,
         offerPrice: 899,
-        imageUrl: '/src/assets/images/kitchen_deep_cleaning_1790693647667.jpg',
+        imageUrl: 'https://images.unsplash.com/photo-1556909212-d5b604d0c90d?w=600&q=80',
         popular: true,
-        description: 'Combo package: complete chimney degrease plus refrigerator interior hygiene scrub.',
+        description: 'चिमनी और फ्रिज की कॉम्बो सफाई।',
         rating: 4.93,
-        reviewCount: 1420
+        reviewCount: 1420,
+        inclusions: ['चिमनी की पूरी सफाई', 'फ्रिज की अंदर-बाहर सफाई'],
+        exclusions: ['मरम्मत', 'इंस्टॉलेशन'],
+        tools: ['डीग्रीज़र', 'माइक्रोफाइबर', 'स्क्रब पैड', 'एंटी-बैक्टीरियल स्प्रे'],
+        processSteps: ['चिमनी सफाई', 'फ्रिज सफाई']
       },
       {
         id: 'kit-without-chimney',
@@ -1029,10 +874,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2 hrs',
         originalPrice: 1799,
         offerPrice: 1199,
-        imageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=600&q=80',
-        description: 'Tile scrub, slab stain elimination, cabinets interior/exterior & sink sanitizing.',
+        imageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&q=80',
+        description: 'बिना चिमनी पूरी रसोई की सफाई।',
         rating: 4.88,
-        reviewCount: 980
+        reviewCount: 980,
+        inclusions: ['टाइल्स स्क्रबिंग', 'स्लैब डीग्रीज़िंग', 'कैबिनेट सफाई', 'सिंक सफाई', 'फर्श सफाई'],
+        exclusions: ['चिमनी सफाई', 'बर्तन धोना', 'इलेक्ट्रिकल काम'],
+        tools: ['डीग्रीज़र', 'स्क्रब पैड', 'माइक्रोफाइबर', 'ब्रश'],
+        processSteps: ['टाइल्स स्क्रबिंग', 'स्लैब डीग्रीज़िंग', 'कैबिनेट सफाई', 'सिंक सफाई', 'फर्श सफाई']
       },
       {
         id: 'kit-with-chimney',
@@ -1042,11 +891,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2.5 hrs',
         originalPrice: 2299,
         offerPrice: 1499,
-        imageUrl: '/src/assets/images/kitchen_deep_cleaning_1790693647667.jpg',
+        imageUrl: 'https://images.unsplash.com/photo-1556909212-d5b604d0c90d?w=600&q=80',
         popular: true,
-        description: 'Full modular kitchen deep scrub + chimney filter boiling wash & oil residue removal.',
+        description: 'चिमनी के साथ पूरी रसोई की सफाई।',
         rating: 4.96,
-        reviewCount: 3120
+        reviewCount: 3120,
+        inclusions: ['चिमनी सफाई', 'टाइल्स स्क्रबिंग', 'स्लैब डीग्रीज़िंग', 'कैबिनेट सफाई', 'फर्श सफाई'],
+        exclusions: ['बर्तन धोना', 'इलेक्ट्रिकल काम'],
+        tools: ['डीग्रीज़र', 'स्क्रब पैड', 'माइक्रोफाइबर', 'ब्रश'],
+        processSteps: ['चिमनी सफाई', 'टाइल्स स्क्रबिंग', 'स्लैब डीग्रीज़िंग', 'कैबिनेट सफाई', 'फर्श सफाई']
       },
       {
         id: 'kit-empty',
@@ -1056,10 +909,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2 hrs',
         originalPrice: 1699,
         offerPrice: 1099,
-        imageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=600&q=80',
-        description: 'Move-in / move-out vacant kitchen deep power wash, shelves & floor scrubbing.',
+        imageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&q=80',
+        description: 'खाली रसोई की गहरी सफाई।',
         rating: 4.89,
-        reviewCount: 750
+        reviewCount: 750,
+        inclusions: ['टाइल्स स्क्रबिंग', 'स्लैब डीग्रीज़िंग', 'कैबिनेट सफाई', 'दीवार सफाई', 'फर्श सफाई'],
+        exclusions: ['बर्तन धोना', 'इलेक्ट्रिकल काम'],
+        tools: ['डीग्रीज़र', 'स्क्रब पैड', 'माइक्रोफाइबर', 'ब्रश'],
+        processSteps: ['टाइल्स स्क्रबिंग', 'स्लैब डीग्रीज़िंग', 'कैबिनेट सफाई', 'दीवार सफाई', 'फर्श सफाई']
       },
       {
         id: 'kit-full-appliance',
@@ -1069,11 +926,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '3 hrs',
         originalPrice: 2699,
         offerPrice: 1799,
-        imageUrl: '/src/assets/images/kitchen_deep_cleaning_1790693647667.jpg',
+        imageUrl: 'https://images.unsplash.com/photo-1556909212-d5b604d0c90d?w=600&q=80',
         popular: true,
-        description: 'All 4 essential kitchen appliances deep degreased, scrubbed and buffed to like-new.',
+        description: 'रसोई के सभी उपकरणों की सफाई।',
         rating: 4.95,
-        reviewCount: 1680
+        reviewCount: 1680,
+        inclusions: ['फ्रिज सफाई', 'चिमनी सफाई', 'स्टोव सफाई', 'एग्जॉस्ट सफाई'],
+        exclusions: ['मरम्मत', 'गैस रीफिल', 'इंस्टॉलेशन'],
+        tools: ['डीग्रीज़र', 'स्क्रब पैड', 'माइक्रोफाइबर', 'ब्रश'],
+        processSteps: ['फ्रिज सफाई', 'चिमनी सफाई', 'स्टोव सफाई', 'एग्जॉस्ट सफाई']
       },
       {
         id: 'kit-commercial',
@@ -1083,22 +944,24 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '4 hrs',
         originalPrice: 4999,
         offerPrice: 3299,
-        imageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=600&q=80',
-        description: 'Restaurant, cafe or cloud kitchen heavy grease duct, burner & stainless steel scrub.',
+        imageUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&q=80',
+        description: 'रेस्टोरेंट की सफाई।',
         rating: 4.92,
-        reviewCount: 340
+        reviewCount: 340,
+        inclusions: ['डक्ट डीग्रीज़िंग', 'बर्नर सफाई', 'स्टेनलेस स्टील सफाई', 'टाइल्स स्क्रबिंग', 'फर्श सफाई'],
+        exclusions: ['मरम्मत', 'इलेक्ट्रिकल काम', 'प्लंबिंग'],
+        tools: ['डीग्रीज़र', 'स्क्रब पैड', 'माइक्रोफाइबर', 'हाई-प्रेशर जेट'],
+        processSteps: ['डक्ट डीग्रीज़िंग', 'बर्नर सफाई', 'स्टील सफाई', 'टाइल्स स्क्रबिंग', 'फर्श सफाई']
       }
     ]
   },
-
-  // 10. CHAIR DEEP CLEANING
   {
     id: 'chair-cleaning',
     name: 'Chair Deep Cleaning',
-    subtitle: 'Dining chairs, executive office chairs & fabric armchairs hot water extraction shampoo.',
+    subtitle: 'Dining chairs, executive office chairs and fabric armchairs hot water extraction.',
     iconName: 'Armchair',
-    heroImage: 'https://images.unsplash.com/photo-1580481077195-c328865db7e7?auto=format&fit=crop&w=600&q=80',
-    startingPrice: 399,
+    heroImage: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&q=80',
+    startingPrice: 599,
     items: [
       {
         id: 'chair-5-10',
@@ -1108,11 +971,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '1 hr',
         originalPrice: 999,
         offerPrice: 599,
-        imageUrl: 'https://images.unsplash.com/photo-1580481077195-c328865db7e7?auto=format&fit=crop&w=600&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&q=80',
         popular: true,
-        description: 'Dining set (up to 8 chairs) or office study chairs foam shampooing & stain lift.',
+        description: '5-10 कुर्सियों की सफाई।',
         rating: 4.89,
-        reviewCount: 1120
+        reviewCount: 1120,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्पॉट ट्रीटमेंट', 'मशीन से सुखाना'],
+        exclusions: ['कुर्सी मरम्मत', 'लेदर पॉलिश'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'chair-10-15',
@@ -1122,11 +989,15 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '1.5 hrs',
         originalPrice: 1499,
         offerPrice: 899,
-        imageUrl: 'https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?auto=format&fit=crop&w=600&q=80',
+        imageUrl: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&q=80',
         popular: true,
-        description: 'Conference room or large dining set deep fabric cleaning with vacuum drying.',
+        description: '10-15 कुर्सियों की सफाई।',
         rating: 4.91,
-        reviewCount: 780
+        reviewCount: 780,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्पॉट ट्रीटमेंट', 'मशीन से सुखाना'],
+        exclusions: ['कुर्सी मरम्मत', 'लेदर पॉलिश'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'chair-15-20',
@@ -1136,10 +1007,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2 hrs',
         originalPrice: 1999,
         offerPrice: 1249,
-        imageUrl: 'https://images.unsplash.com/photo-1580481077195-c328865db7e7?auto=format&fit=crop&w=600&q=80',
-        description: 'Small office or training room 20 ergonomic chairs steam sanitization.',
+        imageUrl: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&q=80',
+        description: '15-20 कुर्सियों की सफाई।',
         rating: 4.88,
-        reviewCount: 520
+        reviewCount: 520,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्पॉट ट्रीटमेंट', 'मशीन से सुखाना'],
+        exclusions: ['कुर्सी मरम्मत', 'लेदर पॉलिश'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'chair-20-30',
@@ -1149,10 +1024,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '2.5 hrs',
         originalPrice: 2899,
         offerPrice: 1799,
-        imageUrl: 'https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?auto=format&fit=crop&w=600&q=80',
-        description: 'Boardroom and workstation mesh/fabric chair deep wash and odor neutralizer.',
+        imageUrl: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&q=80',
+        description: '20-30 कुर्सियों की सफाई।',
         rating: 4.90,
-        reviewCount: 390
+        reviewCount: 390,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्पॉट ट्रीटमेंट', 'गंध हटाना', 'मशीन से सुखाना'],
+        exclusions: ['कुर्सी मरम्मत', 'लेदर पॉलिश'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'chair-30-50',
@@ -1162,10 +1041,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '3.5 hrs',
         originalPrice: 4499,
         offerPrice: 2899,
-        imageUrl: 'https://images.unsplash.com/photo-1580481077195-c328865db7e7?auto=format&fit=crop&w=600&q=80',
-        description: 'Co-working space or IT bay 50 office chairs machine extraction.',
+        imageUrl: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&q=80',
+        description: '30-50 कुर्सियों की सफाई।',
         rating: 4.93,
-        reviewCount: 260
+        reviewCount: 260,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्पॉट ट्रीटमेंट', 'मशीन से सुखाना'],
+        exclusions: ['कुर्सी मरम्मत', 'लेदर पॉलिश'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'chair-50-75',
@@ -1175,10 +1058,14 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '4.5 hrs',
         originalPrice: 6499,
         offerPrice: 4199,
-        imageUrl: 'https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?auto=format&fit=crop&w=600&q=80',
-        description: 'Auditorium or banquet 75 upholstered seats deep chemical wash.',
+        imageUrl: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&q=80',
+        description: '50-75 कुर्सियों की सफाई।',
         rating: 4.87,
-        reviewCount: 180
+        reviewCount: 180,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्पॉट ट्रीटमेंट', 'मशीन से सुखाना'],
+        exclusions: ['कुर्सी मरम्मत', 'लेदर पॉलिश'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
       },
       {
         id: 'chair-75-100',
@@ -1188,16 +1075,184 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
         duration: '6 hrs',
         originalPrice: 8999,
         offerPrice: 5799,
-        imageUrl: 'https://images.unsplash.com/photo-1580481077195-c328865db7e7?auto=format&fit=crop&w=600&q=80',
-        description: 'Large enterprise or event hall 100 chairs comprehensive restoration.',
+        imageUrl: 'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&q=80',
+        description: '75-100 कुर्सियों की सफाई।',
         rating: 4.95,
-        reviewCount: 130
+        reviewCount: 130,
+        inclusions: ['ड्राई वैक्यूमिंग', 'वेट शैम्पूइंग', 'स्पॉट ट्रीटमेंट', 'मशीन से सुखाना'],
+        exclusions: ['कुर्सी मरम्मत', 'लेदर पॉलिश'],
+        tools: ['वेट-ड्राई वैक्यूम', 'स्प्रे एक्सट्रैक्शन मशीन', 'सॉफ्ट ब्रश', 'माइक्रोफाइबर'],
+        processSteps: ['ड्राई वैक्यूमिंग', 'स्पॉट ट्रीटमेंट', 'वेट शैम्पूइंग', 'वेट वैक्यूमिंग', 'सुखाना']
+      }
+    ]
+  },
+  {
+    id: 'commercial-cleaning',
+    name: 'Commercial Space Cleaning',
+    subtitle: 'Offices, clinics, showrooms and retail outlets deep sanitizing.',
+    iconName: 'Building2',
+    heroImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80',
+    startingPrice: 1499,
+    items: [
+      {
+        id: 'comm-under-500',
+        categoryId: 'commercial-cleaning',
+        categoryName: 'Commercial Space Cleaning',
+        name: '<500 sqft',
+        duration: '2 hrs',
+        originalPrice: 2299,
+        offerPrice: 1499,
+        imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80',
+        popular: true,
+        description: 'छोटे ऑफिस या क्लिनिक की सफाई।',
+        rating: 4.90,
+        reviewCount: 940,
+        inclusions: ['फर्श स्क्रबिंग', 'डेस्क सफाई', 'वर्कस्टेशन सफाई', 'वॉशरूम सफाई', 'कचरा हटाना'],
+        exclusions: ['इलेक्ट्रिकल काम', 'प्लंबिंग', 'पेंटिंग', 'फर्नीचर मरम्मत'],
+        tools: ['स्क्रबिंग मशीन', 'वैक्यूम क्लीनर', 'माइक्रोफाइबर', 'फ्लोर क्लीनर'],
+        processSteps: ['कचरा हटाना', 'डेस्क सफाई', 'फर्श स्क्रबिंग', 'वॉशरूम सफाई', 'फर्श मॉपिंग']
+      },
+      {
+        id: 'comm-501-1000',
+        categoryId: 'commercial-cleaning',
+        categoryName: 'Commercial Space Cleaning',
+        name: '501-1000 sqft',
+        duration: '3 hrs',
+        originalPrice: 3499,
+        offerPrice: 2299,
+        imageUrl: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&q=80',
+        popular: true,
+        description: 'स्टार्टअप ऑफिस की सफाई।',
+        rating: 4.92,
+        reviewCount: 820,
+        inclusions: ['फर्श स्क्रबिंग', 'डेस्क सफाई', 'वर्कस्टेशन सफाई', 'वॉशरूम सफाई', 'कचरा हटाना'],
+        exclusions: ['इलेक्ट्रिकल काम', 'प्लंबिंग', 'पेंटिंग'],
+        tools: ['स्क्रबिंग मशीन', 'वैक्यूम क्लीनर', 'माइक्रोफाइबर', 'फ्लोर क्लीनर'],
+        processSteps: ['कचरा हटाना', 'डेस्क सफाई', 'फर्श स्क्रबिंग', 'वॉशरूम सफाई', 'फर्श मॉपिंग']
+      },
+      {
+        id: 'comm-1001-2000',
+        categoryId: 'commercial-cleaning',
+        categoryName: 'Commercial Space Cleaning',
+        name: '1001-2000 sqft',
+        duration: '4 hrs',
+        originalPrice: 5499,
+        offerPrice: 3699,
+        imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80',
+        description: 'कॉर्पोरेट ऑफिस की सफाई।',
+        rating: 4.89,
+        reviewCount: 610,
+        inclusions: ['फर्श स्क्रबिंग', 'डेस्क सफाई', 'कॉन्फ्रेंस रूम सफाई', 'पैंट्री सफाई', 'वॉशरूम सफाई'],
+        exclusions: ['इलेक्ट्रिकल काम', 'प्लंबिंग', 'पेंटिंग'],
+        tools: ['स्क्रबिंग मशीन', 'वैक्यूम क्लीनर', 'माइक्रोफाइबर', 'फ्लोर क्लीनर'],
+        processSteps: ['कचरा हटाना', 'डेस्क सफाई', 'कॉन्फ्रेंस रूम सफाई', 'पैंट्री सफाई', 'फर्श स्क्रबिंग', 'फर्श मॉपिंग']
+      },
+      {
+        id: 'comm-2000-3000',
+        categoryId: 'commercial-cleaning',
+        categoryName: 'Commercial Space Cleaning',
+        name: '2000-3000 sqft',
+        duration: '5 hrs',
+        originalPrice: 7499,
+        offerPrice: 4999,
+        imageUrl: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&q=80',
+        description: 'बड़े ऑफिस की सफाई।',
+        rating: 4.91,
+        reviewCount: 430,
+        inclusions: ['फर्श स्क्रबिंग', 'डेस्क सफाई', 'वर्कस्टेशन सफाई', 'वॉशरूम सफाई', 'कचरा हटाना'],
+        exclusions: ['इलेक्ट्रिकल काम', 'प्लंबिंग', 'पेंटिंग'],
+        tools: ['स्क्रबिंग मशीन', 'वैक्यूम क्लीनर', 'माइक्रोफाइबर', 'फ्लोर क्लीनर'],
+        processSteps: ['कचरा हटाना', 'डेस्क सफाई', 'फर्श स्क्रबिंग', 'वॉशरूम सफाई', 'फर्श मॉपिंग']
+      },
+      {
+        id: 'comm-3001-4000',
+        categoryId: 'commercial-cleaning',
+        categoryName: 'Commercial Space Cleaning',
+        name: '3001-4000 sqft',
+        duration: '6 hrs',
+        originalPrice: 9499,
+        offerPrice: 6399,
+        imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80',
+        description: 'बड़े कमर्शियल स्पेस की सफाई।',
+        rating: 4.93,
+        reviewCount: 310,
+        inclusions: ['फर्श स्क्रबिंग', 'डेस्क सफाई', 'वर्कस्टेशन सफाई', 'वॉशरूम सफाई', 'कचरा हटाना'],
+        exclusions: ['इलेक्ट्रिकल काम', 'प्लंबिंग', 'पेंटिंग'],
+        tools: ['स्क्रबिंग मशीन', 'वैक्यूम क्लीनर', 'माइक्रोफाइबर', 'फ्लोर क्लीनर'],
+        processSteps: ['कचरा हटाना', 'डेस्क सफाई', 'फर्श स्क्रबिंग', 'वॉशरूम सफाई', 'फर्श मॉपिंग']
+      },
+      {
+        id: 'comm-4001-5000',
+        categoryId: 'commercial-cleaning',
+        categoryName: 'Commercial Space Cleaning',
+        name: '4001-5000 sqft',
+        duration: '7 hrs',
+        originalPrice: 11499,
+        offerPrice: 7799,
+        imageUrl: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&q=80',
+        description: 'आईटी फैसिलिटी की सफाई।',
+        rating: 4.88,
+        reviewCount: 220,
+        inclusions: ['फर्श स्क्रबिंग', 'डेस्क सफाई', 'वर्कस्टेशन सफाई', 'वॉशरूम सफाई', 'कचरा हटाना'],
+        exclusions: ['इलेक्ट्रिकल काम', 'प्लंबिंग', 'पेंटिंग'],
+        tools: ['स्क्रबिंग मशीन', 'वैक्यूम क्लीनर', 'माइक्रोफाइबर', 'फ्लोर क्लीनर'],
+        processSteps: ['कचरा हटाना', 'डेस्क सफाई', 'फर्श स्क्रबिंग', 'वॉशरूम सफाई', 'फर्श मॉपिंग']
+      },
+      {
+        id: 'comm-5001-6000',
+        categoryId: 'commercial-cleaning',
+        categoryName: 'Commercial Space Cleaning',
+        name: '5001-6000 Sq Ft',
+        duration: '8 hrs',
+        originalPrice: 13499,
+        offerPrice: 8999,
+        imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80',
+        description: 'बड़े कॉर्पोरेट फैसिलिटी की सफाई।',
+        rating: 4.95,
+        reviewCount: 160,
+        inclusions: ['फर्श स्क्रबिंग', 'डेस्क सफाई', 'वर्कस्टेशन सफाई', 'वॉशरूम सफाई', 'रोटरी बफिंग'],
+        exclusions: ['इलेक्ट्रिकल काम', 'प्लंबिंग', 'पेंटिंग'],
+        tools: ['स्क्रबिंग मशीन', 'रोटरी मशीन', 'वैक्यूम क्लीनर', 'माइक्रोफाइबर'],
+        processSteps: ['कचरा हटाना', 'डेस्क सफाई', 'फर्श स्क्रबिंग', 'रोटरी बफिंग', 'फर्श मॉपिंग']
+      },
+      {
+        id: 'comm-6001-7500',
+        categoryId: 'commercial-cleaning',
+        categoryName: 'Commercial Space Cleaning',
+        name: '6001-7500 Sq Ft',
+        duration: '8 hrs',
+        originalPrice: 16999,
+        offerPrice: 11299,
+        imageUrl: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&q=80',
+        description: 'एंटरप्राइज़ ऑफिस की सफाई।',
+        rating: 4.92,
+        reviewCount: 110,
+        inclusions: ['फर्श स्क्रबिंग', 'डेस्क सफाई', 'वर्कस्टेशन सफाई', 'वॉशरूम सफाई', 'रोटरी बफिंग'],
+        exclusions: ['इलेक्ट्रिकल काम', 'प्लंबिंग', 'पेंटिंग'],
+        tools: ['स्क्रबिंग मशीन', 'रोटरी मशीन', 'वैक्यूम क्लीनर', 'माइक्रोफाइबर'],
+        processSteps: ['कचरा हटाना', 'डेस्क सफाई', 'फर्श स्क्रबिंग', 'रोटरी बफिंग', 'फर्श मॉपिंग']
+      },
+      {
+        id: 'comm-7501-10000',
+        categoryId: 'commercial-cleaning',
+        categoryName: 'Commercial Space Cleaning',
+        name: '7501-10000 sqft',
+        duration: 'Full Day',
+        originalPrice: 21999,
+        offerPrice: 14499,
+        imageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80',
+        description: 'बड़े कमर्शियल बिल्डिंग की सफाई।',
+        rating: 4.97,
+        reviewCount: 85,
+        inclusions: ['फर्श स्क्रबिंग', 'डेस्क सफाई', 'वर्कस्टेशन सफाई', 'वॉशरूम सफाई', 'हॉस्पिटल-ग्रेड सैनिटाइज़ेशन'],
+        exclusions: ['इलेक्ट्रिकल काम', 'प्लंबिंग', 'पेंटिंग'],
+        tools: ['स्क्रबिंग मशीन', 'रोटरी मशीन', 'वैक्यूम क्लीनर', 'सैनिटाइज़र'],
+        processSteps: ['कचरा हटाना', 'डेस्क सफाई', 'फर्श स्क्रबिंग', 'रोटरी बफिंग', 'सैनिटाइज़ेशन', 'फर्श मॉपिंग']
       }
     ]
   }
 ];
 
-// Helper to convert CatalogItem to CleaningService for booking modal compatibility
 export function catalogItemToCleaningService(item: CatalogItem): CleaningService {
   return {
     id: item.id,
@@ -1213,9 +1268,7 @@ export function catalogItemToCleaningService(item: CatalogItem): CleaningService
     pricingMode: 'REFERENCE_PERCENT',
     priceVersion: 'v2.0.0',
     active: true,
-    estimatedMinutes: item.duration.includes('hr') 
-      ? parseFloat(item.duration) * 60 
-      : parseInt(item.duration) || 60,
+    estimatedMinutes: 60,
     rating: item.rating,
     reviewCount: item.reviewCount,
     imageUrl: item.imageUrl,
@@ -1223,20 +1276,12 @@ export function catalogItemToCleaningService(item: CatalogItem): CleaningService
     demoVideoBadge: 'Diversey Certified',
     popular: item.popular,
     steps: [
-      { order: 1, title: 'Inspection & Preparation', description: 'Pre-service check of fabric, stains and water points.', estimatedMinutes: 15 },
-      { order: 2, title: 'Deep Treatment', description: 'Application of Diversey neutral pH cleaning agent with power machine.', estimatedMinutes: 45 },
-      { order: 3, title: 'Extraction & Sanitization', description: 'High-power suction moisture extraction and UV anti-microbial wipe.', estimatedMinutes: 30 }
+      { order: 1, title: 'निरीक्षण और तैयारी', description: 'सेवा से पहले सामग्री और दाग-धब्बों की जाँच।', estimatedMinutes: 15 },
+      { order: 2, title: 'गहरा इलाज', description: 'Diversey क्लीनिंग एजेंट और पावर मशीन से सफाई।', estimatedMinutes: 45 },
+      { order: 3, title: 'वेट एक्सट्रैक्शन', description: 'हाई-पावर सक्शन से पानी निकालना और सुखाना।', estimatedMinutes: 30 }
     ],
-    inclusions: [
-      'Industrial grade German Kärcher extraction',
-      'Neutral pH Diversey Taski chemicals',
-      'Trained & background-verified professionals',
-      'Post-service quality check'
-    ],
-    exclusions: [
-      'Structural electrical rewiring',
-      'Wall paint touch-ups'
-    ],
+    inclusions: item.inclusions,
+    exclusions: item.exclusions,
     addons: []
   };
 }
