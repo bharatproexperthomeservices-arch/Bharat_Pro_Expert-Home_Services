@@ -73,24 +73,61 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   });
   const [selectedSlot, setSelectedSlot] = useState<string>('10 AM - 1 PM');
   
-  // Real Indian Address Hierarchy Details
-  const [flatOrHouseNo, setFlatOrHouseNo] = useState<string>('');
-  const [buildingOrStreet, setBuildingOrStreet] = useState<string>('');
-  const [streetAddress, setStreetAddress] = useState<string>('');
-  const [customerCity, setCustomerCity] = useState<string>(() => {
-    if (selectedCity) return selectedCity.split(',')[0].trim();
+  // Real Indian Address Hierarchy Details (Read directly from detected GPS / saved location)
+  const [flatOrHouseNo, setFlatOrHouseNo] = useState<string>(() => {
     try {
       const saved = localStorage.getItem('bpe_customer_location_v1');
-      if (saved) return JSON.parse(saved).city || '';
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.flatOrTower || '';
+      }
     } catch {}
     return '';
   });
-  const [customerState, setCustomerState] = useState<string>(() => {
-    if (selectedCity && selectedCity.includes(',')) return selectedCity.split(',')[1].trim();
+
+  const [buildingOrStreet, setBuildingOrStreet] = useState<string>(() => {
     try {
       const saved = localStorage.getItem('bpe_customer_location_v1');
-      if (saved) return JSON.parse(saved).state || '';
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.buildingOrStreet || parsed.sector || '';
+      }
     } catch {}
+    return '';
+  });
+
+  const [streetAddress, setStreetAddress] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('bpe_customer_location_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.formattedAddress || parsed.buildingOrStreet || '';
+      }
+    } catch {}
+    return '';
+  });
+
+  const [customerCity, setCustomerCity] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('bpe_customer_location_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.city) return parsed.city;
+      }
+    } catch {}
+    if (selectedCity) return selectedCity.split(',')[0].trim();
+    return '';
+  });
+
+  const [customerState, setCustomerState] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('bpe_customer_location_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.state) return parsed.state;
+      }
+    } catch {}
+    if (selectedCity && selectedCity.includes(',')) return selectedCity.split(',')[1].trim();
     return '';
   });
 
@@ -114,6 +151,31 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             }
           }
           if (minDist <= 50) return closest;
+
+          // If more than 50km from existing hub, create dynamic hub for real city
+          if (parsed.city) {
+            return {
+              id: `hub-${parsed.city.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+              code: `BPE-${parsed.city.toUpperCase().slice(0, 3)}-01`,
+              name: `${parsed.city} Express Hub`,
+              state: parsed.state || 'India',
+              city: parsed.city,
+              district: parsed.district || parsed.city,
+              address: `${parsed.locality || parsed.city}, ${parsed.state || ''}`,
+              coveredSectors: [parsed.locality, parsed.sector, 'City Central'].filter(Boolean) as string[],
+              pincodes: [parsed.pincode].filter(Boolean) as string[],
+              lat: parsed.latitude,
+              lng: parsed.longitude,
+              serviceRadiusKm: 30,
+              contactPhone: '+91 92660 23301',
+              managerName: 'Field Operations Specialist',
+              operatingHours: '07:30 - 21:00',
+              status: 'ACTIVE',
+              active: true,
+              capacity: { maxJobsPerHour: 15, maxJobsPerDay: 100, partnerCapacity: 30, peakCapacity: 120, bookingBufferMinutes: 20, travelBufferMinutes: 20, emergencyCapacity: 15 },
+              dispatchPriority: 'PRIMARY'
+            };
+          }
         }
       }
     } catch {}
@@ -131,7 +193,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       if (match) return match;
     }
 
-    return INITIAL_HUBS[0]; // Gurugram Central Hub
+    return INITIAL_HUBS[0];
   });
 
   const [selectedSector, setSelectedSector] = useState<string>(() => {
@@ -142,7 +204,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         if (parsed.locality || parsed.sector) return parsed.locality || parsed.sector;
       }
     } catch {}
-    return selectedHub.coveredSectors?.[0] || 'Sector 85';
+    return selectedHub.coveredSectors?.[0] || '';
   });
 
   const [landmark, setLandmark] = useState('');
@@ -154,7 +216,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         if (parsed.pincode) return parsed.pincode;
       }
     } catch {}
-    return '122050';
+    return '';
   });
 
   // User contact details — NO random hardcoded phone number!
@@ -560,7 +622,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         sector: selectedSector || 'Central Area',
         city: customerCity || selectedHub.city,
         state: customerState || selectedHub.state,
-        pincode: pincode || '122050',
+        pincode: pincode || selectedHub.pincodes?.[0] || '',
         lat: finalLat,
         lng: finalLng
       },

@@ -6,6 +6,7 @@ import { CLEANING_20_CATEGORIES, CleaningCategoryDetail } from '../cleaningCateg
 import { createNewBooking, getAllHubs, getAllBookings } from '../services/dbService';
 import { openRazorpayPaymentModal, getRazorpayKeyId } from '../services/razorpayService';
 import { useRazorpayBooking, BookingPayload } from '../hooks/useRazorpayBooking';
+import { reverseGeocodeCoordinates } from '../services/indiaLocationHierarchy';
 import confetti from 'canvas-confetti';
 import { 
   Phone, 
@@ -326,25 +327,24 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
         showToast('📍 Location Captured via GPS!');
 
         try {
-          const resp = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-            { headers: { 'Accept-Language': 'en' } }
-          );
-          if (resp.ok) {
-            const data = await resp.json();
-            const addr = data.address || {};
-            const road = addr.road || addr.residential || addr.suburb || '';
-            const detectedCity = addr.city || addr.town || addr.state_district || 'Gurgaon';
-            const detectedPin = addr.postcode || '122002';
-
+          const resolved = await reverseGeocodeCoordinates(latitude, longitude, accuracy);
+          if (resolved) {
             setAddress(prev => ({
               ...prev,
-              line: road || prev.line || data.display_name.split(',')[0],
-              city: detectedCity,
-              pin: detectedPin
+              line: [resolved.flatOrTower, resolved.buildingOrStreet || resolved.locality].filter(Boolean).join(', ') || prev.line,
+              house: resolved.flatOrTower || prev.house,
+              city: resolved.city || prev.city,
+              pin: resolved.pincode || prev.pin,
+              lat: latitude,
+              lng: longitude
             }));
-            setCity(detectedCity);
-            localStorage.setItem('bpe_city_v3', detectedCity);
+            if (resolved.city) {
+              setCity(resolved.city);
+              localStorage.setItem('bpe_city_v3', resolved.city);
+            }
+            try {
+              localStorage.setItem('bpe_customer_location_v1', JSON.stringify(resolved));
+            } catch {}
           }
         } catch (e) {
           console.warn('Reverse geocoding err:', e);
@@ -454,11 +454,11 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
         address: {
           street: `${address.house ? address.house + ', ' : ''}${address.line}${address.lm ? ' (Near ' + address.lm + ')' : ''}`,
           sector: address.type + ' Area',
-          city: address.city || city,
-          state: 'Haryana',
-          pincode: address.pin || '122002',
-          lat: address.lat,
-          lng: address.lng
+          city: address.city || city || matchedHub.city,
+          state: matchedHub.state || 'India',
+          pincode: address.pin || matchedHub.pincodes?.[0] || '',
+          lat: address.lat || matchedHub.lat,
+          lng: address.lng || matchedHub.lng
         },
         selectedAddons: [],
         basePrice: tot.subtotal,
