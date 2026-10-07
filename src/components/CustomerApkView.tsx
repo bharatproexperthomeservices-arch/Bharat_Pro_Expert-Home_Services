@@ -456,7 +456,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
           sector: address.type + ' Area',
           city: address.city || city || matchedHub.city,
           state: matchedHub.state || 'India',
-          pincode: address.pin || matchedHub.pincodes?.[0] || '',
+          pincode: address.pin || (matchedHub as any).pincodes?.[0] || '',
           lat: address.lat || matchedHub.lat,
           lng: address.lng || matchedHub.lng
         },

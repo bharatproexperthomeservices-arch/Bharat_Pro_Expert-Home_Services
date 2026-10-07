@@ -231,7 +231,7 @@ export const IndiaLocationDetectionModal: React.FC<IndiaLocationDetectionModalPr
               {/* Primary Buttons */}
               <div className="space-y-3 pt-2 max-w-md mx-auto">
                 <button
-                  onClick={handleStartRealGps}
+                  onClick={() => handleStartRealGps()}
                   className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 transition-all transform active:scale-98 cursor-pointer"
                 >
                   <Navigation className="w-4 h-4" />
@@ -433,7 +433,7 @@ export const IndiaLocationDetectionModal: React.FC<IndiaLocationDetectionModalPr
 
               {/* Re-trigger GPS button */}
               <button
-                onClick={handleStartRealGps}
+                onClick={() => handleStartRealGps()}
                 className="w-full py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-blue-200/60 transition-colors cursor-pointer"
               >
                 <Navigation className="w-3.5 h-3.5" />

@@ -16,6 +16,7 @@ import {
 import { UserProfile } from '../types';
 import { 
   handleGoogleCustomerAuth, 
+  loginWithGoogleEmail,
   sendCustomerMobileOtp, 
   verifyCustomerMobileOtp,
   linkMobileToExistingCustomer,
@@ -30,6 +31,7 @@ interface AuthContextType {
   role: 'customer' | 'partner' | 'admin';
   signInWithGoogle: (targetRole?: 'customer' | 'partner') => Promise<UserProfile>;
   signInWithGoogleRedirect: (targetRole?: 'customer' | 'partner') => Promise<void>;
+  signInWithGoogleAccount: (email: string, displayName?: string, targetRole?: 'customer' | 'partner') => Promise<UserProfile>;
   signInWithMobileOtp: (phone: string, otp: string) => Promise<UserProfile>;
   requestMobileOtp: (phone: string) => Promise<{ success: boolean; message: string; error?: string; previewOtp?: string; cooldownSeconds?: number }>;
   linkMobile: (phone: string, otp: string) => Promise<UserProfile>;
@@ -139,6 +141,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await signInWithRedirect(auth, googleProvider);
     } catch (err) {
       console.error('Google Redirect Sign-in failed', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signInWithGoogleAccount = async (
+    email: string,
+    displayName?: string,
+    targetRole: 'customer' | 'partner' = 'customer'
+  ): Promise<UserProfile> => {
+    setLoading(true);
+    try {
+      setRole(targetRole);
+      const authRes = await loginWithGoogleEmail(email, displayName);
+      setProfile(authRes.profile);
+      setRole(authRes.profile.role || 'customer');
+      return authRes.profile;
+    } catch (err: any) {
+      console.error('Direct Google account sign-in failed', err);
       throw err;
     } finally {
       setLoading(false);
@@ -293,6 +315,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role,
       signInWithGoogle,
       signInWithGoogleRedirect,
+      signInWithGoogleAccount,
       signInWithMobileOtp,
       requestMobileOtp,
       linkMobile,
