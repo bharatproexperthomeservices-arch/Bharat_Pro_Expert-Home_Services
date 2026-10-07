@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BharatProLogo } from './BharatProLogo';
 import { useAuth } from '../context/AuthContext';
-import { getSuggestedGoogleEmail } from '../services/customerAuthService';
 import { 
   Phone, 
   ShieldCheck, 
@@ -13,8 +12,7 @@ import {
   X,
   Sparkles,
   Loader2,
-  Lock,
-  Mail
+  Lock
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -30,17 +28,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   defaultRole = 'customer',
   onSuccess
 }) => {
-  const { 
-    signInWithGoogle, 
-    signInWithGoogleAccount,
-    signInWithMobileOtp, 
-    requestMobileOtp 
-  } = useAuth();
+  const { signInWithGoogle, signInWithMobileOtp, requestMobileOtp } = useAuth();
 
-  const [step, setStep] = useState<'INPUT' | 'OTP' | 'GOOGLE_DIRECT'>('INPUT');
+  const [step, setStep] = useState<'INPUT' | 'OTP'>('INPUT');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [googleEmail, setGoogleEmail] = useState('');
-  const [suggestedEmail, setSuggestedEmail] = useState('bharatproexperthomeservices@gmail.com');
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -58,9 +49,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (isOpen) {
       setStep('INPUT');
       setPhoneNumber('');
-      const defaultEmail = getSuggestedGoogleEmail();
-      setSuggestedEmail(defaultEmail);
-      setGoogleEmail(defaultEmail);
       setOtpDigits(['', '', '', '']);
       setError(null);
       setSuccessMsg(null);
@@ -101,49 +89,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }, 500);
     } catch (err: any) {
       console.warn('[Google Sign-in Exception]', err);
-      const errCode = err?.code || '';
-      if (errCode === 'auth/popup-closed-by-user' || err?.message?.includes('closed')) {
-        setError('Google sign-in popup was closed. Please try again or use Instant Google Login below.');
+      if (err?.code === 'auth/popup-closed-by-user' || err?.message?.includes('closed')) {
+        setError('Google sign-in popup was closed. Please try again.');
+      } else if (err?.code === 'auth/cancelled-popup-request') {
+        setError('Authentication was interrupted. Please try again.');
       } else {
-        // When popup is restricted, domain not authorized yet in Firebase, or running in iframe:
-        // Seamlessly switch to GOOGLE_DIRECT so customer is NEVER blocked!
-        setStep('GOOGLE_DIRECT');
-        if (errCode === 'auth/unauthorized-domain') {
-          setError('Google popup authorization restricted for this domain. Confirm your Google account below for instant sign-in:');
-        } else if (errCode === 'auth/popup-blocked') {
-          setError('Browser blocked the popup window. Confirm your Google account below to sign in instantly:');
-        } else {
-          setError('Please confirm your Google Account email below to sign in:');
-        }
+        setError('Google Sign-in encountered an issue. Please try mobile OTP or retry.');
       }
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
-  // Handle Direct Google Verification Submit
-  const handleDirectGoogleSubmit = async (e?: React.FormEvent, customEmail?: string) => {
-    if (e) e.preventDefault();
-    setError(null);
-    setSuccessMsg(null);
-
-    const emailToUse = (customEmail || googleEmail || suggestedEmail).trim().toLowerCase();
-    if (!emailToUse || !emailToUse.includes('@') || !emailToUse.includes('.')) {
-      setError('Please enter a valid Google Account email (e.g. yourname@gmail.com).');
-      return;
-    }
-
-    setGoogleLoading(true);
-    try {
-      await signInWithGoogleAccount(emailToUse, undefined, defaultRole);
-      localStorage.setItem('bpe_last_google_email', emailToUse);
-      setSuccessMsg(`Google sign-in verified for ${emailToUse}! Welcome.`);
-      setTimeout(() => {
-        onSuccess?.();
-        onClose();
-      }, 500);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to sign in with Google account. Please try again.');
     } finally {
       setGoogleLoading(false);
     }
@@ -345,54 +297,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {step === 'INPUT' ? (
             <>
               {/* GOOGLE SIGN IN BUTTON */}
-              <div className="space-y-1.5">
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={googleLoading || loading}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-50 text-[#1C1C1E] border border-[#D1D1D6] font-bold text-xs shadow-sm hover:shadow transition-all flex items-center justify-center gap-3 cursor-pointer group disabled:opacity-50"
-                >
-                  {googleLoading ? (
-                    <Loader2 className="w-4 h-4 text-[#D4A24E] animate-spin" />
-                  ) : (
-                    <svg className="w-4 h-4" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                      />
-                    </svg>
-                  )}
-                  <span className="group-hover:translate-x-0.5 transition-transform">
-                    Continue with Google
-                  </span>
-                </button>
-
-                <div className="flex justify-between items-center px-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('GOOGLE_DIRECT');
-                      setError(null);
-                    }}
-                    className="text-[11px] font-semibold text-[#0b3ba8] hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>⚡ Instant Google Sign-In</span>
-                  </button>
-                  <span className="text-[10px] text-slate-400 font-medium">Safe &bull; Verified</span>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading || loading}
+                className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-50 text-[#1C1C1E] border border-[#D1D1D6] font-bold text-xs shadow-sm hover:shadow transition-all flex items-center justify-center gap-3 cursor-pointer group disabled:opacity-50"
+              >
+                {googleLoading ? (
+                  <Loader2 className="w-4 h-4 text-[#D4A24E] animate-spin" />
+                ) : (
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                )}
+                <span className="group-hover:translate-x-0.5 transition-transform">
+                  Continue with Google
+                </span>
+              </button>
 
               {/* DIVIDER */}
               <div className="relative flex items-center justify-center my-3">
@@ -443,115 +379,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </form>
             </>
-          ) : step === 'GOOGLE_DIRECT' ? (
-            /* STEP: GOOGLE FAST DIRECT SIGN-IN (Resolves popup & domain restrictions) */
-            <div className="space-y-4 animate-in fade-in">
-              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-blue-50/80 to-indigo-50/50 border border-blue-200/80 text-left">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div className="w-6 h-6 rounded-full bg-white shadow-xs flex items-center justify-center">
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                    </svg>
-                  </div>
-                  <span className="text-xs font-bold text-slate-800">
-                    Google Account Fast Sign-in
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Sign in instantly with your Google account without popup interruptions.
-                </p>
-              </div>
-
-              {/* 1-Click Fast Connect if suggested email present */}
-              {suggestedEmail && (
-                <div className="p-3 rounded-2xl bg-white border border-[#D1D1D6] shadow-sm flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 overflow-hidden">
-                    <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
-                      <Mail className="w-4 h-4 text-[#0b3ba8]" />
-                    </div>
-                    <div className="truncate text-left">
-                      <p className="text-xs font-bold text-[#1C1C1E] truncate font-mono">
-                        {suggestedEmail}
-                      </p>
-                      <p className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
-                        <CheckCircle2 className="w-2.5 h-2.5" /> Google Account Verified
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDirectGoogleSubmit(undefined, suggestedEmail)}
-                    disabled={googleLoading}
-                    className="px-3 py-2 rounded-xl bg-[#0b3ba8] hover:bg-[#07246b] text-white text-xs font-bold shadow-sm transition-all shrink-0 cursor-pointer disabled:opacity-50"
-                  >
-                    {googleLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Sign In'}
-                  </button>
-                </div>
-              )}
-
-              {/* Custom Google Email Input Form */}
-              <form onSubmit={(e) => handleDirectGoogleSubmit(e)} className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-[#48484A] mb-1.5 uppercase tracking-wider text-left">
-                    Or Enter Google Email
-                  </label>
-                  <div className="relative flex items-center rounded-2xl border border-[#D1D1D6] bg-white focus-within:border-[#0b3ba8] focus-within:ring-2 focus-within:ring-[#0b3ba8]/20 transition-all shadow-sm overflow-hidden">
-                    <div className="pl-3.5 pr-2.5 py-3 text-slate-400">
-                      <Mail className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <input
-                      type="email"
-                      value={googleEmail}
-                      onChange={(e) => setGoogleEmail(e.target.value)}
-                      placeholder="yourname@gmail.com"
-                      autoFocus={!suggestedEmail}
-                      className="w-full pr-3.5 py-3 text-sm font-semibold text-[#1C1C1E] outline-none bg-transparent placeholder:text-[#8E8E93] placeholder:font-normal"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={googleLoading || !googleEmail.trim() || !googleEmail.includes('@')}
-                  className="w-full py-3.5 px-4 rounded-2xl bg-[#0B2A4A] hover:bg-[#071A2E] text-white font-bold text-xs shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed group"
-                >
-                  {googleLoading ? (
-                    <Loader2 className="w-4 h-4 text-[#D4A24E] animate-spin" />
-                  ) : (
-                    <>
-                      <span>Continue with this Google Account</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-[#D4A24E] group-hover:translate-x-1 transition-transform" />
-                    </>
-                  )}
-                </button>
-              </form>
-
-              {/* Action Links */}
-              <div className="flex items-center justify-between pt-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep('INPUT');
-                    setError(null);
-                  }}
-                  className="text-slate-600 hover:text-slate-900 font-semibold cursor-pointer"
-                >
-                  &larr; Back to Mobile OTP
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={googleLoading}
-                  className="text-[#0b3ba8] hover:underline font-bold cursor-pointer"
-                >
-                  Retry Browser Popup
-                </button>
-              </div>
-            </div>
           ) : (
             /* STEP: ENTER 4 DIGIT OTP */
             <form onSubmit={handleVerifySubmit} className="space-y-4 animate-in fade-in">
