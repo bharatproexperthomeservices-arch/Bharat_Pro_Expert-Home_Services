@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { createNewBooking, getAllHubs } from '../services/dbService';
 import { getRazorpayKeyId, loadRazorpayScript } from '../services/razorpayService';
 import { BookingPayload } from '../hooks/useRazorpayBooking';
+import { reverseGeocodeCoordinates, calculateHaversineKm } from '../services/indiaLocationHierarchy';
 import confetti from 'canvas-confetti';
 import { 
   Calendar, 
@@ -26,7 +27,9 @@ import {
   Loader2,
   AlertCircle,
   Copy,
-  Activity
+  Activity,
+  Building,
+  Home
 } from 'lucide-react';
 
 interface BookingFlowModalProps {
@@ -70,27 +73,88 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   });
   const [selectedSlot, setSelectedSlot] = useState<string>('10 AM - 1 PM');
   
-  // Address & Hub selection
+  // Real Indian Address Hierarchy Details
+  const [flatOrHouseNo, setFlatOrHouseNo] = useState<string>('');
+  const [buildingOrStreet, setBuildingOrStreet] = useState<string>('');
+  const [streetAddress, setStreetAddress] = useState<string>('');
+  const [customerCity, setCustomerCity] = useState<string>(() => {
+    if (selectedCity) return selectedCity.split(',')[0].trim();
+    try {
+      const saved = localStorage.getItem('bpe_customer_location_v1');
+      if (saved) return JSON.parse(saved).city || '';
+    } catch {}
+    return '';
+  });
+  const [customerState, setCustomerState] = useState<string>(() => {
+    if (selectedCity && selectedCity.includes(',')) return selectedCity.split(',')[1].trim();
+    try {
+      const saved = localStorage.getItem('bpe_customer_location_v1');
+      if (saved) return JSON.parse(saved).state || '';
+    } catch {}
+    return '';
+  });
+
+  // Address & Nearest Hub Selection (Based on real GPS coordinates or selected city)
   const [selectedHub, setSelectedHub] = useState<HubLocation>(() => {
+    // 1. Try reading saved real location
+    try {
+      const saved = localStorage.getItem('bpe_customer_location_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.latitude && parsed.longitude) {
+          let closest = INITIAL_HUBS[0];
+          let minDist = 999999;
+          for (const h of INITIAL_HUBS) {
+            if (h.lat && h.lng) {
+              const d = calculateHaversineKm(parsed.latitude, parsed.longitude, h.lat, h.lng);
+              if (d < minDist) {
+                minDist = d;
+                closest = h;
+              }
+            }
+          }
+          if (minDist <= 50) return closest;
+        }
+      }
+    } catch {}
+
+    // 2. Try matching selectedCity
     if (selectedCity) {
-      const match = INITIAL_HUBS.find(h => h.city.toLowerCase() === selectedCity.toLowerCase());
+      const clean = selectedCity.toLowerCase().split(',')[0].trim();
+      const match = INITIAL_HUBS.find(h => 
+        h.city.toLowerCase() === clean ||
+        h.city.toLowerCase().includes(clean) ||
+        clean.includes(h.city.toLowerCase()) ||
+        (clean.includes('gurgaon') && h.city.toLowerCase().includes('gurugram')) ||
+        (clean.includes('gurugram') && h.city.toLowerCase().includes('gurgaon'))
+      );
       if (match) return match;
     }
-    return INITIAL_HUBS[0];
+
+    return INITIAL_HUBS[0]; // Gurugram Central Hub
   });
 
   const [selectedSector, setSelectedSector] = useState<string>(() => {
-    return selectedHub.coveredSectors?.[0] || 'Central Area';
+    try {
+      const saved = localStorage.getItem('bpe_customer_location_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.locality || parsed.sector) return parsed.locality || parsed.sector;
+      }
+    } catch {}
+    return selectedHub.coveredSectors?.[0] || 'Sector 85';
   });
 
-  const [streetAddress, setStreetAddress] = useState('');
   const [landmark, setLandmark] = useState('');
   const [pincode, setPincode] = useState(() => {
-    if (selectedCity?.toLowerCase() === 'patna') return '800001';
-    if (selectedCity?.toLowerCase() === 'delhi') return '110001';
-    if (selectedCity?.toLowerCase() === 'mumbai') return '400050';
-    if (selectedCity?.toLowerCase() === 'bengaluru') return '560034';
-    return '122002';
+    try {
+      const saved = localStorage.getItem('bpe_customer_location_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.pincode) return parsed.pincode;
+      }
+    } catch {}
+    return '122050';
   });
 
   // User contact details — NO random hardcoded phone number!
@@ -239,7 +303,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     }
   };
 
-  // Live Geolocation Auto-Detection
+  // Live Geolocation Auto-Detection using real GPS & Reverse Geocoding
   const handleDetectLiveLocation = () => {
     if (!navigator.geolocation) {
       setErrorBanner('Geolocation is not supported by your browser. Please enter your address manually.');
@@ -247,47 +311,92 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     }
 
     setDetectingLocation(true);
-    setGeoStatusMsg('Detecting precise GPS coordinates...');
+    setGeoStatusMsg('Detecting precise GPS coordinates from device...');
     setErrorBanner(null);
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         setGeoCoords({ lat: latitude, lng: longitude, accuracy });
-        setGeoStatusMsg(`Locked: ${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° E (±${Math.round(accuracy)}m)`);
 
         try {
-          const resp = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-            { headers: { 'Accept-Language': 'en' } }
-          );
-          if (resp.ok) {
-            const data = await resp.json();
-            const addr = data.address || {};
-            const road = addr.road || addr.residential || addr.suburb || '';
-            const neighbourhood = addr.neighbourhood || addr.suburb || addr.city_district || '';
-            const detectedCity = addr.city || addr.town || addr.state_district || addr.county || '';
-            const detectedPincode = addr.postcode || '';
-
-            if (road || neighbourhood) {
-              setStreetAddress(prev => prev || `${road}${neighbourhood ? ', ' + neighbourhood : ''}`);
-            }
-            if (detectedPincode) {
-              setPincode(detectedPincode);
+          const resolved = await reverseGeocodeCoordinates(latitude, longitude, accuracy);
+          if (resolved) {
+            setGeoStatusMsg(`Locked: ${latitude.toFixed(4)}° N, ${longitude.toFixed(4)}° E (±${Math.round(accuracy)}m) • ${resolved.city}, ${resolved.state}`);
+            
+            if (resolved.city) setCustomerCity(resolved.city);
+            if (resolved.state) setCustomerState(resolved.state);
+            if (resolved.pincode) setPincode(resolved.pincode);
+            
+            if (resolved.locality || resolved.sector) {
+              setSelectedSector(resolved.locality || resolved.sector || '');
             }
 
-            if (detectedCity) {
-              const matchedHub = availableHubs.find(h => 
-                h.city.toLowerCase().includes(detectedCity.toLowerCase()) ||
-                detectedCity.toLowerCase().includes(h.city.toLowerCase())
-              );
-              if (matchedHub) {
-                setSelectedHub(matchedHub);
-                if (matchedHub.coveredSectors.length > 0) {
-                  setSelectedSector(matchedHub.coveredSectors[0]);
+            if (resolved.buildingOrStreet) {
+              setBuildingOrStreet(resolved.buildingOrStreet);
+            } else if (resolved.sector) {
+              setBuildingOrStreet(resolved.sector);
+            }
+
+            if (resolved.flatOrTower) {
+              setFlatOrHouseNo(resolved.flatOrTower);
+            }
+
+            // Sync to streetAddress for backward-compatibility
+            const fullStreet = [
+              resolved.flatOrTower,
+              resolved.buildingOrStreet || resolved.sector
+            ].filter(Boolean).join(', ');
+            if (fullStreet) {
+              setStreetAddress(fullStreet);
+            }
+
+            // Find closest hub geographically by Haversine formula
+            let closestHub = availableHubs[0];
+            let minDistance = 999999;
+            for (const h of availableHubs) {
+              if (h.lat && h.lng) {
+                const dist = calculateHaversineKm(latitude, longitude, h.lat, h.lng);
+                if (dist < minDistance) {
+                  minDistance = dist;
+                  closestHub = h;
                 }
               }
             }
+
+            if (minDistance <= 45 && closestHub) {
+              setSelectedHub(closestHub);
+            } else {
+              // Create dynamic hub for customer's actual city & state
+              const dynamicHub: HubLocation = {
+                id: `hub-${resolved.city.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+                code: `BPE-${resolved.city.toUpperCase().slice(0, 3)}-01`,
+                name: `${resolved.city} Direct Express Hub`,
+                state: resolved.state,
+                city: resolved.city,
+                district: resolved.district || resolved.city,
+                address: `${resolved.locality || resolved.city}, ${resolved.state} ${resolved.pincode || ''}`,
+                coveredSectors: [resolved.locality, resolved.sector, 'City Central'].filter(Boolean) as string[],
+                pincodes: [resolved.pincode].filter(Boolean) as string[],
+                lat: latitude,
+                lng: longitude,
+                serviceRadiusKm: 30,
+                contactPhone: '+91 92660 23301',
+                managerName: 'Field Operations Specialist',
+                operatingHours: '07:30 - 21:00',
+                status: 'ACTIVE',
+                active: true,
+                capacity: { maxJobsPerHour: 15, maxJobsPerDay: 100, partnerCapacity: 30, peakCapacity: 120, bookingBufferMinutes: 20, travelBufferMinutes: 20, emergencyCapacity: 15 },
+                dispatchPriority: 'PRIMARY'
+              };
+              setAvailableHubs(prev => [dynamicHub, ...prev.filter(x => x.id !== dynamicHub.id)]);
+              setSelectedHub(dynamicHub);
+            }
+
+            // Save to localStorage for seamless persistence
+            try {
+              localStorage.setItem('bpe_customer_location_v1', JSON.stringify(resolved));
+            } catch {}
           }
         } catch (e) {
           console.warn('Reverse geocoding notice:', e);
@@ -303,6 +412,13 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
   };
+
+  // Auto-detect location when reaching Step 2 if not yet locked
+  useEffect(() => {
+    if (step === 2 && !geoCoords && !detectingLocation) {
+      handleDetectLiveLocation();
+    }
+  }, [step]);
 
   // Coupon handler (Strictly 10% Discount)
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -352,7 +468,13 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     if (!name.trim()) errs.name = true;
     const cleanPhone = phone.trim().replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0(?=\d{10}$)/, '');
     if (!cleanPhone || cleanPhone.length !== 10) errs.phone = true;
-    if (!streetAddress.trim()) errs.street = true;
+    
+    const combinedStreet = [
+      flatOrHouseNo.trim(),
+      buildingOrStreet.trim() || streetAddress.trim()
+    ].filter(Boolean).join(', ');
+    
+    if (!combinedStreet.trim() && !streetAddress.trim()) errs.street = true;
 
     setValidationErrors(errs);
 
@@ -365,8 +487,12 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       return;
     }
     if (errs.street) {
-      setErrorBanner('Please enter your house/flat number and street address.');
+      setErrorBanner('Please enter your flat/tower number, building, and street address.');
       return;
+    }
+
+    if (combinedStreet) {
+      setStreetAddress(combinedStreet);
     }
 
     // Save to local storage for subsequent bookings
@@ -394,8 +520,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       setStep(2);
       return;
     }
-    if (!streetAddress.trim()) {
-      setErrorBanner('Please provide your complete service address.');
+    
+    const combinedStreet = [
+      flatOrHouseNo.trim(),
+      buildingOrStreet.trim() || streetAddress.trim()
+    ].filter(Boolean).join(', ');
+
+    if (!combinedStreet.trim() && !streetAddress.trim()) {
+      setErrorBanner('Please provide your complete tower/flat/street address.');
       setStep(2);
       return;
     }
@@ -424,11 +556,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       timeSlot: selectedSlot,
       assignedHubId: selectedHub.id,
       address: {
-        street: streetAddress.trim(),
+        street: combinedStreet || streetAddress.trim(),
         sector: selectedSector || 'Central Area',
-        city: selectedHub.city,
-        state: selectedHub.state,
-        pincode: pincode || '122002',
+        city: customerCity || selectedHub.city,
+        state: customerState || selectedHub.state,
+        pincode: pincode || '122050',
         lat: finalLat,
         lng: finalLng
       },
@@ -817,7 +949,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             </div>
           )}
 
-          {/* ================= STEP 2: CONTACT DETAILS & ADDRESS ================= */}
+          {/* ================= STEP 2: CONTACT DETAILS & REAL LOCATION ================= */}
           {step === 2 && (
             <div className="space-y-4">
               
@@ -830,7 +962,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                       Live GPS Geographic Auto-Detect
                     </span>
                     <p className="text-[11px] text-slate-500">
-                      Quickly capture your exact coordinates, street address, and pincode.
+                      Instantly detect your real location, society, locality &amp; nearest service hub.
                     </p>
                   </div>
 
@@ -843,7 +975,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     {detectingLocation ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Detecting...</span>
+                        <span>Detecting Real GPS...</span>
                       </>
                     ) : (
                       <>
@@ -914,17 +1046,60 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 </div>
               </div>
 
-              {/* City / Hub & Sector */}
+              {/* Tower / Flat / House No. & Building / Society */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Operating City &amp; Hub
+                    Flat / House / Tower / Floor No. <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <Home className="absolute left-3.5 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={flatOrHouseNo}
+                      onChange={(e) => {
+                        setFlatOrHouseNo(e.target.value);
+                        if (validationErrors.street) setValidationErrors({ ...validationErrors, street: false });
+                      }}
+                      placeholder="e.g. Tower B, Flat 402, 4th Floor / House 24"
+                      className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-sm outline-none font-medium text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Society / Building / Apartment / Street Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <Building className="absolute left-3.5 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={buildingOrStreet}
+                      onChange={(e) => {
+                        setBuildingOrStreet(e.target.value);
+                        if (validationErrors.street) setValidationErrors({ ...validationErrors, street: false });
+                      }}
+                      placeholder="e.g. Godrej Frontier, Sector 85 / Main Road"
+                      className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-sm outline-none font-medium text-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Operating City & Hub + Sector / Locality */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Operating City &amp; Assigned Hub
                   </label>
                   <select
                     value={selectedHub.id}
                     onChange={(e) => {
                       const h = availableHubs.find(x => x.id === e.target.value) || availableHubs[0];
                       setSelectedHub(h);
+                      setCustomerCity(h.city);
+                      setCustomerState(h.state);
                       if (h.coveredSectors?.length > 0) {
                         setSelectedSector(h.coveredSectors[0]);
                       }
@@ -933,7 +1108,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                   >
                     {availableHubs.map((h) => (
                       <option key={h.id} value={h.id}>
-                        {h.city} ({h.name} • {h.serviceRadiusKm}km coverage)
+                        {h.city}, {h.state} ({h.name} • {h.serviceRadiusKm}km)
                       </option>
                     ))}
                   </select>
@@ -947,12 +1122,12 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     type="text"
                     value={selectedSector}
                     onChange={(e) => setSelectedSector(e.target.value)}
-                    placeholder="e.g. Sector 45, Indirapuram, Boring Road"
+                    placeholder="e.g. Sector 85, IMT Manesar, DLF Phase 2"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-xs sm:text-sm outline-none font-medium text-slate-800"
                   />
                   {selectedHub.coveredSectors && selectedHub.coveredSectors.length > 0 && (
                     <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                      <span className="text-[10px] text-slate-400 font-medium">Suggestions:</span>
+                      <span className="text-[10px] text-slate-400 font-medium">Quick Suggestions:</span>
                       {selectedHub.coveredSectors.slice(0, 4).map((sec) => (
                         <button
                           key={sec}
@@ -972,31 +1147,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 </div>
               </div>
 
-              {/* Street Address (Required) */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                  House / Flat / Street Address <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
-                  <textarea
-                    rows={2}
-                    value={streetAddress}
-                    onChange={(e) => {
-                      setStreetAddress(e.target.value);
-                      if (validationErrors.street) setValidationErrors({ ...validationErrors, street: false });
-                    }}
-                    placeholder="e.g. Flat 402, Block B, Silver Oak Apartments, Main Road"
-                    className={`w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-50 border text-sm outline-none font-medium text-slate-800 ${
-                      validationErrors.street ? 'border-red-500 bg-red-50/50' : 'border-slate-200 focus:border-blue-600'
-                    }`}
-                  />
-                </div>
-                {validationErrors.street && (
-                  <span className="text-[11px] text-red-600 font-semibold mt-1 block">Complete street address is required.</span>
-                )}
-              </div>
-
               {/* Landmark, Email & Pincode */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
@@ -1007,7 +1157,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     type="text"
                     value={landmark}
                     onChange={(e) => setLandmark(e.target.value)}
-                    placeholder="e.g. Near Market / Pillar 20"
+                    placeholder="e.g. Near Sapphire Mall / Club House"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-sm outline-none font-medium text-slate-800"
                   />
                 </div>
@@ -1034,15 +1184,28 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     maxLength={6}
                     value={pincode}
                     onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
-                    placeholder="e.g. 122002"
+                    placeholder="e.g. 122050"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-blue-600 text-sm outline-none font-mono font-bold text-slate-800"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-medium">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Verified Bharat Pro Service Coverage: {selectedHub.city} Hub with background-verified staff.</span>
+              {validationErrors.street && (
+                <span className="text-[11px] text-red-600 font-semibold block">
+                  Please enter your flat/tower number and society/building address.
+                </span>
+              )}
+
+              {/* Service Hub Coverage Card */}
+              <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-medium">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div>
+                  <span className="font-bold">Verified Bharat Pro Service Coverage: </span>
+                  <span>{selectedHub.name} ({customerCity || selectedHub.city}, {customerState || selectedHub.state})</span>
+                  <span className="block text-[11px] text-emerald-700 font-normal">
+                    Assigned technicians dispatched with hospital-grade equipment &amp; Diversey chemicals.
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -1062,7 +1225,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                       📅 {selectedDate} • {selectedSlot}
                     </span>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      📍 {streetAddress} {landmark && `(Near ${landmark})`}, {selectedSector}, {selectedHub.city}
+                      📍 {flatOrHouseNo ? flatOrHouseNo + ', ' : ''}{buildingOrStreet || streetAddress} {landmark && `(Near ${landmark})`}, {selectedSector}, {customerCity || selectedHub.city}, {customerState || selectedHub.state} - {pincode}
                     </p>
                   </div>
                   <span className="font-black text-base text-[#08213F]">

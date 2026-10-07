@@ -27,6 +27,8 @@ export interface ResolvedCustomerLocation {
   city: string;
   locality?: string;
   sector?: string;
+  flatOrTower?: string;
+  buildingOrStreet?: string;
   pincode?: string;
   latitude: number;
   longitude: number;
@@ -674,24 +676,30 @@ export async function reverseGeocodeCoordinates(
   accuracy: number = 20
 ): Promise<ResolvedCustomerLocation> {
   const timestamp = Date.now();
+  
+  // Find nearest operational BPE Hub geographically by Haversine formula
+  const { hub, distanceKm, serviceable, arrivalMinutes } = findNearestBpeHub(lat, lng);
+
   let country = 'India';
   let countryCode = 'in';
-  let state = 'Bihar';
-  let district = 'Patna';
+  let state = hub.state;
+  let district = hub.city;
   let subDistrict = '';
-  let city = 'Patna';
+  let city = hub.city;
   let locality = '';
   let sector = '';
+  let flatOrTower = '';
+  let buildingOrStreet = '';
   let pincode = '';
   let formattedAddress = '';
 
   try {
-    // 1. First attempt: OpenStreetMap Nominatim reverse geocoding
+    // 1. High accuracy OpenStreetMap / Nominatim reverse geocoding
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&zoom=18`;
     const resp = await fetch(url, {
       headers: {
         'Accept-Language': 'en',
-        'User-Agent': 'BharatProExpert-LocationEngine/2.0'
+        'User-Agent': 'BharatProExpert-IndiaLocationService/3.0'
       }
     });
 
@@ -701,17 +709,64 @@ export async function reverseGeocodeCoordinates(
       
       country = addr.country || 'India';
       countryCode = (addr.country_code || 'in').toLowerCase();
-      state = addr.state || '';
-      district = addr.state_district || addr.county || addr.district || '';
+      
+      if (addr.state) {
+        state = addr.state;
+      }
+
+      // District
+      const rawDistrict = addr.state_district || addr.county || addr.district || '';
+      if (rawDistrict) {
+        district = rawDistrict.replace(/\s+district$/i, '').trim();
+      }
+
       subDistrict = addr.subdistrict || addr.tehsil || addr.taluk || '';
-      city = addr.city || addr.town || addr.municipality || addr.village || addr.suburb || district || 'Patna';
-      locality = addr.suburb || addr.neighbourhood || addr.residential || '';
-      sector = addr.road || addr.quarter || '';
+
+      // City resolution: handle Indian aliases
+      let rawCity = addr.city || addr.town || addr.municipality || addr.village || addr.county || '';
+      
+      // If rawCity is empty, check district or state_district
+      if (!rawCity && rawDistrict) {
+        rawCity = rawDistrict;
+      }
+
+      // Normalize Indian metro & city aliases
+      const normalizedCity = rawCity.trim().toLowerCase();
+      if (normalizedCity.includes('gurgaon') || normalizedCity.includes('manesar')) {
+        city = 'Gurugram';
+      } else if (normalizedCity.includes('bangalore') || normalizedCity.includes('bengaluru')) {
+        city = 'Bengaluru';
+      } else if (normalizedCity.includes('bombay') || normalizedCity.includes('mumbai')) {
+        city = 'Mumbai';
+      } else if (normalizedCity.includes('calcutta') || normalizedCity.includes('kolkata')) {
+        city = 'Kolkata';
+      } else if (normalizedCity.includes('madras') || normalizedCity.includes('chennai')) {
+        city = 'Chennai';
+      } else if (normalizedCity.includes('poona') || normalizedCity.includes('pune')) {
+        city = 'Pune';
+      } else if (normalizedCity.includes('delhi') || normalizedCity.includes('new delhi')) {
+        city = 'Delhi';
+      } else if (normalizedCity.includes('patna')) {
+        city = 'Patna';
+      } else if (rawCity) {
+        city = rawCity;
+      } else {
+        city = hub.city;
+      }
+
+      // Locality / Sector / Suburb
+      locality = addr.suburb || addr.neighbourhood || addr.residential || addr.quarter || addr.city_district || '';
+      sector = addr.road || addr.quarter || addr.suburb || '';
+
+      // Tower / Flat / Building
+      flatOrTower = addr.house_number || addr.unit || addr.floor || '';
+      buildingOrStreet = [addr.building, addr.road || addr.residential].filter(Boolean).join(', ');
+
       pincode = addr.postcode || '';
-      formattedAddress = data.display_name || `${city}, ${state}`;
+      formattedAddress = data.display_name || `${sector ? sector + ', ' : ''}${city}, ${state}`;
     }
   } catch (e) {
-    console.warn('Geocoding service network lookup fell back:', e);
+    console.warn('Geocoding lookup notice:', e);
   }
 
   // Validate Country
@@ -731,8 +786,6 @@ export async function reverseGeocodeCoordinates(
     }
   }
 
-  const { hub, distanceKm, serviceable, arrivalMinutes } = findNearestBpeHub(lat, lng);
-
   let serviceTier: 'TIER_1_EXPRESS' | 'TIER_2_STANDARD' | 'TIER_3_ON_DEMAND' = 'TIER_1_EXPRESS';
   if (distanceKm > 40) serviceTier = 'TIER_3_ON_DEMAND';
   else if (distanceKm > 15) serviceTier = 'TIER_2_STANDARD';
@@ -746,6 +799,8 @@ export async function reverseGeocodeCoordinates(
     city: city || hub.city,
     locality: locality || undefined,
     sector: sector || undefined,
+    flatOrTower: flatOrTower || undefined,
+    buildingOrStreet: buildingOrStreet || undefined,
     pincode: pincode || undefined,
     latitude: lat,
     longitude: lng,
