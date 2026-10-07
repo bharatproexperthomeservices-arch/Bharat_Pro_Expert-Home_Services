@@ -626,8 +626,8 @@ export const UrbanCompanyCleaningView: React.FC<UrbanCompanyCleaningViewProps> =
                 a: "Yes. We exclusively use neutral-pH hospital-grade formulations (Diversey Taski series) that are chlorine-free and safe for indoor environments. Bathrooms and kitchens are thoroughly rinsed and dried."
               },
               {
-                q: "Can I inspect the service before making the payment?",
-                a: "Absolutely. We encourage full customer walkthroughs upon completion. Payment can be settled via UPI, Card, or Cash after you are completely satisfied with the cleanliness."
+                q: "What payment methods are supported and what is the guarantee?",
+                a: "To eliminate unverified bookings and ensure guaranteed professional slot allocation, bookings are secured via 100% online payment (UPI, Cards, NetBanking). You enjoy a 100% Free Re-clean or Money-Back Guarantee if you are not satisfied."
               }
             ].map((faq, i) => (
               <details

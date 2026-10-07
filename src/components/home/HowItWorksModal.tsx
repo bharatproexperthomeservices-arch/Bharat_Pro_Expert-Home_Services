@@ -36,8 +36,8 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({
     },
     {
       step: '04',
-      title: 'Inspect & Pay After Satisfaction',
-      desc: 'Inspect the immaculate sparkling clean home. Provide completion OTP and pay securely via UPI, Card or Cash.',
+      title: 'Inspect & Confirm Satisfaction',
+      desc: 'Inspect the immaculate sparkling clean home. Provide completion OTP with 100% Free Re-clean guarantee. All bookings are confirmed with secure 100% online payment (UPI, Cards, NetBanking).',
       icon: <Smile className="w-5 h-5 text-amber-600" />
     }
   ];

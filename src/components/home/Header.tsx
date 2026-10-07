@@ -60,17 +60,31 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           
-          {/* LEFT: Logo & Brand Name */}
-          <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => onNavigate('home')}>
-            <BharatProLogo size="md" />
-            <div className="flex flex-col">
-              <span className="text-xl sm:text-2xl font-black text-[#08213F] tracking-tight leading-tight">
-                Bharat Pro Expert
-              </span>
-              <span className="text-xs sm:text-sm font-bold text-[#E5A812] tracking-normal">
-                Home Services
-              </span>
+          {/* LEFT: Logo & Brand Name + Live Location Selector */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => onNavigate('home')}>
+              <BharatProLogo size="md" />
+              <div className="flex flex-col">
+                <span className="text-xl sm:text-2xl font-black text-[#08213F] tracking-tight leading-tight">
+                  Bharat Pro Expert
+                </span>
+                <span className="text-xs sm:text-sm font-bold text-[#E5A812] tracking-normal">
+                  Home Services
+                </span>
+              </div>
             </div>
+
+            {/* Desktop Location Quick Switcher */}
+            <button
+              type="button"
+              onClick={onOpenLocationModal}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800 transition-all cursor-pointer shadow-2xs hover:border-blue-400 group"
+              title="Click to auto-detect or change service location in India"
+            >
+              <MapPin className="w-3.5 h-3.5 text-blue-600 group-hover:scale-110 transition-transform" />
+              <span className="truncate max-w-[150px]">{selectedCity || 'Detect Location'}</span>
+              <span className="text-[10px] text-blue-600 font-semibold underline ml-0.5">Change</span>
+            </button>
           </div>
 
           {/* CENTER & RIGHT: Navigation Links & Actions */}

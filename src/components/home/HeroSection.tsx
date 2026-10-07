@@ -219,17 +219,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               {/* Badges / Chips */}
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap mb-3 sm:mb-4">
                 {/* Location Chip */}
-                {selectedLocation && (
-                  <button
-                    type="button"
-                    onClick={onOpenLocationModal}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold transition-all border border-white/25 cursor-pointer shadow-sm active:scale-95"
-                  >
-                    <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Serving {selectedLocation}</span>
-                    <span className="text-[10px] text-amber-300 underline font-medium ml-0.5">Change</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={onOpenLocationModal}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold transition-all border border-white/25 cursor-pointer shadow-sm active:scale-95"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{selectedLocation ? `Serving ${selectedLocation}` : '📍 Auto-Detect My Location'}</span>
+                  <span className="text-[10px] text-amber-300 underline font-medium ml-0.5">
+                    {selectedLocation ? 'Change' : 'Detect'}
+                  </span>
+                </button>
 
                 {/* 10% OFF Promo Badge */}
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/90 text-white text-xs font-extrabold backdrop-blur-md shadow-sm border border-emerald-400/50">

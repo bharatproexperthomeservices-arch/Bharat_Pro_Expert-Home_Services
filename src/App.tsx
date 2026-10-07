@@ -33,8 +33,19 @@ function AppContent() {
   const [customerDashboardOpen, setCustomerDashboardOpen] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   
-  // Selected City & Hub
-  const [selectedCity, setSelectedCity] = useState('Gurugram');
+  // Selected City & Hub (dynamic from real GPS or user selection, no hardcoded defaults)
+  const [selectedCity, setSelectedCity] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('bpe_customer_location_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.city && parsed.state) {
+          return `${parsed.city}, ${parsed.state}`;
+        }
+      }
+    } catch {}
+    return '';
+  });
   const [selectedService, setSelectedService] = useState<CleaningService | null>(null);
   const [bookingService, setBookingService] = useState<CleaningService | null>(null);
   const [pendingBookingService, setPendingBookingService] = useState<CleaningService | null>(null);

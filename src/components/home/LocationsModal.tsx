@@ -18,11 +18,19 @@ export const LocationsModal: React.FC<LocationsModalProps> = ({
   const hubs = [
     { city: 'Gurugram', state: 'Haryana', hubs: 3, coverage: 'DLF CyberCity, Golf Course Road, Sohna Road, Sector 14-57' },
     { city: 'Delhi NCR', state: 'Delhi', hubs: 4, coverage: 'South Delhi, Saket, Hauz Khas, Dwarka, Rohini, Vasant Kunj' },
-    { city: 'Noida', state: 'Uttar Pradesh', hubs: 2, coverage: 'Sector 50, Sector 62, Sector 137, Greater Noida' },
-    { city: 'Mumbai', state: 'Maharashtra', hubs: 3, coverage: 'Bandra, Andheri, Powai, Juhu, BKC, Thane' },
-    { city: 'Bengaluru', state: 'Karnataka', hubs: 3, coverage: 'Indiranagar, Koramangala, Whitefield, HSR Layout, Bellandur' },
-    { city: 'Patna', state: 'Bihar', hubs: 1, coverage: 'Boring Road, Kankarbagh, Bailey Road, Patliputra Colony' },
-    { city: 'Ranchi', state: 'Jharkhand', hubs: 1, coverage: 'Main Road, Lalpur, Doranda, Harmu Housing Colony' }
+    { city: 'Noida', state: 'Uttar Pradesh', hubs: 2, coverage: 'Sector 50, Sector 62, Sector 137, Greater Noida Expressway' },
+    { city: 'Mumbai', state: 'Maharashtra', hubs: 4, coverage: 'Bandra, Andheri, Powai, Juhu, BKC, Thane, Navi Mumbai' },
+    { city: 'Pune', state: 'Maharashtra', hubs: 3, coverage: 'Kothrud, Viman Nagar, Hinjawadi, Baner, Wakad' },
+    { city: 'Bengaluru', state: 'Karnataka', hubs: 5, coverage: 'Indiranagar, Koramangala, Whitefield, HSR Layout, Bellandur, Electronic City' },
+    { city: 'Hyderabad', state: 'Telangana', hubs: 4, coverage: 'HITEC City, Gachibowli, Madhapur, Jubilee Hills, Banjara Hills' },
+    { city: 'Chennai', state: 'Tamil Nadu', hubs: 3, coverage: 'OMR, Anna Nagar, T. Nagar, Adyar, Velachery' },
+    { city: 'Kolkata', state: 'West Bengal', hubs: 3, coverage: 'Salt Lake Sector V, New Town, Park Street, Ballygunge' },
+    { city: 'Patna', state: 'Bihar', hubs: 2, coverage: 'Boring Road, Kankarbagh, Bailey Road, Patliputra Colony, Danapur' },
+    { city: 'Ranchi', state: 'Jharkhand', hubs: 2, coverage: 'Main Road, Lalpur, Doranda, Harmu Housing Colony, Morabadi' },
+    { city: 'Lucknow', state: 'Uttar Pradesh', hubs: 3, coverage: 'Gomti Nagar, Hazratganj, Aliganj, Indira Nagar' },
+    { city: 'Jaipur', state: 'Rajasthan', hubs: 3, coverage: 'Malviya Nagar, Vaishali Nagar, Mansarovar, C-Scheme' },
+    { city: 'Ahmedabad', state: 'Gujarat', hubs: 3, coverage: 'SG Highway, Prahlad Nagar, Bodakdev, Satellite, Vastrapur' },
+    { city: 'Chandigarh', state: 'Chandigarh', hubs: 2, coverage: 'Sector 1-60, Mohali, Panchkula (Tricity Coverage)' }
   ];
 
   return (

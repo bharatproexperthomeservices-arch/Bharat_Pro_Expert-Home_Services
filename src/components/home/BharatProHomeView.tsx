@@ -5,7 +5,7 @@ import { FeatureStrip } from './FeatureStrip';
 import { OurCleaningServicesSection } from './OurCleaningServicesSection';
 import { ServiceCatalogGrid, CartItem } from './ServiceCatalogGrid';
 import { FloatingCartBar } from './FloatingCartBar';
-import { LocationSelectorModal } from './LocationSelectorModal';
+import { IndiaLocationDetectionModal } from '../location/IndiaLocationDetectionModal';
 import { TrackBookingModal } from './TrackBookingModal';
 import { CategoryDetailModal } from './CategoryDetailModal';
 import { AboutUsModal } from './AboutUsModal';
@@ -58,6 +58,22 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
   const [howItWorksModalOpen, setHowItWorksModalOpen] = useState(false);
   const [locationsModalOpen, setLocationsModalOpen] = useState(false);
   const [blogModalOpen, setBlogModalOpen] = useState(false);
+
+  // Automatically trigger location prompt on website open if not already set
+  useEffect(() => {
+    try {
+      const savedLoc = localStorage.getItem('bpe_customer_location_v1');
+      if (!savedLoc) {
+        // First visit: show real location detection prompt
+        setLocationModalOpen(true);
+      } else {
+        const parsed = JSON.parse(savedLoc);
+        if (parsed.city && parsed.state) {
+          onSelectCity(`${parsed.city}, ${parsed.state}`);
+        }
+      }
+    } catch {}
+  }, []);
 
   // Cart state persisted to localStorage
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -230,11 +246,13 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
       />
 
       {/* Interactive Modals */}
-      <LocationSelectorModal
+      <IndiaLocationDetectionModal
         isOpen={locationModalOpen}
         onClose={() => setLocationModalOpen(false)}
-        selectedCity={selectedCity}
-        onSelectLocation={(loc) => onSelectCity(loc)}
+        currentLocationName={selectedCity}
+        onLocationResolved={(loc) => {
+          onSelectCity(`${loc.city}, ${loc.state}`);
+        }}
       />
 
       <TrackBookingModal
