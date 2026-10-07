@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   auth, 
   googleProvider, 
-  signInWithPopup, 
   signInWithRedirect,
   getRedirectResult,
   firebaseSignOut, 
@@ -28,8 +27,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   role: 'customer' | 'partner' | 'admin';
-  signInWithGoogle: (targetRole?: 'customer' | 'partner') => Promise<UserProfile>;
-  signInWithGoogleRedirect: (targetRole?: 'customer' | 'partner') => Promise<void>;
+  signInWithGoogle: (targetRole?: 'customer' | 'partner') => Promise<void>;
   signInWithMobileOtp: (phone: string, otp: string) => Promise<UserProfile>;
   requestMobileOtp: (phone: string) => Promise<{ success: boolean; message: string; error?: string; previewOtp?: string; cooldownSeconds?: number }>;
   linkMobile: (phone: string, otp: string) => Promise<UserProfile>;
@@ -53,8 +51,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     Promise.race([
       getRedirectResult(auth),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))
-    ]).then(async (result) => {
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
+    ]).then(async (result: any) => {
       if (result?.user) {
         const fbUser = result.user;
         setUser(fbUser);
@@ -113,35 +111,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [role]);
 
-  const signInWithGoogle = async (targetRole: 'customer' | 'partner' = 'customer'): Promise<UserProfile> => {
+  // CHANGED: Using signInWithRedirect instead of signInWithPopup for AI Studio iframe compatibility
+  const signInWithGoogle = async (targetRole: 'customer' | 'partner' = 'customer'): Promise<void> => {
     setLoading(true);
     try {
       setRole(targetRole);
-      const result = await signInWithPopup(auth, googleProvider);
-      const fbUser = result.user;
-      setUser(fbUser);
-
-      const authRes = await handleGoogleCustomerAuth(fbUser);
-      setProfile(authRes.profile);
-      return authRes.profile;
+      await signInWithRedirect(auth, googleProvider); 
     } catch (err: any) {
       console.error('Google Sign-in failed', err);
-      throw err;
-    } finally {
       setLoading(false);
-    }
-  };
-
-  const signInWithGoogleRedirect = async (targetRole: 'customer' | 'partner' = 'customer') => {
-    setLoading(true);
-    setRole(targetRole);
-    try {
-      await signInWithRedirect(auth, googleProvider);
-    } catch (err) {
-      console.error('Google Redirect Sign-in failed', err);
       throw err;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -216,9 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Free Email OTP Verification simulator & store
   const requestEmailOtp = async (email: string) => {
-    // Generate secure 6-digit OTP
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     sessionStorage.setItem(`bpro_otp_${email}`, generatedOtp);
     return {
@@ -234,7 +211,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error('Invalid or expired 6-digit verification code.');
     }
     
-    // Create or mock authenticated session for email user
     const mockUid = 'email_' + btoa(email).replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
     const mockProfile: UserProfile = {
       uid: mockUid,
@@ -249,7 +225,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     setProfile(mockProfile);
     setRole(targetRole);
-    // Persist in Firestore
     try {
       await setDoc(doc(db, 'users', mockUid), mockProfile, { merge: true });
     } catch {
@@ -292,7 +267,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loading,
       role,
       signInWithGoogle,
-      signInWithGoogleRedirect,
       signInWithMobileOtp,
       requestMobileOtp,
       linkMobile,
