@@ -626,15 +626,147 @@ export function findNearestBpeHub(lat: number, lng: number): {
   };
 }
 
+// ============================================================================
+// MEMOIZATION & LIGHTWEIGHT LOCALSTORAGE CACHING STRATEGY
+// Prevents redundant geocoding API queries, minimizes latency, & speeds up load times
+// ============================================================================
+
+const GEO_MEMO_CACHE = new Map<string, { data: ResolvedCustomerLocation; timestamp: number }>();
+const GEO_STORAGE_CACHE_KEY = 'bpe_geocode_memo_cache_v2';
+const GEO_COORDS_STORAGE_KEY = 'bpe_customer_coords_cache_v2';
+const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days TTL for geographical reverse geocode data
+const COORD_DECIMAL_PRECISION = 4; // ~11 meters resolution; avoids redundant calls for tiny jitter
+
 /**
- * Capture Real Device GPS Coordinates using Geolocation API
+ * Generate a cache key from coordinates rounded to 4 decimals (~11m grid)
  */
-export async function getRealDeviceGps(): Promise<{
+export function getCoordinatesCacheKey(lat: number, lng: number): string {
+  const roundedLat = Number(lat.toFixed(COORD_DECIMAL_PRECISION));
+  const roundedLng = Number(lng.toFixed(COORD_DECIMAL_PRECISION));
+  return `${roundedLat},${roundedLng}`;
+}
+
+/**
+ * Read geocode result from in-memory cache or localStorage
+ */
+export function getCachedGeocodeResult(lat: number, lng: number): ResolvedCustomerLocation | null {
+  const key = getCoordinatesCacheKey(lat, lng);
+
+  // 1. In-Memory Memoization (Fastest O(1))
+  const memoryEntry = GEO_MEMO_CACHE.get(key);
+  if (memoryEntry && (Date.now() - memoryEntry.timestamp < CACHE_TTL_MS)) {
+    return memoryEntry.data;
+  }
+
+  // 2. LocalStorage Persistent Cache
+  try {
+    const raw = localStorage.getItem(GEO_STORAGE_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const entry = parsed[key];
+      if (entry && (Date.now() - entry.timestamp < CACHE_TTL_MS)) {
+        // Hydrate memory cache for subsequent calls
+        GEO_MEMO_CACHE.set(key, entry);
+        return entry.data;
+      }
+    }
+  } catch (err) {
+    console.warn('Geocode storage cache read error:', err);
+  }
+
+  return null;
+}
+
+/**
+ * Save geocode result into in-memory memo cache and localStorage cache
+ */
+export function setCachedGeocodeResult(lat: number, lng: number, data: ResolvedCustomerLocation): void {
+  const key = getCoordinatesCacheKey(lat, lng);
+  const entry = { data, timestamp: Date.now() };
+
+  // 1. In-Memory Memoization
+  GEO_MEMO_CACHE.set(key, entry);
+
+  // 2. LocalStorage Cache (pruned to maximum 30 recent locations)
+  try {
+    const raw = localStorage.getItem(GEO_STORAGE_CACHE_KEY);
+    const cacheMap: Record<string, { data: ResolvedCustomerLocation; timestamp: number }> = raw ? JSON.parse(raw) : {};
+    cacheMap[key] = entry;
+
+    // Prune stale or excess entries
+    const keys = Object.keys(cacheMap);
+    if (keys.length > 30) {
+      const sortedKeys = keys.sort((a, b) => cacheMap[a].timestamp - cacheMap[b].timestamp);
+      while (sortedKeys.length > 25) {
+        const oldest = sortedKeys.shift();
+        if (oldest) delete cacheMap[oldest];
+      }
+    }
+
+    localStorage.setItem(GEO_STORAGE_CACHE_KEY, JSON.stringify(cacheMap));
+  } catch (err) {
+    console.warn('Geocode storage cache write error:', err);
+  }
+}
+
+/**
+ * Retrieve cached user coordinates from localStorage for instant load times
+ */
+export function getCachedUserCoordinates(): {
   latitude: number;
   longitude: number;
   accuracy: number;
   timestamp: number;
+} | null {
+  try {
+    const raw = localStorage.getItem(GEO_COORDS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Valid if less than 7 days old
+      if (parsed && parsed.latitude && parsed.longitude && (Date.now() - (parsed.timestamp || 0) < CACHE_TTL_MS)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('User coordinates cache read error:', err);
+  }
+  return null;
+}
+
+/**
+ * Save detected coordinates to localStorage cache
+ */
+export function setCachedUserCoordinates(coords: {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  timestamp: number;
+}): void {
+  try {
+    localStorage.setItem(GEO_COORDS_STORAGE_KEY, JSON.stringify(coords));
+  } catch (err) {
+    console.warn('User coordinates cache write error:', err);
+  }
+}
+
+/**
+ * Capture Real Device GPS Coordinates using Geolocation API
+ * If returning customer has cached coordinates within TTL and quick resolution is requested, returns cached immediately
+ */
+export async function getRealDeviceGps(options?: { allowCached?: boolean }): Promise<{
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  timestamp: number;
+  fromCache?: boolean;
 }> {
+  if (options?.allowCached) {
+    const cached = getCachedUserCoordinates();
+    if (cached) {
+      return { ...cached, fromCache: true };
+    }
+  }
+
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('Geolocation is not supported by this browser.'));
@@ -643,14 +775,25 @@ export async function getRealDeviceGps(): Promise<{
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        resolve({
+        const result = {
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
           accuracy: pos.coords.accuracy,
-          timestamp: pos.timestamp || Date.now()
-        });
+          timestamp: pos.timestamp || Date.now(),
+          fromCache: false
+        };
+        // Persist to coordinate cache
+        setCachedUserCoordinates(result);
+        resolve(result);
       },
       (err) => {
+        // Fallback to cached coords if geolocation times out or fails
+        const fallbackCached = getCachedUserCoordinates();
+        if (fallbackCached) {
+          resolve({ ...fallbackCached, fromCache: true });
+          return;
+        }
+
         let msg = 'Unable to retrieve location.';
         if (err.code === 1) msg = 'Location permission was denied by user.';
         else if (err.code === 2) msg = 'Location position unavailable.';
@@ -659,22 +802,35 @@ export async function getRealDeviceGps(): Promise<{
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        timeout: 9000,
+        maximumAge: 60000 // Accept up to 1 minute browser-cached position
       }
     );
   });
 }
 
 /**
- * Reverse Geocode GPS coordinates with Google Maps API or OpenStreetMap
+ * Reverse Geocode GPS coordinates using free open-source OpenStreetMap / Nominatim API with memoization
  * Resolves full hierarchy: Country, State, District, City, Locality, Pincode
+ * Memoized in-memory and persistently in localStorage to completely avoid redundant API calls
  */
 export async function reverseGeocodeCoordinates(
   lat: number,
   lng: number,
-  accuracy: number = 20
+  accuracy: number = 20,
+  skipCache: boolean = false
 ): Promise<ResolvedCustomerLocation> {
+  // Check memoization & localStorage cache first
+  if (!skipCache) {
+    const cached = getCachedGeocodeResult(lat, lng);
+    if (cached) {
+      return {
+        ...cached,
+        accuracy,
+        timestamp: Date.now()
+      };
+    }
+  }
   const timestamp = Date.now();
   
   // Find nearest operational BPE Hub geographically by Haversine formula
@@ -790,7 +946,7 @@ export async function reverseGeocodeCoordinates(
   if (distanceKm > 40) serviceTier = 'TIER_3_ON_DEMAND';
   else if (distanceKm > 15) serviceTier = 'TIER_2_STANDARD';
 
-  return {
+  const resolvedResult: ResolvedCustomerLocation = {
     country,
     isIndia,
     state: state || hub.state,
@@ -818,6 +974,11 @@ export async function reverseGeocodeCoordinates(
       estimatedArrivalMins: arrivalMinutes
     }
   };
+
+  // Cache in-memory and in localStorage
+  setCachedGeocodeResult(lat, lng, resolvedResult);
+
+  return resolvedResult;
 }
 
 /**

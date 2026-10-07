@@ -21,7 +21,9 @@ import {
   ResolvedCustomerLocation, 
   getRealDeviceGps, 
   reverseGeocodeCoordinates, 
-  searchIndiaLocations 
+  searchIndiaLocations,
+  getCachedUserCoordinates,
+  getCachedGeocodeResult
 } from '../../services/indiaLocationHierarchy';
 
 interface IndiaLocationDetectionModalProps {
@@ -57,25 +59,43 @@ export const IndiaLocationDetectionModal: React.FC<IndiaLocationDetectionModalPr
 
   if (!isOpen) return null;
 
-  // Trigger Real Device GPS
-  const handleStartRealGps = async () => {
-    setMode('detecting');
+  // Trigger Real Device GPS with memoization & cached coordinates support
+  const handleStartRealGps = async (forceRefresh: boolean = false) => {
     setGpsError(null);
+
+    // 0. Check for cached coordinates to provide instant response without network wait
+    const cachedCoords = !forceRefresh ? getCachedUserCoordinates() : null;
+    if (cachedCoords) {
+      const cachedGeocode = getCachedGeocodeResult(cachedCoords.latitude, cachedCoords.longitude);
+      if (cachedGeocode) {
+        setLiveCoords({
+          lat: cachedCoords.latitude,
+          lng: cachedCoords.longitude,
+          accuracy: Math.round(cachedCoords.accuracy)
+        });
+        setResolvedData(cachedGeocode);
+        setMode(cachedGeocode.isIndia ? 'resolved' : 'outside_india');
+        return;
+      }
+    }
+
+    setMode('detecting');
 
     try {
       // 1. Browser Geolocation API
-      const coords = await getRealDeviceGps();
+      const coords = await getRealDeviceGps({ allowCached: !forceRefresh });
       setLiveCoords({
         lat: coords.latitude,
         lng: coords.longitude,
         accuracy: Math.round(coords.accuracy)
       });
 
-      // 2. Reverse Geocoding
+      // 2. Reverse Geocoding with Memoization (instant if in memory/localStorage cache)
       const resolved = await reverseGeocodeCoordinates(
         coords.latitude,
         coords.longitude,
-        coords.accuracy
+        coords.accuracy,
+        forceRefresh
       );
 
       // 3. Country Validation
