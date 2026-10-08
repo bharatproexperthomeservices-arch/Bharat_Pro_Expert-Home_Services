@@ -402,7 +402,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     }
   }, [rawSubtotal]);
 
-  if (!service) return null;
+  // NOTE: yahan se early return hata diya. Hooks ke baad hi return hona chahiye (warna React error 310).
 
   // Toggle add-on
   const toggleAddon = (addon: ServiceAddon) => {
