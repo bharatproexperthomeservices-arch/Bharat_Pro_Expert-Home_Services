@@ -9,7 +9,8 @@ import { updateBookingStatus } from './dbService';
 
 // Active Live Razorpay API Credentials
 export const RAZORPAY_LIVE_KEY_ID = 'rzp_live_TgBbAEno4YT7iC';
-export const RAZORPAY_LIVE_KEY_SECRET = 'wof3iFxoRuHpl3J6Q8XFrNpe';
+// SECRET KEY yahan kabhi mat likho. Server me Vercel Environment Variable RAZORPAY_KEY_SECRET use karo.
+export const RAZORPAY_LIVE_KEY_SECRET = '';
 
 // Dynamically read environment variables or fall back to active live credentials
 const getEnvKey = (): string => {
