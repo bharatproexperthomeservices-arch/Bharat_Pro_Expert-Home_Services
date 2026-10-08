@@ -1,21 +1,22 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
-  auth, 
-  googleProvider, 
+import {
+  auth,
+  googleProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
-  firebaseSignOut, 
-  onAuthStateChanged, 
-  db, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  FirebaseUser 
+  firebaseSignOut,
+  onAuthStateChanged,
+  db,
+  doc,
+  getDoc,
+  setDoc,
+  FirebaseUser
 } from '../firebase-config';
 import { UserProfile } from '../types';
-import { 
-  handleGoogleCustomerAuth, 
-  sendCustomerMobileOtp, 
+import {
+  handleGoogleCustomerAuth,
+  sendCustomerMobileOtp,
   verifyCustomerMobileOtp,
   linkMobileToExistingCustomer,
   getCustomerSession,
@@ -111,16 +112,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [role]);
 
-  // CHANGED: Using signInWithRedirect instead of signInWithPopup for AI Studio iframe compatibility
+  // Popup login (redirect me Chrome third-party storage block se login fail ho raha tha)
   const signInWithGoogle = async (targetRole: 'customer' | 'partner' = 'customer'): Promise<void> => {
     setLoading(true);
     try {
       setRole(targetRole);
-      await signInWithRedirect(auth, googleProvider); 
+      await signInWithPopup(auth, googleProvider);
+      // profile onAuthStateChanged se apne aap set ho jayegi
     } catch (err: any) {
-      console.error('Google Sign-in failed', err);
+      console.error('Google Sign-in failed', err?.code, err?.message);
+      if (err?.code === 'auth/popup-blocked') {
+        // Popup block hua to redirect se try karo
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+      if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
+        throw err;
+      }
+    } finally {
       setLoading(false);
-      throw err;
     }
   };
 
@@ -162,7 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const cleanEmail = email.trim();
       const displayName = name || cleanEmail.split('@')[0].replace(/[._-]/g, ' ').toUpperCase();
       const uid = 'usr_' + btoa(cleanEmail).replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
-      
+
       let userProf: UserProfile = {
         uid,
         email: cleanEmail,
@@ -210,7 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (enteredOtp !== validOtp && enteredOtp !== '123456') {
       throw new Error('Invalid or expired 6-digit verification code.');
     }
-    
+
     const mockUid = 'email_' + btoa(email).replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
     const mockProfile: UserProfile = {
       uid: mockUid,
@@ -222,7 +232,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       walletBalance: 100,
       createdAt: new Date().toISOString()
     };
-    
+
     setProfile(mockProfile);
     setRole(targetRole);
     try {
