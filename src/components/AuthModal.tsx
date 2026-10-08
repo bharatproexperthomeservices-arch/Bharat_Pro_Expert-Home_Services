@@ -16,7 +16,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   defaultRole = 'customer',
   onSuccess
 }) => {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, user } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,21 +24,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (isOpen) setError(null);
   }, [isOpen]);
 
+  // Login hote hi (Firebase user mil gaya) modal band karo
+  useEffect(() => {
+    if (isOpen && user) {
+      setGoogleLoading(false);
+      onSuccess?.();
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isOpen]);
+
   if (!isOpen) return null;
 
   const handleGoogleLogin = async () => {
     setError(null);
     setGoogleLoading(true);
     try {
-      // Ye seedha Google ke page par redirect karega
+      // Popup me Google login khulega
       await signInWithGoogle(defaultRole);
     } catch (err: any) {
-      setGoogleLoading(false);
       if (err?.code === 'auth/operation-not-allowed') {
         setError('Google login is not enabled. Please enable it in Firebase Console.');
+      } else if (err?.code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized in Firebase. Please contact support.');
       } else {
         setError('Google Sign-in encountered an issue. Please try again.');
       }
+    } finally {
+      // Popup band ho ya login ho jaye, button hamesha wapas normal ho
+      setGoogleLoading(false);
     }
   };
 
@@ -77,7 +91,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
               </svg>
             )}
-            <span>{googleLoading ? 'Redirecting...' : 'Continue with Google'}</span>
+            <span>{googleLoading ? 'Signing in...' : 'Continue with Google'}</span>
           </button>
 
           <div className="pt-3 border-t text-center space-y-1">
