@@ -34,9 +34,10 @@ app.post("/api/create-order", async (req, res) => {
   try {
     const amount = Number(req.body?.amount);
     const currency = req.body?.currency || "INR";
-    // amount is expressed in rupees by the existing browser booking flow.
+    // SECURITY NOTE: this amount is currently client-supplied. It must be replaced
+    // by a server-calculated quote from a trusted catalogue before live payments.
     if (!Number.isFinite(amount) || amount <= 0 || amount > 500000 ||
-        !["INR"].includes(currency)) {
+        !Number.isSafeInteger(Math.round(amount * 100)) || currency !== "INR") {
       return res.status(400).json({ error: "Invalid payment amount or currency." });
     }
     const order = await getRazorpay().orders.create({
@@ -53,36 +54,65 @@ app.post("/api/create-order", async (req, res) => {
   }
 });
 
-app.post("/api/verify-payment", (req, res) => {
+app.post("/api/verify-payment", async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
     if (![razorpay_order_id, razorpay_payment_id, razorpay_signature].every(
-      (value) => typeof value === "string" && value.length > 0
+      (value) => typeof value === "string" && value.length > 0 && value.length <= 256
     )) {
-      return res.status(400).json({ verified: false, error: "Missing payment verification fields." });
+      return res.status(400).json({ verified: false, error: "Missing or invalid payment verification fields." });
     }
+
+    const key_id = process.env.RAZORPAY_KEY_ID;
     const secret = process.env.RAZORPAY_KEY_SECRET;
-    if (!secret) {
+    if (!key_id || !secret) {
       return res.status(503).json({ verified: false, error: "Razorpay server credentials are not configured." });
     }
-    const expected = crypto
-      .createHmac("sha256", secret)
+
+    const expected = crypto.createHmac("sha256", secret)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest();
-    let received;
-    try { received = Buffer.from(razorpay_signature, "hex"); }
-    catch { return res.status(400).json({ verified: false, error: "Invalid signature format." }); }
+    if (!/^[a-f0-9]{64}$/i.test(razorpay_signature)) {
+      return res.status(400).json({ verified: false, error: "Invalid signature format." });
+    }
+    const received = Buffer.from(razorpay_signature, "hex");
     if (received.length !== expected.length || !crypto.timingSafeEqual(expected, received)) {
       return res.status(400).json({ verified: false, error: "Payment signature verification failed." });
     }
+
+    // Verify the transaction with Razorpay itself; a valid signature alone is not
+    // enough to prove the payment was captured or matched to this order.
+    const razorpay = new Razorpay({ key_id, key_secret });
+    const [order, payment] = await Promise.all([
+      razorpay.orders.fetch(razorpay_order_id),
+      razorpay.payments.fetch(razorpay_payment_id),
+    ]);
+    if (payment.order_id !== order.id ||
+        payment.order_id !== razorpay_order_id ||
+        order.currency !== "INR" ||
+        payment.currency !== "INR" ||
+        payment.amount !== order.amount ||
+        payment.status !== "captured") {
+      return res.status(409).json({
+        verified: false,
+        error: "Payment is not captured or does not match the order. Please contact support before retrying.",
+      });
+    }
+
     return res.status(200).json({
       verified: true,
-      razorpay_order_id,
-      razorpay_payment_id,
+      razorpay_order_id: order.id,
+      razorpay_payment_id: payment.id,
+      amount: payment.amount,
+      currency: payment.currency,
+      status: payment.status,
     });
   } catch (error) {
-    console.error("verify-payment failed:", error.message);
-    return res.status(500).json({ verified: false, error: "Unable to verify payment." });
+    console.error("verify-payment failed:", error?.message || "Unknown error");
+    return res.status(502).json({
+      verified: false,
+      error: "Unable to confirm captured payment with Razorpay. Please contact support before retrying.",
+    });
   }
 });
 
