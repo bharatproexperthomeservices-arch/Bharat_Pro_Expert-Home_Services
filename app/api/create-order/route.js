@@ -1,63 +1,43 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
 
-export async function POST(request) {
+export async function POST(request: Request) {
   try {
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_Tlh9T3hoID4gmq";
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const body = await request.json();
+    const { amount } = body;
 
-    if (!keyId || !keySecret) {
-      console.error("Razorpay API Keys strictly required in Environment Variables.");
+    const razorpayKeyId =
+      process.env.VITE_RAZORPAY_KEY_ID ||
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+      "rzp_live_Tlh9T3hoID4gmq";
+    const razorpaySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!razorpaySecret) {
+      console.error("RAZORPAY_KEY_SECRET is missing!");
       return NextResponse.json(
-        { error: "Server Configuration Error: Missing Razorpay API Credentials" },
+        { error: "Server Error: RAZORPAY_KEY_SECRET missing in Vercel" },
         { status: 500 }
       );
     }
 
-    const razorpay = new Razorpay({
-      key_id: keyId,
-      key_secret: keySecret,
+    const instance = new Razorpay({
+      key_id: razorpayKeyId,
+      key_secret: razorpaySecret,
     });
 
-    const body = await request.json();
-    const { amount, currency = "INR", notes = {} } = body;
-
-    if (!amount || typeof amount !== "number" || amount <= 0) {
-      return NextResponse.json(
-        { error: "Invalid payment amount specified" },
-        { status: 400 }
-      );
-    }
-
-    // पैसे को पैसे/Paise में कन्वर्ट करना (₹2745 = 274500 paise)
-    const amountInPaise = Math.round(amount * 100);
-
     const options = {
-      amount: amountInPaise,
-      currency: currency,
-      receipt: `receipt_order_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      notes: {
-        service: "Bharat Pro Expert Home Services",
-        ...notes,
-      },
+      amount: Math.round((amount || 2745) * 100),
+      currency: "INR",
+      receipt: `receipt_${Date.now()}`,
     };
 
-    const order = await razorpay.orders.create(options);
+    const order = await instance.orders.create(options);
 
+    return NextResponse.json(order, { status: 200 });
+  } catch (error: any) {
+    console.error("Error creating Razorpay order:", error);
     return NextResponse.json(
-      {
-        id: order.id,
-        amount: order.amount,
-        currency: order.currency,
-        receipt: order.receipt,
-        status: order.status,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Razorpay Order Creation Error:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to generate Razorpay order" },
+      { error: error?.message || "Failed to create Razorpay order" },
       { status: 500 }
     );
   }
