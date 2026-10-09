@@ -44,7 +44,7 @@ export default function RazorpayButton({ amount, onPaymentSuccess }) {
       }
 
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_Tlh9T3hoID4gm",
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_Tlh9T3hoID4gmq",
         amount: orderData.amount,
         currency: orderData.currency,
         name: "Bharat Pro Expert Home Services",
