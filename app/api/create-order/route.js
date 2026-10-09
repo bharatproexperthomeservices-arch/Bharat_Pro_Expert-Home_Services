@@ -23,6 +23,7 @@ export async function POST(request) {
     const body = await request.json();
     const amount = Number(body.amount);
     const currency = body.currency || "INR";
+    const bookingId = typeof body.bookingId === "string" ? body.bookingId.slice(0, 120) : "";
 
     if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000) {
       return NextResponse.json(
@@ -43,7 +44,10 @@ export async function POST(request) {
       amount: Math.round(amount * 100),
       currency: "INR",
       receipt: `bpe_${Date.now()}`,
-      notes: { service: "Bharat Pro Expert Home Cleaning" }
+      notes: {
+        service: "Bharat Pro Expert Home Cleaning",
+        ...(bookingId ? { bookingId } : {})
+      }
     });
 
     // Keep both fields for compatibility with existing frontend callers.
