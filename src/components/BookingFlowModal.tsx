@@ -650,8 +650,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         body: JSON.stringify({ amount: netTotal, currency: 'INR' }),
       });
       const orderData = await orderResponse.json().catch(() => ({}));
-      if (!orderResponse.ok || typeof orderData.id !== 'string' || !Number.isSafeInteger(orderData.amount)) {
-        throw new Error(orderData.error || 'Unable to create a secure payment order. Please retry.');
+      if (!orderResponse.ok ||
+          typeof orderData.id !== 'string' ||
+          !orderData.id.startsWith('order_') ||
+          !Number.isSafeInteger(orderData.amount) ||
+          orderData.amount <= 0 ||
+          orderData.currency !== 'INR') {
+        const message = typeof orderData.error === 'string' ? orderData.error : 'Unable to create a secure payment order. Please retry.';
+        throw new Error(`Order creation failed (HTTP ${orderResponse.status}): ${message}`);
       }
 
       const booking = await createNewBooking(payload);
