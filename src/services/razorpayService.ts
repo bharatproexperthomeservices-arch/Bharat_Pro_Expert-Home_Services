@@ -1,8 +1,10 @@
 // src/services/razorpayService.ts
 export const getRazorpayKeyId = (): string | null => {
-  const key = import.meta.env.VITE_RAZORPAY_KEY_ID;
+  // ⚠️ TEMPORARY HARDCODED FOR TESTING
+  const key = "rzp_test_Tln3PFyt6PlTPe"; 
+  
   if (!key) {
-    console.error("❌ VITE_RAZORPAY_KEY_ID is missing in Vercel Environment Variables.");
+    console.error("❌ Razorpay Key ID is missing.");
     return null;
   }
   return key;
