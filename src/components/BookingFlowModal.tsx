@@ -641,7 +641,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         discount: discountAmount,
         totalAmount: netTotal,
         appliedCoupon: isCouponApplied ? couponCode : undefined,
-        unlockedBumperOffer: unlockedOffer?.title,
+        unlockedBumperOffer: unlockedOffer?.headline,
         paymentMethod: 'UPI / Cards / Netbanking',
         paymentStatus: 'PENDING',
         status: 'PAYMENT_PENDING',
