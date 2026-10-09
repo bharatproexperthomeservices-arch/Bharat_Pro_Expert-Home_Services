@@ -3,7 +3,7 @@ import Razorpay from "razorpay";
 
 export async function POST(request) {
   try {
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_Tlh9T3hoID4gm";
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!keyId || !keySecret) {
@@ -29,7 +29,7 @@ export async function POST(request) {
       );
     }
 
-    // Convert Rupees to Paise (e.g. ₹500 = 50000 paise)
+    // पैसे को पैसे/Paise में कन्वर्ट करना (₹2745 = 274500 paise)
     const amountInPaise = Math.round(amount * 100);
 
     const options = {
