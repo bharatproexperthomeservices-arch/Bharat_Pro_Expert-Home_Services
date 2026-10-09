@@ -49,34 +49,18 @@ export interface UseRazorpayBookingOptions {
   onDismiss?: () => void;
 }
 
-/**
- * Custom API Hook for Booking Flow with Razorpay Integration
- * 
- * - Explicitly validates that 'UPI / Cards / Netbanking' (or online) is selected before triggering Razorpay Checkout.
- * - Strictly delays Firestore booking creation until the Razorpay handler (success callback) is executed.
- * - Never prematurely confirms or creates a booking document in Firestore if checkout is closed or failed.
- */
 export const useRazorpayBooking = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Helper to check if the selection corresponds to 'UPI / Cards / Netbanking'
-   */
   const isOnlinePaymentSelection = useCallback((method: PaymentMethodSelection): boolean => {
     return ['online', 'UPI', 'CARD', 'NET_BANKING'].includes(method);
   }, []);
 
-  /**
-   * Helper to check if the selection corresponds to 'Pay after service'
-   */
   const isPayAfterServiceSelection = useCallback((method: PaymentMethodSelection): boolean => {
     return ['cash', 'PAY_AFTER_SERVICE'].includes(method);
   }, []);
 
-  /**
-   * Execute booking flow with validated payment trigger
-   */
   const processBooking = useCallback(async (
     payload: BookingPayload,
     paymentMethod: PaymentMethodSelection,
@@ -85,174 +69,151 @@ export const useRazorpayBooking = () => {
     setIsProcessing(true);
     setError(null);
 
-    // 1. Basic validation
     if (!payload.customerPhone || payload.customerPhone.trim().length < 10) {
       const msg = 'Please enter a valid 10-digit mobile number.';
-      setError(msg);
-      setIsProcessing(false);
-      options.onError?.(msg);
-      return;
+      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
     }
-
     if (!payload.address || !payload.address.street) {
       const msg = 'Please enter complete service address.';
-      setError(msg);
-      setIsProcessing(false);
-      options.onError?.(msg);
-      return;
+      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
     }
-
     if (payload.totalAmount <= 0) {
       const msg = 'Invalid total amount. Please review your cart.';
-      setError(msg);
-      setIsProcessing(false);
-      options.onError?.(msg);
-      return;
+      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
     }
-
-    // 2. Reject COD / Pay after service (Strictly Online Payment Only)
     if (isPayAfterServiceSelection(paymentMethod)) {
       const msg = 'COD (Cash on Delivery) is disabled. Please pay online via UPI, Cards, or Netbanking to confirm your booking.';
-      setError(msg);
-      setIsProcessing(false);
-      options.onError?.(msg);
-      return;
+      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
     }
-
-    // 3. BRANCH B: Validate 'UPI / Cards / Netbanking' selection
     if (!isOnlinePaymentSelection(paymentMethod)) {
       const msg = 'Invalid payment method selected. Please choose "UPI / Cards / Netbanking" or "Pay after service".';
-      setError(msg);
-      setIsProcessing(false);
-      options.onError?.(msg);
-      return;
+      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
     }
 
-    // 4. Validated 'UPI / Cards / Netbanking': Initialize Razorpay Checkout
     const keyId = getRazorpayKeyId();
     if (!keyId) {
-      const msg = 'Razorpay Key ID is not configured. Please verify API credentials in AI Studio Secrets.';
-      setError(msg);
-      setIsProcessing(false);
-      options.onError?.(msg);
-      return;
+      const msg = 'Razorpay Key ID is not configured. Please verify API credentials.';
+      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
     }
 
-    // Load Razorpay Checkout SDK script dynamically
     const scriptLoaded = await loadRazorpayScript();
     if (!scriptLoaded || !(window as any).Razorpay) {
       const msg = 'Could not load Razorpay SDK. Please check your internet connection.';
-      setError(msg);
-      setIsProcessing(false);
-      options.onError?.(msg);
-      return;
+      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
     }
 
-    // Construct Razorpay options
-    // NOTE: Booking is NOT created in Firestore yet.
-    // Booking will ONLY be created in Firestore inside handler (payment success).
-    const razorpayConfig = {
-      key: keyId,
-      amount: Math.round(payload.totalAmount * 100), // convert to paise
-      currency: 'INR',
-      name: 'Bharat Pro Expert',
-      description: `Payment for ${payload.serviceName} (#${payload.bookingNumber})`,
-      image: 'https://img.icons8.com/color/120/clean.png',
-      prefill: {
-        name: payload.customerName || 'Customer',
-        email: payload.customerEmail || 'customer@bharatproexpert.com',
-        contact: payload.customerPhone || ''
-      },
-      notes: {
-        bookingNumber: payload.bookingNumber,
-        serviceName: payload.serviceName,
-        platform: 'Bharat Pro Expert Web/APK'
-      },
-      theme: {
-        color: '#062A49'
-      },
-      // handler.success: ONLY CALLED UPON VERIFIED PAYMENT COMPLETION
-      handler: async (paymentResponse: {
-        razorpay_payment_id: string;
-        razorpay_order_id?: string;
-        razorpay_signature?: string;
-      }) => {
-        console.log('[useRazorpayBooking] Razorpay handler success triggered with payment ID:', paymentResponse.razorpay_payment_id);
+    try {
+      // ==========================================================
+      // 🚀 FIX: बैकएंड से Razorpay की Order ID मंगवाएं
+      // ==========================================================
+      console.log("[useRazorpayBooking] Calling backend to create order...");
+      const orderResponse = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: payload.totalAmount })
+      });
 
-        try {
-          // CONSTRUCT FINAL BOOKING AND CREATE IN FIRESTORE ONLY NOW
-          const paidBookingRecord: Booking = {
-            ...payload,
-            id: payload.bookingId,
-            bookingNumber: payload.bookingNumber,
-            categoryName: payload.categoryName || 'Deep Cleaning',
-            selectedAddons: payload.selectedAddons || [],
-            paymentMethod: 'UPI',
-            paymentStatus: 'PAID',
-            transactionId: paymentResponse.razorpay_payment_id,
-            razorpayDetails: {
-              paymentId: paymentResponse.razorpay_payment_id,
-              orderId: paymentResponse.razorpay_order_id || '',
-              signature: paymentResponse.razorpay_signature || '',
-              verifiedAt: new Date().toISOString(),
-              verificationStatus: 'SUCCESS_VERIFIED'
-            },
-            status: 'SEARCHING_PROFESSIONAL',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
+      const orderData = await orderResponse.json();
 
-          // WRITE TO FIRESTORE VIA createNewBooking
-          const savedBooking = await createNewBooking(paidBookingRecord);
+      if (!orderResponse.ok || !orderData.id) {
+        throw new Error(orderData.details || orderData.error || 'Backend did not return Razorpay order ID. Contact support.');
+      }
+
+      const razorpayOrderId = orderData.id;
+      console.log("[useRazorpayBooking] Order ID received from backend:", razorpayOrderId);
+
+      // ==========================================================
+      // Razorpay Options (अब इसमें order_id भी जुड़ गया है)
+      // ==========================================================
+      const razorpayConfig = {
+        key: keyId,
+        amount: Math.round(payload.totalAmount * 100),
+        currency: 'INR',
+        name: 'Bharat Pro Expert',
+        description: `Payment for ${payload.serviceName} (#${payload.bookingNumber})`,
+        image: 'https://img.icons8.com/color/120/clean.png',
+        order_id: razorpayOrderId, // ✅ यह सबसे जरूरी लाइन है!
+        prefill: {
+          name: payload.customerName || 'Customer',
+          email: payload.customerEmail || 'customer@bharatproexpert.com',
+          contact: payload.customerPhone || ''
+        },
+        notes: {
+          bookingNumber: payload.bookingNumber,
+          serviceName: payload.serviceName,
+          platform: 'Bharat Pro Expert Web/APK'
+        },
+        theme: { color: '#062A49' },
+        handler: async (paymentResponse: {
+          razorpay_payment_id: string;
+          razorpay_order_id?: string;
+          razorpay_signature?: string;
+        }) => {
+          console.log('[useRazorpayBooking] Razorpay handler success:', paymentResponse.razorpay_payment_id);
 
           try {
-            confetti({
-              particleCount: 100,
-              spread: 75,
-              origin: { y: 0.6 }
-            });
-          } catch {}
+            // 🚀 FIX: Firestore में undefined जाने से रोकें
+            const paidBookingRecord: Booking = {
+              ...payload,
+              id: payload.bookingId,
+              bookingNumber: payload.bookingNumber,
+              categoryName: payload.categoryName || 'Deep Cleaning',
+              selectedAddons: payload.selectedAddons || [],
+              appliedCoupon: payload.appliedCoupon || null,
+              unlockedBumperOffer: payload.unlockedBumperOffer || null,
+              priceSnapshot: payload.priceSnapshot || null,
+              paymentMethod: 'UPI',
+              paymentStatus: 'PAID',
+              transactionId: paymentResponse.razorpay_payment_id,
+              razorpayDetails: {
+                paymentId: paymentResponse.razorpay_payment_id,
+                orderId: paymentResponse.razorpay_order_id || '',
+                signature: paymentResponse.razorpay_signature || '',
+                verifiedAt: new Date().toISOString(),
+                verificationStatus: 'SUCCESS_VERIFIED'
+              },
+              status: 'SEARCHING_PROFESSIONAL',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
 
-          setIsProcessing(false);
-          await options.onSuccess(savedBooking);
-        } catch (saveError: any) {
-          console.error('[useRazorpayBooking] Firestore write failed after payment success:', saveError);
-          const saveMsg = 'Payment was successful, but booking could not be saved. Please contact support with Payment ID: ' + paymentResponse.razorpay_payment_id;
-          setError(saveMsg);
-          setIsProcessing(false);
-          options.onError?.(saveMsg);
-        }
-      },
-      modal: {
-        ondismiss: () => {
-          console.log('[useRazorpayBooking] Checkout popup dismissed by customer without payment.');
-          setIsProcessing(false);
-          options.onDismiss?.();
-        }
-      }
-    };
+            const savedBooking = await createNewBooking(paidBookingRecord);
 
-    try {
+            try { confetti({ particleCount: 100, spread: 75, origin: { y: 0.6 } }); } catch {}
+
+            setIsProcessing(false);
+            await options.onSuccess(savedBooking);
+          } catch (saveError: any) {
+            console.error('[useRazorpayBooking] Firestore write failed:', saveError);
+            const saveMsg = 'Payment successful, but booking could not be saved. Please contact support. Payment ID: ' + paymentResponse.razorpay_payment_id;
+            setError(saveMsg); setIsProcessing(false); options.onError?.(saveMsg);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            console.log('[useRazorpayBooking] Checkout dismissed.');
+            setIsProcessing(false);
+            options.onDismiss?.();
+          }
+        }
+      };
+
       const razorpayInstance = new (window as any).Razorpay(razorpayConfig);
 
       razorpayInstance.on('payment.failed', (failedResp: any) => {
         console.error('[useRazorpayBooking] Payment failed:', failedResp.error);
         const failDesc = failedResp.error?.description || 'Payment was unsuccessful or cancelled.';
-        setIsProcessing(false);
-        setError(failDesc);
-        options.onError?.(failDesc);
+        setIsProcessing(false); setError(failDesc); options.onError?.(failDesc);
       });
 
       console.log("[useRazorpayBooking] Opening Razorpay checkout modal now");
-
-      // EXPLICITLY TRIGGER RAZORPAY CHECKOUT INSTANCE
       razorpayInstance.open();
+
     } catch (launchError: any) {
-      console.error('[useRazorpayBooking] Failed to open Razorpay instance:', launchError);
+      console.error('[useRazorpayBooking] Failed to process booking:', launchError);
       setIsProcessing(false);
       const openErr = launchError?.message || 'Failed to open Razorpay checkout.';
-      setError(openErr);
-      options.onError?.(openErr);
+      setError(openErr); options.onError?.(openErr);
     }
   }, [isOnlinePaymentSelection, isPayAfterServiceSelection]);
 
