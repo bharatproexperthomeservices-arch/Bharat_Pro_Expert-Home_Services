@@ -109,7 +109,7 @@ export const useRazorpayBooking = () => {
       // 🚀 STEP 2: Razorpay Options taiyaar karein
       const razorpayConfig = {
         key: keyId,
-        amount: Math.round(payload.totalAmount * 100),
+        amount: orderData.amount,
         currency: 'INR',
         name: 'Bharat Pro Expert',
         description: `Payment for ${payload.serviceName}`,
