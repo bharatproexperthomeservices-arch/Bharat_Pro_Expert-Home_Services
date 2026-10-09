@@ -1,37 +1,30 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { defineConfig } from 'vite';
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-  const razorpayKey = 
-    process.env.VITE_RAZORPAY_KEY_ID || 
-    process.env.RAZORPAY_KEY_ID || 
-    env.VITE_RAZORPAY_KEY_ID || 
-    env.RAZORPAY_KEY_ID || 
-    '';
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
-  return {
-    define: {
-      'import.meta.env.VITE_RAZORPAY_KEY_ID': JSON.stringify(razorpayKey),
-      'import.meta.env.RAZORPAY_KEY_ID': JSON.stringify(razorpayKey),
-    },
-    build: {
-      chunkSizeWarningLimit: 2500,
-    },
-    plugins: [react(), tailwindcss()],
-    resolve: {
-      alias: {
-        '@': path.resolve(import.meta.dirname, '.'),
+export default defineConfig({
+  // The browser receives only the public VITE_RAZORPAY_KEY_ID.
+  // Never expose RAZORPAY_KEY_SECRET in this file or frontend bundles.
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: { '@': rootDir },
+  },
+  build: {
+    chunkSizeWarningLimit: 2500,
+  },
+  server: {
+    hmr: process.env.DISABLE_HMR !== 'true',
+    watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    // Local Express API; Vercel uses the /api/*.js serverless functions in production.
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:5000',
+        changeOrigin: true,
       },
     },
-    server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
-    },
-  };
+  },
 });

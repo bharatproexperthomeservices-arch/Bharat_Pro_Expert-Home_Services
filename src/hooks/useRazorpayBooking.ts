@@ -50,6 +50,12 @@ export interface UseRazorpayBookingOptions {
   onDismiss?: () => void;
 }
 
+type RazorpaySuccessResponse = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
 export const useRazorpayBooking = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,75 +65,93 @@ export const useRazorpayBooking = () => {
     paymentMethod: PaymentMethodSelection,
     options: UseRazorpayBookingOptions
   ): Promise<void> => {
+    const fail = (message: string) => {
+      setError(message);
+      setIsProcessing(false);
+      options.onError?.(message);
+    };
+
     setIsProcessing(true);
     setError(null);
 
-    // 1. Basic Validation
-    if (!payload.customerPhone || payload.customerPhone.trim().length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number.';
-      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
+    if (!payload.customerPhone || payload.customerPhone.trim().replace(/\D/g, '').length < 10) {
+      fail('Please enter a valid 10-digit mobile number.');
+      return;
     }
-    if (!payload.address || !payload.address.street) {
-      const msg = 'Please enter complete service address.';
-      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
+    if (!payload.address?.street?.trim()) {
+      fail('Please enter complete service address.');
+      return;
     }
-    if (payload.totalAmount <= 0) {
-      const msg = 'Invalid total amount. Please review your cart.';
-      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
+    if (!Number.isFinite(payload.totalAmount) || payload.totalAmount <= 0) {
+      fail('Invalid total amount. Please review your cart.');
+      return;
     }
 
     const keyId = getRazorpayKeyId();
     if (!keyId) {
-      const msg = 'Razorpay Key ID is not configured. Please verify API credentials.';
-      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
-    }
-
-    const scriptLoaded = await loadRazorpayScript();
-    if (!scriptLoaded || !(window as any).Razorpay) {
-      const msg = 'Could not load Razorpay SDK. Please check your internet connection.';
-      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
+      fail('Payment is not configured yet. Please contact support.');
+      return;
     }
 
     try {
-      // 🚀 STEP 1: Backend se Order ID mangwayein
-      console.log("[useRazorpayBooking] Backend se order id mang rahe hain...");
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded || !(window as any).Razorpay) {
+        fail('Could not load Razorpay Checkout. Check your internet connection and try again.');
+        return;
+      }
+
       const orderResponse = await fetch('/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: payload.totalAmount })
+        body: JSON.stringify({
+          amount: Math.round(payload.totalAmount * 100) / 100,
+          currency: 'INR',
+          receipt: payload.bookingNumber
+        })
       });
+      const orderData = await orderResponse.json().catch(() => ({}));
 
-      const orderData = await orderResponse.json();
-
-      if (!orderResponse.ok || !orderData.id) {
-        throw new Error(orderData.details || orderData.error || 'Backend did not return Razorpay order ID.');
+      if (!orderResponse.ok || orderData.success !== true || !orderData.id) {
+        throw new Error(orderData.error || 'Could not create the payment order.');
       }
 
-      const razorpayOrderId = orderData.id;
-      console.log("[useRazorpayBooking] Order ID mil gayi:", razorpayOrderId);
-
-      // 🚀 STEP 2: Razorpay Options taiyaar karein
-      const razorpayConfig = {
-        key: keyId,
-        amount: Math.round(payload.totalAmount * 100),
-        currency: 'INR',
+      const razorpayInstance = new (window as any).Razorpay({
+        key: orderData.keyId || keyId,
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR',
         name: 'Bharat Pro Expert',
         description: `Payment for ${payload.serviceName}`,
-        order_id: razorpayOrderId, // 🔥 Yeh sabse zaroori hai
+        order_id: orderData.id,
         prefill: {
-          name: payload.customerName || 'Customer',
-          email: payload.customerEmail || 'customer@bharatproexpert.com',
+          name: payload.customerName || '',
+          email: payload.customerEmail || '',
           contact: payload.customerPhone || ''
         },
+        notes: { bookingNumber: payload.bookingNumber },
         theme: { color: '#062A49' },
-        handler: async (paymentResponse: any) => {
-          console.log('[useRazorpayBooking] Payment Success:', paymentResponse.razorpay_payment_id);
+        handler: async (paymentResponse: RazorpaySuccessResponse) => {
           try {
-            // 🚀 STEP 3: Firestore mein save karein (undefined values se bachein)
+            if (paymentResponse.razorpay_order_id !== orderData.id) {
+              throw new Error('The payment order did not match this booking.');
+            }
+
+            const verifyResponse = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(paymentResponse)
+            });
+            const verification = await verifyResponse.json().catch(() => ({}));
+
+            if (!verifyResponse.ok || verification.success !== true || verification.verified !== true) {
+              throw new Error(verification.error || 'Payment could not be verified. Do not retry immediately; contact support if money was deducted.');
+            }
+
+            // Save as paid only after the server has verified the Razorpay signature
+            // and confirmed the payment belongs to the returned order.
             const paidBookingRecord: Booking = {
               ...payload,
               id: payload.bookingId,
-              categoryName: payload.categoryName || 'Deep Cleaning',
+              categoryName: payload.categoryName || 'Home Cleaning',
               selectedAddons: payload.selectedAddons || [],
               appliedCoupon: payload.appliedCoupon || null,
               unlockedBumperOffer: payload.unlockedBumperOffer || null,
@@ -144,10 +168,9 @@ export const useRazorpayBooking = () => {
             try { confetti({ particleCount: 100, spread: 75, origin: { y: 0.6 } }); } catch {}
             setIsProcessing(false);
             await options.onSuccess(savedBooking);
-          } catch (saveError: any) {
-            console.error('[useRazorpayBooking] Firestore error:', saveError);
-            const saveMsg = 'Payment success, but booking save nahi hui. Contact support. Payment ID: ' + paymentResponse.razorpay_payment_id;
-            setError(saveMsg); setIsProcessing(false); options.onError?.(saveMsg);
+          } catch (verificationOrSaveError: any) {
+            console.error('[useRazorpayBooking] Payment verification/booking error:', verificationOrSaveError);
+            fail(verificationOrSaveError?.message || 'Payment verification failed. Please contact support before trying again.');
           }
         },
         modal: {
@@ -156,22 +179,15 @@ export const useRazorpayBooking = () => {
             options.onDismiss?.();
           }
         }
-      };
-
-      const razorpayInstance = new (window as any).Razorpay(razorpayConfig);
-      
-      razorpayInstance.on('payment.failed', (failedResp: any) => {
-        const failDesc = failedResp.error?.description || 'Payment failed or cancelled.';
-        setIsProcessing(false); setError(failDesc); options.onError?.(failDesc);
       });
 
+      razorpayInstance.on('payment.failed', (failedResp: any) => {
+        fail(failedResp?.error?.description || 'Payment failed or cancelled.');
+      });
       razorpayInstance.open();
-
     } catch (launchError: any) {
-      console.error('[useRazorpayBooking] Error:', launchError);
-      setIsProcessing(false);
-      const openErr = launchError?.message || 'Failed to open Razorpay.';
-      setError(openErr); options.onError?.(openErr);
+      console.error('[useRazorpayBooking] Checkout error:', launchError);
+      fail(launchError?.message || 'Failed to start Razorpay Checkout.');
     }
   }, []);
 
