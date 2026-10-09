@@ -3,8 +3,7 @@ import { CleaningService, ServiceAddon, Booking, HubLocation } from '../types';
 import { BUMPER_OFFERS, INITIAL_HUBS } from '../data';
 import { useAuth } from '../context/AuthContext';
 import { createNewBooking, getAllHubs } from '../services/dbService';
-import { getRazorpayKeyId, loadRazorpayScript } from '../services/razorpayService';
-import { BookingPayload } from '../hooks/useRazorpayBooking';
+import { loadRazorpayScript } from '../services/razorpayService';
 import { reverseGeocodeCoordinates, calculateHaversineKm } from '../services/indiaLocationHierarchy';
 import confetti from 'canvas-confetti';
 import { 
@@ -601,59 +600,100 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     setErrorBanner(null);
 
     try {
-      const keyId = await getRazorpayKeyId();
-      if (!keyId) throw new Error('Razorpay Key ID missing. Please contact support.');
-
       const sdkOk = await loadRazorpayScript();
       if (!sdkOk || typeof (window as any).Razorpay !== 'function') {
         throw new Error('Razorpay SDK failed to load. Check internet connection and retry.');
       }
 
-      const payload: BookingPayload = {
+      // Create a complete booking record with a stable ID before opening checkout.
+      const now = new Date().toISOString();
+      const bookingId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `bpe_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const addonsTotal = selectedAddons.reduce((sum, addon) => sum + Number(addon.price || 0), 0);
+      const bookingDraft: Booking = {
+        id: bookingId,
+        bookingNumber: `BPE-${Date.now().toString().slice(-8)}`,
+        customerId: String((user as any)?.uid || (profile as any)?.id || ''),
+        customerName: name.trim(),
+        customerEmail: email.trim(),
+        customerPhone: phone.trim(),
         serviceId: service.id,
         serviceName: service.name,
-        serviceConfig,
-        addons: selectedAddons,
+        categoryName: 'Cleaning',
         date: selectedDate,
-        slot: selectedSlot,
-        hubId: selectedHub?.id,
-        hubName: selectedHub?.name,
-        customer: { name, phone, email },
+        timeSlot: selectedSlot,
         address: {
-          flatOrHouseNo,
-          buildingOrStreet,
-          street: streetAddress,
-          sector: selectedSector,
-          landmark,
-          city: customerCity,
-          state: customerState,
-          pincode,
-          lat: geoCoords?.lat,
-          lng: geoCoords?.lng,
+          street: [flatOrHouseNo, buildingOrStreet, streetAddress].filter(Boolean).join(', '),
+          sector: selectedSector || '',
+          city: customerCity || '',
+          state: customerState || '',
+          pincode: pincode || '',
+          lat: geoCoords?.lat ?? 0,
+          lng: geoCoords?.lng ?? 0,
+          landmark: landmark || undefined,
         },
-        amount: {
-          subtotal: rawSubtotal,
-          gst: taxesGst,
-          convenienceFee,
-          discount: discountAmount,
-          total: netTotal,
-        },
-        couponCode: isCouponApplied ? couponCode : undefined,
-        paymentMethod,
-      } as BookingPayload;
+        selectedAddons,
+        basePrice: Math.max(0, rawSubtotal - addonsTotal),
+        addonsPrice: addonsTotal,
+        taxesGst,
+        convenienceFee,
+        discount: discountAmount,
+        totalAmount: netTotal,
+        appliedCoupon: isCouponApplied ? couponCode : undefined,
+        unlockedBumperOffer: unlockedOffer?.headline,
+        paymentMethod: 'UPI / Cards / Netbanking',
+        paymentStatus: 'PENDING',
+        status: 'PAYMENT_PENDING',
+        assignedHubId: selectedHub?.id || 'hub-gurugram-cyber',
+        assignedHubName: selectedHub?.name || 'Gurugram Hub',
+        startOtp: String(Math.floor(1000 + Math.random() * 9000)),
+        completionOtp: String(Math.floor(1000 + Math.random() * 9000)),
+        createdAt: now,
+        updatedAt: now,
+      };
 
-      const booking = await createNewBooking(payload);
-      if (!booking) throw new Error('Could not create booking. Please try again.');
+      const booking = await createNewBooking(bookingDraft);
+      if (!booking?.id) throw new Error('Could not create booking record. Please try again.');
 
-      const razorpayOrderId = (booking as any).razorpayOrderId;
-      if (!razorpayOrderId) {
-        throw new Error('Backend did not return Razorpay order ID. Contact support.');
+      // The Razorpay order must be created by the server; never rely on a
+      // Firestore booking object to magically contain a Razorpay order ID.
+      let orderResponse: Response;
+      try {
+        orderResponse = await fetch('/api/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          body: JSON.stringify({ amount: netTotal, currency: 'INR', bookingId: booking.id }),
+        });
+      } catch {
+        throw new Error('Payment server se connect nahi ho paaya. Internet check karke dobara try karein.');
+      }
+      const orderData = await orderResponse.json().catch(() => null);
+      if (!orderResponse.ok) {
+        const serverMessage = orderData?.error || orderData?.message;
+        if (orderResponse.status === 404) {
+          throw new Error('Payment API deploy nahi hui hai. Latest GitHub changes ko deploy karein.');
+        }
+        if (orderResponse.status >= 500) {
+          throw new Error(serverMessage || 'Razorpay server setup error. Vercel Environment Variables mein RAZORPAY_KEY_ID aur RAZORPAY_KEY_SECRET check karein.');
+        }
+        throw new Error(serverMessage || `Razorpay order create nahi hua (HTTP ${orderResponse.status}).`);
+      }
+      if (!orderData || typeof orderData.id !== 'string' || !orderData.id.startsWith('order_')) {
+        throw new Error('Razorpay server se valid Order ID nahi mila. Vercel Function Logs check karein.');
+      }
+      const razorpayOrderId: string = orderData.id;
+      const checkoutKeyId: string = orderData.keyId || '';
+      if (!checkoutKeyId) throw new Error('Razorpay Key ID server response mein missing hai. Vercel Environment Variables check karein.');
+      if (!Number.isFinite(Number(orderData.amount)) || Number(orderData.amount) <= 0) {
+        throw new Error('Razorpay order amount invalid hai. Checkout open nahi kiya gaya.');
       }
 
       const options: any = {
-        key: keyId,
-        amount: netTotal * 100, // ✅ PAISE me (Razorpay paise leta hai)
-        currency: 'INR',
+        key: checkoutKeyId,
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR',
         name: 'Bharat Pro Expert',
         description: `${service.name} - ${serviceConfig}`,
         order_id: razorpayOrderId,
@@ -672,12 +712,29 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 razorpay_signature: response.razorpay_signature,
               }),
             });
-            if (!res.ok) throw new Error('Payment verification failed on server.');
-            const confirmed: Booking = { ...booking, status: 'CONFIRMED' } as Booking;
-            setConfirmedBookingRecord(confirmed);
+            const verification = await res.json().catch(() => ({}));
+            if (!res.ok || verification.verified !== true) {
+              throw new Error(verification.error || 'Payment verification failed on server.');
+            }
+            const confirmed: Booking = {
+              ...booking,
+              paymentStatus: 'PAID',
+              status: 'SEARCHING_PROFESSIONAL',
+              transactionId: response.razorpay_payment_id,
+              razorpayDetails: {
+                paymentId: response.razorpay_payment_id,
+                orderId: response.razorpay_order_id,
+                signature: response.razorpay_signature,
+                verifiedAt: new Date().toISOString(),
+                verificationStatus: 'VERIFIED',
+              },
+              updatedAt: new Date().toISOString(),
+            };
+            const savedConfirmed = await createNewBooking(confirmed);
+            setConfirmedBookingRecord(savedConfirmed);
             try { confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } }); } catch {}
             setStep(4);
-            onBookingSuccess(confirmed);
+            onBookingSuccess(savedConfirmed);
             try {
               localStorage.setItem('bharat_pro_last_customer_name', name);
               localStorage.setItem('bharat_pro_last_customer_phone', phone);
