@@ -647,7 +647,13 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       const orderResponse = await fetch('/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({\n          serviceId: service.id,\n          addons: selectedAddons.map(addon => addon.id),\n          couponCode: isCouponApplied ? couponCode.trim().toUpperCase() : null,\n          clientTotal: netTotal,\n          currency: 'INR',\n        }),
+        body: JSON.stringify({
+          serviceId: service.id,
+          addons: selectedAddons.map(addon => addon.id),
+          couponCode: isCouponApplied ? couponCode.trim().toUpperCase() : null,
+          clientTotal: netTotal,
+          currency: 'INR',
+        }),
       });
       const orderData = await orderResponse.json().catch(() => ({}));
       if (!orderResponse.ok ||
