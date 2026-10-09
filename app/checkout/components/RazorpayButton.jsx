@@ -1,27 +1,17 @@
 "use client";
 import { useState } from "react";
 
-export default function RazorpayButton({
-  amount = 500,
-  customerInfo = {
-    name: "Customer Name",
-    email: "customer@example.com",
-    phone: "9876543210",
-  },
-  onSuccess,
-  onFailure,
-}) {
+export default function RazorpayButton({ amount, onPaymentSuccess }) {
   const [loading, setLoading] = useState(false);
 
-  const loadRazorpaySDK = () => {
+  const loadRazorpayScript = () => {
     return new Promise((resolve) => {
-      if (typeof window !== "undefined" && window.Razorpay) {
+      if (window.Razorpay) {
         resolve(true);
         return;
       }
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
       script.onload = () => resolve(true);
       script.onerror = () => resolve(false);
       document.body.appendChild(script);
@@ -30,65 +20,53 @@ export default function RazorpayButton({
 
   const handlePayment = async () => {
     setLoading(true);
-
     try {
-      const isSdkLoaded = await loadRazorpaySDK();
-      if (!isSdkLoaded) {
-        alert("Razorpay SDK load nahi ho paya. Internet connection check karein.");
+      const res = await loadRazorpayScript();
+      if (!res) {
+        alert("Razorpay SDK failed to load. Check internet connection.");
         setLoading(false);
         return;
       }
 
-      const response = await fetch("/api/create-order", {
+      // Backend API call to create order
+      const orderRes = await fetch("/api/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: Number(amount),
-          notes: {
-            customer_name: customerInfo.name || "N/A",
-            customer_phone: customerInfo.phone || "N/A",
-          },
-        }),
+        body: JSON.stringify({ amount: Number(amount) }),
       });
 
-      const orderData = await response.json();
+      const orderData = await orderRes.json();
 
-      if (!response.ok || !orderData.id) {
-        alert(`Order create nahi hua: ${orderData.error || "Server Error"}`);
+      if (!orderRes.ok || !orderData.id) {
+        alert(`Error: ${orderData.error || "Backend did not return Razorpay order ID."}`);
         setLoading(false);
         return;
       }
 
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_live_Tlh9T3hoID4gm",
         amount: orderData.amount,
         currency: orderData.currency,
-        name: "Bharat Pro Expert",
-        description: "Home Services Booking Payment",
+        name: "Bharat Pro Expert Home Services",
+        description: "Service Booking Payment",
         order_id: orderData.id,
-        handler: function (paymentResponse) {
-          alert(`Payment Successful! ID: ${paymentResponse.razorpay_payment_id}`);
-          if (onSuccess) onSuccess(paymentResponse);
+        handler: function (response) {
+          if (onPaymentSuccess) {
+            onPaymentSuccess(response);
+          } else {
+            alert(`Payment Successful! Payment ID: ${response.razorpay_payment_id}`);
+          }
         },
-        prefill: {
-          name: customerInfo.name || "",
-          email: customerInfo.email || "",
-          contact: customerInfo.phone || "",
-        },
-        theme: { color: "#2563eb" },
-        modal: {
-          ondismiss: function () {
-            setLoading(false);
-            if (onFailure) onFailure("Payment cancelled by user");
-          },
+        theme: {
+          color: "#000000",
         },
       };
 
-      const razorpayInstance = new window.Razorpay(options);
-      razorpayInstance.open();
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.open();
     } catch (error) {
-      console.error("Payment Process Error:", error);
-      alert("Payment initiate karne me dikkat aayi.");
+      console.error("Payment error:", error);
+      alert("Payment failed to initiate. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -98,7 +76,7 @@ export default function RazorpayButton({
     <button
       onClick={handlePayment}
       disabled={loading}
-      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition-all disabled:opacity-50"
+      className="w-full bg-black text-white py-3 px-4 rounded-lg font-semibold hover:bg-gray-800 transition disabled:opacity-50"
     >
       {loading ? "Processing..." : `Pay ₹${amount}`}
     </button>
