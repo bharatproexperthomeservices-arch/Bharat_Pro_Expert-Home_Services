@@ -7,20 +7,24 @@ import { defineConfig } from 'vite';
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  // Only the public Razorpay Key ID is exposed through VITE_*. The key secret
-  // must remain in Vercel's server-side environment and must never be defined here.
+  // The browser receives only the public VITE_RAZORPAY_KEY_ID.
+  // Never expose RAZORPAY_KEY_SECRET in this file or frontend bundles.
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: {
-      '@': rootDir,
-    },
+    alias: { '@': rootDir },
   },
   build: {
     chunkSizeWarningLimit: 2500,
   },
   server: {
-    // HMR is disabled in AI Studio via DISABLE_HMR env var.
     hmr: process.env.DISABLE_HMR !== 'true',
     watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    // Local Express API; Vercel uses the /api/*.js serverless functions in production.
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:5000',
+        changeOrigin: true,
+      },
+    },
   },
 });
