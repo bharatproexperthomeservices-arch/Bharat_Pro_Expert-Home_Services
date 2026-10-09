@@ -18,7 +18,7 @@ app.use(cors({
 }));
 
 function getRazorpay() {
-  const key_id = process.env.RAZORPAY_KEY_ID;
+  const key_id = process.env.RAZORPAY_KEY_ID || "rzp_live_Tlh9T3hoID4gmq";
   const key_secret = process.env.RAZORPAY_KEY_SECRET;
   if (!key_id || !key_secret) {
     const error = new Error("Razorpay server credentials are not configured.");
@@ -63,7 +63,7 @@ app.post("/api/verify-payment", async (req, res) => {
       return res.status(400).json({ verified: false, error: "Missing or invalid payment verification fields." });
     }
 
-    const key_id = process.env.RAZORPAY_KEY_ID;
+    const key_id = process.env.RAZORPAY_KEY_ID || "rzp_live_Tlh9T3hoID4gmq";
     const secret = process.env.RAZORPAY_KEY_SECRET;
     if (!key_id || !secret) {
       return res.status(503).json({ verified: false, error: "Razorpay server credentials are not configured." });
