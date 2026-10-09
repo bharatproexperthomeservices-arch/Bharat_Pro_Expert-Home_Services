@@ -134,7 +134,15 @@ export const useRazorpayBooking = () => {
               })
             });
             const verification = await verifyResponse.json().catch(() => ({}));
-            if (!verifyResponse.ok || verification.verified !== true) {
+            if (
+              !verifyResponse.ok ||
+              verification.verified !== true ||
+              verification.razorpay_order_id !== paymentResponse.razorpay_order_id ||
+              verification.razorpay_payment_id !== paymentResponse.razorpay_payment_id ||
+              verification.currency !== 'INR' ||
+              !Number.isSafeInteger(verification.amount) ||
+              verification.amount <= 0
+            ) {
               const verifyMsg = verification.error || 'Payment verification failed. Booking was not marked as paid.';
               setError(verifyMsg);
               setIsProcessing(false);
