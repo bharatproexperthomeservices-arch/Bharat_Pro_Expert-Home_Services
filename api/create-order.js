@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     return json(res, 405, { error: "Method not allowed.", code: "METHOD_NOT_ALLOWED" });
   }
 
-  const key_id = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
+  const key_id = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || "rzp_live_Tlh9T3hoID4gmq";
   const key_secret = process.env.RAZORPAY_KEY_SECRET;
   if (!key_id || !key_secret) {
     console.error("Razorpay order endpoint is missing server credentials.");
