@@ -536,7 +536,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     e.preventDefault();
     const clean = (couponCode || '').trim().toUpperCase();
     const validCodes = ['BHARAT10', 'PRO10', 'FIRST10', 'CLEAN10', 'SAVE10'];
-    if (validCodes.includes(clean) || clean.includes('10')) {
+    if (validCodes.includes(clean)) {
       setIsCouponApplied(true);
       const disc = Math.round(rawSubtotal * 0.10);
       setDiscountAmount(disc);
@@ -647,7 +647,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       const orderResponse = await fetch('/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: netTotal, currency: 'INR' }),
+        body: JSON.stringify({\n          serviceId: service.id,\n          addons: selectedAddons.map(addon => addon.id),\n          couponCode: isCouponApplied ? couponCode.trim().toUpperCase() : null,\n          clientTotal: netTotal,\n          currency: 'INR',\n        }),
       });
       const orderData = await orderResponse.json().catch(() => ({}));
       if (!orderResponse.ok ||
@@ -655,10 +655,24 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
           !orderData.id.startsWith('order_') ||
           !Number.isSafeInteger(orderData.amount) ||
           orderData.amount <= 0 ||
-          orderData.currency !== 'INR') {
+          orderData.currency !== 'INR' ||
+          !orderData.quote ||
+          !Number.isSafeInteger(orderData.quote.total) ||
+          orderData.quote.total * 100 !== orderData.amount ||
+          orderData.quote.total !== netTotal) {
         const message = typeof orderData.error === 'string' ? orderData.error : 'Unable to create a secure payment order. Please retry.';
         throw new Error(`Order creation failed (HTTP ${orderResponse.status}): ${message}`);
       }
+
+      // Persist the server-calculated price snapshot, never a browser-supplied amount.
+      payload.amount = {
+        subtotal: orderData.quote.subtotal,
+        gst: orderData.quote.gst,
+        convenienceFee: orderData.quote.convenienceFee,
+        discount: orderData.quote.discount,
+        total: orderData.quote.total,
+      };
+      payload.couponCode = orderData.quote.couponCode || undefined;
 
       const booking = await createNewBooking(payload);
       if (!booking) throw new Error('Could not create booking. Please try again.');
