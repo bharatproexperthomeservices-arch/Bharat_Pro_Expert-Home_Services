@@ -684,8 +684,12 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             if (!res.ok || verification.verified !== true ||
                 verification.razorpay_order_id !== response.razorpay_order_id ||
                 verification.razorpay_payment_id !== response.razorpay_payment_id ||
-                verification.currency !== 'INR') {
-              throw new Error(verification.error || 'Payment verification failed on server. Booking is not confirmed.');
+                verification.currency !== 'INR' ||
+                verification.status !== 'captured' ||
+                !Number.isSafeInteger(verification.amount) ||
+                verification.amount <= 0 ||
+                verification.amount !== orderData.amount) {
+              throw new Error(verification.error || 'Payment verification failed or the captured amount does not match the order. Booking is not confirmed.');
             }
             const confirmed: Booking = {
               ...booking,
