@@ -1,44 +1,70 @@
 import crypto from "node:crypto";
+import Razorpay from "razorpay";
 
 function json(res, status, body) {
   return res.status(status).json(body);
 }
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return json(res, 405, { verified: false, error: "Method not allowed." });
   }
 
-  const secret = process.env.RAZORPAY_KEY_SECRET;
-  if (!secret) {
+  const key_id = process.env.RAZORPAY_KEY_ID;
+  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!key_id || !key_secret) {
     return json(res, 503, { verified: false, error: "Payment gateway is not configured on the server." });
   }
 
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
   if (![razorpay_order_id, razorpay_payment_id, razorpay_signature].every(
-    value => typeof value === "string" && value.length > 0
+    value => typeof value === "string" && value.length > 0 && value.length <= 256
   )) {
-    return json(res, 400, { verified: false, error: "Missing payment verification fields." });
+    return json(res, 400, { verified: false, error: "Missing or invalid payment verification fields." });
   }
 
-  const expected = crypto.createHmac("sha256", secret)
-    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-    .digest();
-  let received;
   try {
-    received = Buffer.from(razorpay_signature, "hex");
-  } catch {
-    return json(res, 400, { verified: false, error: "Invalid signature format." });
-  }
+    const expected = crypto.createHmac("sha256", key_secret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest();
+    if (!/^[a-f0-9]{64}$/i.test(razorpay_signature)) {
+      return json(res, 400, { verified: false, error: "Invalid signature format." });
+    }
+    const received = Buffer.from(razorpay_signature, "hex");
+    if (received.length !== expected.length || !crypto.timingSafeEqual(expected, received)) {
+      return json(res, 400, { verified: false, error: "Payment signature verification failed." });
+    }
 
-  if (received.length !== expected.length || !crypto.timingSafeEqual(expected, received)) {
-    return json(res, 400, { verified: false, error: "Payment signature verification failed." });
-  }
+    // A valid signature alone does not prove the payment was captured.
+    const razorpay = new Razorpay({ key_id, key_secret });
+    const [order, payment] = await Promise.all([
+      razorpay.orders.fetch(razorpay_order_id),
+      razorpay.payments.fetch(razorpay_payment_id)
+    ]);
 
-  return json(res, 200, {
-    verified: true,
-    razorpay_order_id,
-    razorpay_payment_id
-  });
+    if (payment.order_id !== order.id ||
+        payment.order_id !== razorpay_order_id ||
+        payment.currency !== "INR" ||
+        order.currency !== "INR" ||
+        payment.amount !== order.amount ||
+        payment.status !== "captured") {
+      return json(res, 409, {
+        verified: false,
+        error: "Payment is not captured or does not match the order. Please contact support before retrying."
+      });
+    }
+
+    return json(res, 200, {
+      verified: true,
+      razorpay_order_id: order.id,
+      razorpay_payment_id: payment.id,
+      amount: payment.amount,
+      currency: payment.currency,
+      status: payment.status
+    });
+  } catch (error) {
+    console.error("Razorpay payment verification failed:", error?.message || "Unknown error");
+    return json(res, 502, { verified: false, error: "Unable to confirm captured payment with Razorpay. Please contact support before retrying." });
+  }
 }
