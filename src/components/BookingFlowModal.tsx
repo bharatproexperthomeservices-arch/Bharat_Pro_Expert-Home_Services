@@ -658,18 +658,37 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
       // The Razorpay order must be created by the server; never rely on a
       // Firestore booking object to magically contain a Razorpay order ID.
-      const orderResponse = await fetch('/api/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: netTotal, bookingId: booking.id }),
-      });
-      const orderData = await orderResponse.json().catch(() => ({}));
-      if (!orderResponse.ok || typeof orderData.id !== 'string' || !orderData.id.startsWith('order_')) {
-        throw new Error(orderData.error || orderData.details || 'Razorpay order could not be created. Please try again.');
+      let orderResponse: Response;
+      try {
+        orderResponse = await fetch('/api/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+          body: JSON.stringify({ amount: netTotal, currency: 'INR', bookingId: booking.id }),
+        });
+      } catch {
+        throw new Error('Payment server se connect nahi ho paaya. Internet check karke dobara try karein.');
+      }
+      const orderData = await orderResponse.json().catch(() => null);
+      if (!orderResponse.ok) {
+        const serverMessage = orderData?.error || orderData?.message;
+        if (orderResponse.status === 404) {
+          throw new Error('Payment API deploy nahi hui hai. Latest GitHub changes ko deploy karein.');
+        }
+        if (orderResponse.status >= 500) {
+          throw new Error(serverMessage || 'Razorpay server setup error. Vercel Environment Variables mein RAZORPAY_KEY_ID aur RAZORPAY_KEY_SECRET check karein.');
+        }
+        throw new Error(serverMessage || `Razorpay order create nahi hua (HTTP ${orderResponse.status}).`);
+      }
+      if (!orderData || typeof orderData.id !== 'string' || !orderData.id.startsWith('order_')) {
+        throw new Error('Razorpay server se valid Order ID nahi mila. Vercel Function Logs check karein.');
       }
       const razorpayOrderId: string = orderData.id;
       const checkoutKeyId: string = orderData.keyId || '';
-      if (!checkoutKeyId) throw new Error('Razorpay Key ID is missing on the server. Please configure Vercel environment variables.');
+      if (!checkoutKeyId) throw new Error('Razorpay Key ID server response mein missing hai. Vercel Environment Variables check karein.');
+      if (!Number.isFinite(Number(orderData.amount)) || Number(orderData.amount) <= 0) {
+        throw new Error('Razorpay order amount invalid hai. Checkout open nahi kiya gaya.');
+      }
 
       const options: any = {
         key: checkoutKeyId,
@@ -693,7 +712,10 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 razorpay_signature: response.razorpay_signature,
               }),
             });
-            if (!res.ok) throw new Error('Payment verification failed on server.');
+            const verification = await res.json().catch(() => ({}));
+            if (!res.ok || verification.verified !== true) {
+              throw new Error(verification.error || 'Payment verification failed on server.');
+            }
             const confirmed: Booking = {
               ...booking,
               paymentStatus: 'PAID',
