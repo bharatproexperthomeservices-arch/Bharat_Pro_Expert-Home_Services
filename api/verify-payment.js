@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     return json(res, 405, { verified: false, error: "Method not allowed." });
   }
 
-  const key_id = process.env.RAZORPAY_KEY_ID;
+  const key_id = process.env.RAZORPAY_KEY_ID || "rzp_live_Tlh9T3hoID4gmq";
   const key_secret = process.env.RAZORPAY_KEY_SECRET;
   if (!key_id || !key_secret) {
     return json(res, 503, { verified: false, error: "Payment gateway is not configured on the server." });
