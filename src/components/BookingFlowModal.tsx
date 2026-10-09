@@ -661,7 +661,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       const options: any = {
         key: keyId,
         amount: orderData.amount,
-        currency: orderData.currency || 'INR';
+        currency: orderData.currency || 'INR',
         name: 'Bharat Pro Expert',
         description: `${service.name} - ${serviceConfig}`,
         order_id: razorpayOrderId,
