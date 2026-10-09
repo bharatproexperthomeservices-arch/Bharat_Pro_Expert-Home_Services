@@ -1,8 +1,36 @@
 import Razorpay from "razorpay";
 import crypto from "node:crypto";
+import { ADDON_PRICES, CONVENIENCE_FEE_INR, COUPON_CODES, GST_RATE, SERVICE_PRICES } from "./pricing-catalog.js";
 
 function json(res, status, body) {
   return res.status(status).json(body);
+}
+
+function calculateQuote(body) {
+  const serviceId = typeof body?.serviceId === "string" ? body.serviceId : "";
+  const service = SERVICE_PRICES[serviceId];
+  if (!service) {
+    return { error: "Selected cleaning service is not in the approved catalogue. Refresh the page and select the service again.", code: "UNKNOWN_SERVICE" };
+  }
+
+  const requestedAddons = body?.addons === undefined ? [] : body.addons;
+  if (!Array.isArray(requestedAddons) || requestedAddons.length > 30 ||
+      requestedAddons.some(id => typeof id !== "string" || !Object.prototype.hasOwnProperty.call(ADDON_PRICES, id)) ||
+      new Set(requestedAddons).size !== requestedAddons.length) {
+    return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
+  }
+
+  const subtotal = service.price + requestedAddons.reduce((sum, id) => sum + ADDON_PRICES[id].price, 0);
+  const gst = Math.round(subtotal * GST_RATE);
+  const convenienceFee = CONVENIENCE_FEE_INR;
+  const couponCode = typeof body?.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
+  const discount = COUPON_CODES.has(couponCode) ? Math.round(subtotal * 0.10) : 0;
+  const total = subtotal + gst + convenienceFee - discount;
+
+  if (!Number.isSafeInteger(total) || total <= 0 || total > 500000) {
+    return { error: "Calculated checkout total is invalid. Please contact support.", code: "INVALID_SERVER_TOTAL" };
+  }
+  return { quote: { serviceId, subtotal, gst, convenienceFee, discount, couponCode: discount ? couponCode : null, total } };
 }
 
 export default async function handler(req, res) {
@@ -21,39 +49,47 @@ export default async function handler(req, res) {
     });
   }
 
-  // The client currently sends a rupee amount. Reject malformed amounts early;
-  // the server-authoritative catalogue/quote is still required before live payments.
-  const rawAmount = req.body?.amount;
-  const amount = Number(rawAmount);
   const currency = req.body?.currency || "INR";
-  if (rawAmount === undefined || rawAmount === null || rawAmount === "" ||
-      !Number.isFinite(amount) || amount <= 0 || amount > 500000 ||
-      !Number.isSafeInteger(Math.round(amount * 100)) || currency !== "INR") {
-    return json(res, 400, {
-      error: "Invalid checkout amount. Refresh the booking and try again.",
-      code: "INVALID_CHECKOUT_AMOUNT"
+  if (currency !== "INR") {
+    return json(res, 400, { error: "Only INR checkout is supported.", code: "INVALID_CURRENCY" });
+  }
+
+  const calculated = calculateQuote(req.body);
+  if (calculated.error) return json(res, 400, { error: calculated.error, code: calculated.code });
+  const quote = calculated.quote;
+
+  // Reject stale/tampered client totals; the server's catalogue is authoritative.
+  const clientTotal = Number(req.body?.clientTotal);
+  if (!Number.isSafeInteger(clientTotal) || clientTotal !== quote.total) {
+    return json(res, 409, {
+      error: "The booking price changed or the displayed total is out of date. Refresh the booking and try again.",
+      code: "CHECKOUT_TOTAL_MISMATCH",
+      quote
     });
   }
 
   try {
     const razorpay = new Razorpay({ key_id, key_secret });
-    const amountPaise = Math.round(amount * 100);
+    const amountPaise = quote.total * 100;
     const order = await razorpay.orders.create({
       amount: amountPaise,
       currency: "INR",
       receipt: `bpe_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`,
-      notes: { service: "Bharat Pro Expert Home Services" }
+      notes: {
+        serviceId: quote.serviceId,
+        subtotalInr: String(quote.subtotal),
+        gstInr: String(quote.gst),
+        convenienceFeeInr: String(quote.convenienceFee),
+        discountInr: String(quote.discount)
+      }
     });
 
     if (!order?.id || !Number.isSafeInteger(order.amount) ||
         order.amount !== amountPaise || order.currency !== "INR") {
-      console.error("Razorpay returned an order that did not match the requested amount/currency.");
-      return json(res, 502, {
-        error: "Razorpay returned an invalid order. Please retry.",
-        code: "INVALID_GATEWAY_ORDER"
-      });
+      console.error("Razorpay returned an order that did not match the server-calculated amount/currency.");
+      return json(res, 502, { error: "Razorpay returned an invalid order. Please retry.", code: "INVALID_GATEWAY_ORDER" });
     }
-    return json(res, 201, { id: order.id, amount: order.amount, currency: order.currency });
+    return json(res, 201, { id: order.id, amount: order.amount, currency: order.currency, quote });
   } catch (error) {
     const providerStatus = error?.statusCode || error?.status;
     const providerMessage = error?.error?.description || error?.description || error?.message || "";
