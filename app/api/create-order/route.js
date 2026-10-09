@@ -6,19 +6,16 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { amount } = body;
 
+    // Razorpay Keys (Env variable se lenge, agar nhi mila toh direct fallback use hoga)
     const razorpayKeyId =
-      process.env.VITE_RAZORPAY_KEY_ID ||
+      process.env.RAZORPAY_KEY_ID ||
       process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+      process.env.VITE_RAZORPAY_KEY_ID ||
       "rzp_live_Tlh9T3hoID4gmq";
-    const razorpaySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    if (!razorpaySecret) {
-      console.error("RAZORPAY_KEY_SECRET is missing!");
-      return NextResponse.json(
-        { error: "Server Error: RAZORPAY_KEY_SECRET missing in Vercel" },
-        { status: 500 }
-      );
-    }
+    const razorpaySecret =
+      process.env.RAZORPAY_KEY_SECRET || "YOUR_ACTUAL_RAZORPAY_SECRET_KEY"; 
+      // NOTE: Upar "YOUR_ACTUAL_RAZORPAY_SECRET_KEY" ki jagah apni Razorpay ki Secret Key paste kar dein.
 
     const instance = new Razorpay({
       key_id: razorpayKeyId,
@@ -26,7 +23,7 @@ export async function POST(request: Request) {
     });
 
     const options = {
-      amount: Math.round((amount || 2745) * 100),
+      amount: Math.round((amount || 1285) * 100),
       currency: "INR",
       receipt: `receipt_${Date.now()}`,
     };
