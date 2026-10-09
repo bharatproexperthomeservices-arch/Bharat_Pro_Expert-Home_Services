@@ -1,53 +1,64 @@
-// api/create-order.js
-import Razorpay from 'razorpay';
+import { NextResponse } from "next/server";
+import Razorpay from "razorpay";
 
-export default async function handler(req, res) {
-  // CORS Headers
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
+export async function POST(request) {
   try {
-    const { amount } = req.body;
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    if (!amount || isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ error: 'Invalid amount provided' });
+    if (!keyId || !keySecret) {
+      console.error("Razorpay API Keys strictly required in Environment Variables.");
+      return NextResponse.json(
+        { error: "Server Configuration Error: Missing Razorpay API Credentials" },
+        { status: 500 }
+      );
     }
 
-    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-      console.error("❌ Razorpay Keys Missing!");
-      return res.status(500).json({ error: 'Server configuration error. Payment keys are missing.' });
-    }
-
-    const instance = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    const razorpay = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
     });
+
+    const body = await request.json();
+    const { amount, currency = "INR", notes = {} } = body;
+
+    if (!amount || typeof amount !== "number" || amount <= 0) {
+      return NextResponse.json(
+        { error: "Invalid payment amount specified" },
+        { status: 400 }
+      );
+    }
+
+    // Convert Rupees to Paise (e.g. ₹500 = 50000 paise)
+    const amountInPaise = Math.round(amount * 100);
 
     const options = {
-      amount: Math.round(amount * 100), // INR to Paise
-      currency: "INR",
-      receipt: `receipt_${Date.now()}`,
+      amount: amountInPaise,
+      currency: currency,
+      receipt: `receipt_order_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      notes: {
+        service: "Bharat Pro Expert Home Services",
+        ...notes,
+      },
     };
 
-    const order = await instance.orders.create(options);
-    return res.status(200).json(order);
+    const order = await razorpay.orders.create(options);
 
+    return NextResponse.json(
+      {
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        receipt: order.receipt,
+        status: order.status,
+      },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error("❌ Razorpay Error:", error);
-    return res.status(500).json({ 
-      error: 'Something went wrong while creating order',
-      details: error.message 
-    });
+    console.error("Razorpay Order Creation Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to generate Razorpay order" },
+      { status: 500 }
+    );
   }
 }
