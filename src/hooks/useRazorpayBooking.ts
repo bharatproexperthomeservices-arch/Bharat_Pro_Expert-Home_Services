@@ -141,7 +141,8 @@ export const useRazorpayBooking = () => {
               verification.razorpay_payment_id !== paymentResponse.razorpay_payment_id ||
               verification.currency !== 'INR' ||
               !Number.isSafeInteger(verification.amount) ||
-              verification.amount <= 0
+              verification.amount <= 0 ||
+              verification.amount !== orderData.amount
             ) {
               const verifyMsg = verification.error || 'Payment verification failed. Booking was not marked as paid.';
               setError(verifyMsg);
@@ -162,6 +163,7 @@ export const useRazorpayBooking = () => {
               paymentMethod: 'UPI',
               paymentStatus: 'PAID',
               transactionId: paymentResponse.razorpay_payment_id,
+              totalAmount: Math.round(verification.amount / 100),
               status: 'SEARCHING_PROFESSIONAL',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
