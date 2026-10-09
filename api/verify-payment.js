@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import Razorpay from "razorpay";
+import { SERVICE_PRICES } from "./pricing-catalog.js";
 
 function json(res, status, body) {
   return res.status(status).json(body);
@@ -43,12 +44,25 @@ export default async function handler(req, res) {
       razorpay.payments.fetch(razorpay_payment_id)
     ]);
 
+    const notes = order.notes || {};
+    const subtotal = Number(notes.subtotalInr);
+    const gst = Number(notes.gstInr);
+    const convenienceFee = Number(notes.convenienceFeeInr);
+    const discount = Number(notes.discountInr);
+    const breakdownIsValid =
+      typeof notes.serviceId === "string" &&
+      Object.prototype.hasOwnProperty.call(SERVICE_PRICES, notes.serviceId) &&
+      [subtotal, gst, convenienceFee, discount].every(Number.isSafeInteger) &&
+      subtotal > 0 && gst >= 0 && convenienceFee >= 0 && discount >= 0 &&
+      subtotal + gst + convenienceFee - discount === order.amount / 100;
+
     if (payment.order_id !== order.id ||
         payment.order_id !== razorpay_order_id ||
         payment.currency !== "INR" ||
         order.currency !== "INR" ||
         payment.amount !== order.amount ||
-        payment.status !== "captured") {
+        payment.status !== "captured" ||
+        !breakdownIsValid) {
       return json(res, 409, {
         verified: false,
         error: "Payment is not captured or does not match the order. Please contact support before retrying."
