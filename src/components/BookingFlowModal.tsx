@@ -642,18 +642,26 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         paymentMethod,
       } as BookingPayload;
 
+      // Create the Razorpay order explicitly. createNewBooking only persists a booking
+      // record; it does not create payment orders.
+      const orderResponse = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: netTotal, currency: 'INR' }),
+      });
+      const orderData = await orderResponse.json().catch(() => ({}));
+      if (!orderResponse.ok || typeof orderData.id !== 'string' || !Number.isSafeInteger(orderData.amount)) {
+        throw new Error(orderData.error || 'Unable to create a secure payment order. Please retry.');
+      }
+
       const booking = await createNewBooking(payload);
       if (!booking) throw new Error('Could not create booking. Please try again.');
 
-      const razorpayOrderId = (booking as any).razorpayOrderId;
-      if (!razorpayOrderId) {
-        throw new Error('Backend did not return Razorpay order ID. Contact support.');
-      }
-
+      const razorpayOrderId = orderData.id;
       const options: any = {
         key: keyId,
-        amount: netTotal * 100, // ✅ PAISE me (Razorpay paise leta hai)
-        currency: 'INR',
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR';
         name: 'Bharat Pro Expert',
         description: `${service.name} - ${serviceConfig}`,
         order_id: razorpayOrderId,
@@ -672,8 +680,22 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 razorpay_signature: response.razorpay_signature,
               }),
             });
-            if (!res.ok) throw new Error('Payment verification failed on server.');
-            const confirmed: Booking = { ...booking, status: 'CONFIRMED' } as Booking;
+            const verification = await res.json().catch(() => ({}));
+            if (!res.ok || verification.verified !== true ||
+                verification.razorpay_order_id !== response.razorpay_order_id ||
+                verification.razorpay_payment_id !== response.razorpay_payment_id ||
+                verification.currency !== 'INR') {
+              throw new Error(verification.error || 'Payment verification failed on server. Booking is not confirmed.');
+            }
+            const confirmed: Booking = {
+              ...booking,
+              status: 'CONFIRMED',
+              paymentStatus: 'PAID',
+              paymentMethod: 'UPI',
+              transactionId: response.razorpay_payment_id,
+              totalAmount: Math.round(Number(verification.amount) / 100),
+              updatedAt: new Date().toISOString(),
+            } as Booking;
             setConfirmedBookingRecord(confirmed);
             try { confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } }); } catch {}
             setStep(4);
