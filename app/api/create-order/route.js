@@ -59,9 +59,16 @@ export async function POST(request) {
       success: true
     });
   } catch (error) {
-    console.error("CREATE_ORDER_ERROR:", error);
+    // Log the full provider error on the server, but never log or return credentials.
+    console.error("CREATE_ORDER_ERROR:", error?.error?.description || error?.message || error);
+    const providerMessage =
+      error?.error?.description ||
+      (typeof error?.message === "string" ? error.message : "");
     return NextResponse.json(
-      { success: false, error: "Unable to create payment order" },
+      {
+        success: false,
+        error: providerMessage || "Unable to create payment order. Check Razorpay API credentials and server logs.",
+      },
       { status: 500 }
     );
   }
