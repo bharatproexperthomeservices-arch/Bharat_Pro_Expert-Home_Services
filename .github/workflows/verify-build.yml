@@ -1,0 +1,23 @@
+name: Verify Vite build
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "fix/full-project-rebuild-2026-10"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Build production website
+        run: npm run build
