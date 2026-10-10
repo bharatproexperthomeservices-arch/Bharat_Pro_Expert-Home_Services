@@ -4,7 +4,6 @@ import { BUMPER_OFFERS, INITIAL_HUBS } from '../data';
 import { useAuth } from '../context/AuthContext';
 import { createNewBooking, getAllHubs } from '../services/dbService';
 import { getRazorpayKeyId, loadRazorpayScript } from '../services/razorpayService';
-import { BookingPayload } from '../hooks/useRazorpayBooking';
 import { reverseGeocodeCoordinates, calculateHaversineKm } from '../services/indiaLocationHierarchy';
 import confetti from 'canvas-confetti';
 import { 
@@ -536,7 +535,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     e.preventDefault();
     const clean = (couponCode || '').trim().toUpperCase();
     const validCodes = ['BHARAT10', 'PRO10', 'FIRST10', 'CLEAN10', 'SAVE10'];
-    if (validCodes.includes(clean) || clean.includes('10')) {
+    if (validCodes.includes(clean)) {
       setIsCouponApplied(true);
       const disc = Math.round(rawSubtotal * 0.10);
       setDiscountAmount(disc);
@@ -593,97 +592,166 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const handlePayAndConfirm = async () => {
     if (!service) return;
     if (!user && !profile) {
-      setErrorBanner('🔒 Login required: Please sign in to book.');
+      setErrorBanner('Login required: Please sign in to book.');
       onRequireAuth();
       return;
     }
+
     setLoading(true);
     setErrorBanner(null);
+    let paymentId = '';
 
     try {
-      const keyId = await getRazorpayKeyId();
+      const keyId = getRazorpayKeyId();
       if (!keyId) throw new Error('Razorpay Key ID missing. Please contact support.');
 
       const sdkOk = await loadRazorpayScript();
       if (!sdkOk || typeof (window as any).Razorpay !== 'function') {
-        throw new Error('Razorpay SDK failed to load. Check internet connection and retry.');
+        throw new Error('Razorpay Checkout could not load. Check your internet connection and retry.');
       }
 
-      const payload: BookingPayload = {
-        serviceId: service.id,
-        serviceName: service.name,
-        serviceConfig,
-        addons: selectedAddons,
-        date: selectedDate,
-        slot: selectedSlot,
-        hubId: selectedHub?.id,
-        hubName: selectedHub?.name,
-        customer: { name, phone, email },
-        address: {
-          flatOrHouseNo,
-          buildingOrStreet,
-          street: streetAddress,
-          sector: selectedSector,
-          landmark,
-          city: customerCity,
-          state: customerState,
-          pincode,
-          lat: geoCoords?.lat,
-          lng: geoCoords?.lng,
-        },
-        amount: {
-          subtotal: rawSubtotal,
-          gst: taxesGst,
-          convenienceFee,
-          discount: discountAmount,
-          total: netTotal,
-        },
-        couponCode: isCouponApplied ? couponCode : undefined,
-        paymentMethod,
-      } as BookingPayload;
-
-      const booking = await createNewBooking(payload);
-      if (!booking) throw new Error('Could not create booking. Please try again.');
-
-      const razorpayOrderId = (booking as any).razorpayOrderId;
-      if (!razorpayOrderId) {
-        throw new Error('Backend did not return Razorpay order ID. Contact support.');
+      if (!name.trim() || phone.replace(/\D/g, '').length < 10) {
+        throw new Error('Please enter your name and a valid 10-digit mobile number.');
+      }
+      if (!flatOrHouseNo.trim() || !buildingOrStreet.trim() || !pincode.trim()) {
+        throw new Error('Please enter your complete address and PIN code.');
+      }
+      if (!Number.isFinite(netTotal) || netTotal <= 0) {
+        throw new Error('Invalid booking amount. Please review your service and add-ons.');
       }
 
-      const options: any = {
+      const bookingId = `bpe_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const bookingNumber = `BPE-${new Date().getFullYear()}-${Date.now().toString().slice(-7)}`;
+
+      // The server calculates the final amount from its approved catalogue.
+      const orderResponse = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serviceId: service.id,
+          addons: selectedAddons.map(addon => addon.id),
+          couponCode: isCouponApplied ? couponCode.trim().toUpperCase() : null,
+          clientTotal: Number(netTotal),
+          currency: 'INR',
+          bookingId
+        })
+      });
+      const orderData = await orderResponse.json().catch(() => ({}));
+      if (!orderResponse.ok ||
+          typeof orderData.id !== 'string' ||
+          !orderData.id.startsWith('order_') ||
+          !Number.isSafeInteger(orderData.amount) ||
+          orderData.amount <= 0 ||
+          orderData.currency !== 'INR' ||
+          !orderData.quote ||
+          !Number.isSafeInteger(orderData.quote.total) ||
+          orderData.quote.total * 100 !== orderData.amount ||
+          orderData.quote.total !== Number(netTotal) ||
+          !Number.isSafeInteger(orderData.quote.basePrice) ||
+          !Number.isSafeInteger(orderData.quote.addonsPrice)) {
+        const message = typeof orderData.error === 'string' ? orderData.error : 'Unable to create a secure payment order. Please retry.';
+        throw new Error(`Order creation failed (HTTP ${orderResponse.status}): ${message}`);
+      }
+
+      const customerAddress = {
+        street: [flatOrHouseNo.trim(), buildingOrStreet.trim(), streetAddress.trim()].filter(Boolean).join(', '),
+        sector: selectedSector || '',
+        city: customerCity || selectedCity || '',
+        state: customerState || '',
+        pincode: pincode.trim(),
+        lat: Number(geoCoords?.lat || 0),
+        lng: Number(geoCoords?.lng || 0),
+        ...(landmark.trim() ? { landmark: landmark.trim() } : {})
+      };
+
+      const rzp = new (window as any).Razorpay({
         key: keyId,
-        amount: netTotal * 100, // ✅ PAISE me (Razorpay paise leta hai)
-        currency: 'INR',
+        amount: orderData.amount,
+        currency: orderData.currency,
+        order_id: orderData.id,
         name: 'Bharat Pro Expert',
         description: `${service.name} - ${serviceConfig}`,
-        order_id: razorpayOrderId,
-        prefill: { name, email, contact: phone },
-        notes: { bookingId: booking.id },
+        prefill: { name: name.trim(), email: email || user?.email || '', contact: phone.replace(/\D/g, '').slice(-10) },
+        notes: { bookingId, bookingNumber, serviceId: service.id },
         theme: { color: '#0d9488' },
         handler: async (response: any) => {
+          paymentId = response?.razorpay_payment_id || '';
           try {
             const res = await fetch('/api/verify-payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                bookingId: booking.id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
+                bookingId,
+                razorpay_order_id: response?.razorpay_order_id,
+                razorpay_payment_id: response?.razorpay_payment_id,
+                razorpay_signature: response?.razorpay_signature
+              })
             });
-            if (!res.ok) throw new Error('Payment verification failed on server.');
-            const confirmed: Booking = { ...booking, status: 'CONFIRMED' } as Booking;
-            setConfirmedBookingRecord(confirmed);
+            const verification = await res.json().catch(() => ({}));
+            if (!res.ok || verification.verified !== true ||
+                verification.bookingId !== bookingId ||
+                verification.razorpay_order_id !== response.razorpay_order_id ||
+                verification.razorpay_payment_id !== response.razorpay_payment_id ||
+                verification.currency !== 'INR' ||
+                verification.status !== 'captured' ||
+                !Number.isSafeInteger(verification.amount) ||
+                verification.amount !== orderData.amount) {
+              throw new Error(verification.error || 'Payment verification failed or the captured amount does not match the order. Booking is not confirmed.');
+            }
+
+            const now = new Date().toISOString();
+            const confirmedBooking: Booking = {
+              id: bookingId,
+              bookingNumber,
+              customerId: user?.uid || profile?.id || profile?.uid || 'authenticated-customer',
+              customerName: name.trim(),
+              customerEmail: email || user?.email || '',
+              customerPhone: phone.replace(/\D/g, '').slice(-10),
+              serviceId: service.id,
+              serviceName: service.name,
+              categoryName: serviceConfig,
+              date: selectedDate,
+              timeSlot: selectedSlot,
+              address: customerAddress,
+              selectedAddons,
+              basePrice: orderData.quote.basePrice,
+              addonsPrice: orderData.quote.addonsPrice,
+              taxesGst: orderData.quote.gst,
+              convenienceFee: orderData.quote.convenienceFee,
+              discount: orderData.quote.discount,
+              totalAmount: orderData.quote.total,
+              ...(orderData.quote.couponCode ? { appliedCoupon: orderData.quote.couponCode } : {}),
+              paymentMethod: 'UPI / Cards / Netbanking',
+              paymentStatus: 'PAID',
+              transactionId: verification.razorpay_payment_id,
+              status: 'SEARCHING_PROFESSIONAL',
+              assignedHubId: selectedHub?.id || 'hub-gurugram-cyber',
+              startOtp: String(Math.floor(1000 + Math.random() * 9000)),
+              completionOtp: String(Math.floor(1000 + Math.random() * 9000)),
+              createdAt: now,
+              updatedAt: now,
+              razorpayDetails: {
+                paymentId: verification.razorpay_payment_id,
+                orderId: verification.razorpay_order_id,
+                signature: response.razorpay_signature,
+                verifiedAt: now,
+                verificationStatus: 'VERIFIED'
+              }
+            };
+
+            // Only create the booking after the server confirms a captured payment.
+            const savedBooking = await createNewBooking(confirmedBooking);
+            setConfirmedBookingRecord(savedBooking);
             try { confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } }); } catch {}
             setStep(4);
-            onBookingSuccess(confirmed);
+            onBookingSuccess(savedBooking);
             try {
-              localStorage.setItem('bharat_pro_last_customer_name', name);
-              localStorage.setItem('bharat_pro_last_customer_phone', phone);
+              localStorage.setItem('bharat_pro_last_customer_name', name.trim());
+              localStorage.setItem('bharat_pro_last_customer_phone', phone.replace(/\D/g, '').slice(-10));
             } catch {}
           } catch (err: any) {
-            setErrorBanner(err?.message || 'Payment verification failed.');
+            const message = err?.message || 'Payment was received but booking confirmation failed.';
+            setErrorBanner(paymentId ? `${message} Payment ID: ${paymentId}` : message);
           } finally {
             setLoading(false);
           }
@@ -691,14 +759,13 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         modal: {
           ondismiss: () => {
             setLoading(false);
-            setErrorBanner('Payment cancelled. You can retry anytime.');
-          },
-        },
-      };
+            setErrorBanner('Payment cancelled. Your booking was not confirmed. If money was deducted, contact support before retrying.');
+          }
+        }
+      });
 
-      const rzp = new (window as any).Razorpay(options);
       rzp.on('payment.failed', (resp: any) => {
-        setErrorBanner(`Payment failed: ${resp?.error?.description || 'Unknown error'}`);
+        setErrorBanner(resp?.error?.description || 'Payment failed. Please retry after checking payment status.');
         setLoading(false);
       });
       rzp.open();

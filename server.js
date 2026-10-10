@@ -1,41 +1,28 @@
-const express = require("express");
-const Razorpay = require("razorpay");
-const cors = require("cors");
-require("dotenv").config();
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import createOrderHandler from "./api/create-order.js";
+import verifyPaymentHandler from "./api/verify-payment.js";
+
+dotenv.config();
 
 const app = express();
-app.use(express.json());
-app.use(cors());
+app.disable("x-powered-by");
+app.use(express.json({ limit: "32kb" }));
+app.use(cors({
+  origin: process.env.FRONTEND_ORIGIN
+    ? process.env.FRONTEND_ORIGIN.split(",").map((value) => value.trim())
+    : true,
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 
-const razorpay = new Razorpay({
-  key_id: process.env.VITE_RAZORPAY_KEY_ID || "rzp_live_Tlh9T3hoID4gmq",
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+app.get("/api/health", (_req, res) => res.status(200).json({ ok: true }));
 
-app.post("/api/create-order", async (req, res) => {
-  try {
-    const { amount, currency = "INR" } = req.body;
+// Keep local Express and Vercel serverless routes on the same trusted pricing
+// and payment-verification implementation to prevent security drift.
+app.post("/api/create-order", (req, res) => createOrderHandler(req, res));
+app.post("/api/verify-payment", (req, res) => verifyPaymentHandler(req, res));
 
-    if (!amount || typeof amount !== "number" || amount <= 0) {
-      return res.status(400).json({ error: "Invalid payment amount" });
-    }
-
-    const options = {
-      amount: Math.round(amount * 100),
-      currency: currency,
-      receipt: `receipt_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      notes: {
-        service: "Bharat Pro Expert Home Services",
-      },
-    };
-
-    const order = await razorpay.orders.create(options);
-    return res.status(200).json(order);
-  } catch (error) {
-    console.error("Razorpay Error:", error);
-    return res.status(500).json({ error: error.message || "Failed to create order" });
-  }
-});
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const port = Number(process.env.PORT || 5000);
+app.listen(port, () => console.log(`Bharat Pro Expert API listening on port ${port}`));

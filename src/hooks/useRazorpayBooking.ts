@@ -109,7 +109,7 @@ export const useRazorpayBooking = () => {
       // 🚀 STEP 2: Razorpay Options taiyaar karein
       const razorpayConfig = {
         key: keyId,
-        amount: Math.round(payload.totalAmount * 100),
+        amount: orderData.amount,
         currency: 'INR',
         name: 'Bharat Pro Expert',
         description: `Payment for ${payload.serviceName}`,
@@ -123,7 +123,35 @@ export const useRazorpayBooking = () => {
         handler: async (paymentResponse: any) => {
           console.log('[useRazorpayBooking] Payment Success:', paymentResponse.razorpay_payment_id);
           try {
-            // 🚀 STEP 3: Firestore mein save karein (undefined values se bachein)
+            // Verify the payment signature on the server before saving a paid booking.
+            const verifyResponse = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: paymentResponse.razorpay_order_id,
+                razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                razorpay_signature: paymentResponse.razorpay_signature
+              })
+            });
+            const verification = await verifyResponse.json().catch(() => ({}));
+            if (
+              !verifyResponse.ok ||
+              verification.verified !== true ||
+              verification.razorpay_order_id !== paymentResponse.razorpay_order_id ||
+              verification.razorpay_payment_id !== paymentResponse.razorpay_payment_id ||
+              verification.currency !== 'INR' ||
+              !Number.isSafeInteger(verification.amount) ||
+              verification.amount <= 0 ||
+              verification.amount !== orderData.amount
+            ) {
+              const verifyMsg = verification.error || 'Payment verification failed. Booking was not marked as paid.';
+              setError(verifyMsg);
+              setIsProcessing(false);
+              options.onError?.(verifyMsg);
+              return;
+            }
+
+            // Save the booking only after the server confirms the payment signature.
             const paidBookingRecord: Booking = {
               ...payload,
               id: payload.bookingId,
@@ -135,6 +163,7 @@ export const useRazorpayBooking = () => {
               paymentMethod: 'UPI',
               paymentStatus: 'PAID',
               transactionId: paymentResponse.razorpay_payment_id,
+              totalAmount: Math.round(verification.amount / 100),
               status: 'SEARCHING_PROFESSIONAL',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
