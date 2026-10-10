@@ -9,12 +9,12 @@ function json(res, status, body) {
 function calculateQuote(body) {
   const requestedServiceId = typeof body?.serviceId === "string" ? body.serviceId : "";
   const requestedServiceName = typeof body?.serviceName === "string"
-    ? body.serviceName.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN")
+    ? body.serviceName.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN")
     : "";
   // Firestore/admin catalogue records can carry legacy IDs. Resolve by exact approved
   // service name as a fallback, while ALWAYS taking the price from this server catalogue.
   const matchedEntry = Object.entries(SERVICE_PRICES).find(([, item]) =>
-    item.name.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN") === requestedServiceName
+    item.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN") === requestedServiceName
   );
   const serviceId = Object.prototype.hasOwnProperty.call(SERVICE_PRICES, requestedServiceId)
     ? requestedServiceId
