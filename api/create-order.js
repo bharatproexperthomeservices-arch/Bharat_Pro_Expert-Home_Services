@@ -7,10 +7,21 @@ function json(res, status, body) {
 }
 
 function calculateQuote(body) {
-  const serviceId = typeof body?.serviceId === "string" ? body.serviceId : "";
-  const service = SERVICE_PRICES[serviceId];
+  const requestedServiceId = typeof body?.serviceId === "string" ? body.serviceId : "";
+  const requestedServiceName = typeof body?.serviceName === "string"
+    ? body.serviceName.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN")
+    : "";
+  // Firestore/admin catalogue records can carry legacy IDs. Resolve by exact approved
+  // service name as a fallback, while ALWAYS taking the price from this server catalogue.
+  const matchedEntry = Object.entries(SERVICE_PRICES).find(([, item]) =>
+    item.name.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN") === requestedServiceName
+  );
+  const serviceId = Object.prototype.hasOwnProperty.call(SERVICE_PRICES, requestedServiceId)
+    ? requestedServiceId
+    : (matchedEntry ? matchedEntry[0] : "");
+  const service = serviceId ? SERVICE_PRICES[serviceId] : null;
   if (!service) {
-    return { error: "Selected cleaning service is not in the approved catalogue. Refresh the page and select the service again.", code: "UNKNOWN_SERVICE" };
+    return { error: "Selected cleaning service is not in the approved catalogue. Please contact support so the service can be added safely.", code: "UNKNOWN_SERVICE" };
   }
 
   const requestedAddons = body?.addons === undefined ? [] : body.addons;
