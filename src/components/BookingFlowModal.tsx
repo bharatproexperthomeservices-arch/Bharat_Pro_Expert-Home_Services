@@ -276,8 +276,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [couponMessage, setCouponMessage] = useState<string | null>('🎉 BHARAT10 applied! 10% discount unlocked.');
   const [isCouponApplied, setIsCouponApplied] = useState(true);
 
-  // Payment method: Strictly Online (No COD)
-  const [paymentMethod] = useState<'UPI / Cards / Netbanking'>('UPI / Cards / Netbanking');
+  // Customer can choose online payment or Cash on Delivery / Pay After Service.
+  const [paymentMethod, setPaymentMethod] = useState<'UPI / Cards / Netbanking' | 'COD'>('UPI / Cards / Netbanking');
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{ name?: boolean; phone?: boolean; street?: boolean }>({});
@@ -586,6 +586,114 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     }
     setErrorBanner(null);
     setStep(3);
+  };
+
+  // COD booking: request the authoritative quote from Vercel, then save as payment-pending.
+  const handleCodBooking = async () => {
+    if (!service) return;
+    if (!user && !profile) {
+      setErrorBanner('Login required: Please sign in to book.');
+      onRequireAuth();
+      return;
+    }
+    if (!name.trim() || phone.replace(/\D/g, '').length < 10) {
+      setErrorBanner('Please enter your name and a valid 10-digit mobile number.');
+      return;
+    }
+    if (!flatOrHouseNo.trim() || !buildingOrStreet.trim() || !pincode.trim()) {
+      setErrorBanner('Please enter your complete address and PIN code.');
+      return;
+    }
+    if (!selectedDate || !selectedSlot) {
+      setErrorBanner('Please select a service date and time slot.');
+      setStep(1);
+      return;
+    }
+
+    setLoading(true);
+    setErrorBanner(null);
+    try {
+      const quoteResponse = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'quote',
+          serviceId: service.id,
+          addons: selectedAddons.map(addon => addon.id),
+          couponCode: isCouponApplied ? couponCode.trim().toUpperCase() : null,
+          currency: 'INR'
+        })
+      });
+      const quoteData = await quoteResponse.json().catch(() => ({}));
+      const quote = quoteData?.quote;
+      if (!quoteResponse.ok || quoteData.currency !== 'INR' ||
+          !quote || !Number.isSafeInteger(quote.total) || quote.total <= 0 ||
+          !Number.isSafeInteger(quote.basePrice) || !Number.isSafeInteger(quote.addonsPrice) ||
+          !Number.isSafeInteger(quote.gst) || !Number.isSafeInteger(quote.convenienceFee) ||
+          !Number.isSafeInteger(quote.discount)) {
+        throw new Error(quoteData.error || 'Could not verify the COD booking price. Please retry.');
+      }
+
+      const now = new Date().toISOString();
+      const bookingId = `bpe_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const bookingNumber = `BPE-${new Date().getFullYear()}-${Date.now().toString().slice(-7)}`;
+      const customerAddress = {
+        street: [flatOrHouseNo.trim(), buildingOrStreet.trim(), streetAddress.trim()].filter(Boolean).join(', '),
+        sector: selectedSector || '',
+        city: customerCity || selectedCity || '',
+        state: customerState || '',
+        pincode: pincode.trim(),
+        lat: Number(geoCoords?.lat || 0),
+        lng: Number(geoCoords?.lng || 0),
+        ...(landmark.trim() ? { landmark: landmark.trim() } : {})
+      };
+
+      const codBooking: Booking = {
+        id: bookingId,
+        bookingNumber,
+        customerId: user?.uid || profile?.id || profile?.uid || 'authenticated-customer',
+        customerName: name.trim(),
+        customerEmail: email || user?.email || '',
+        customerPhone: phone.replace(/\D/g, '').slice(-10),
+        serviceId: service.id,
+        serviceName: service.name,
+        categoryName: serviceConfig,
+        date: selectedDate,
+        timeSlot: selectedSlot,
+        address: customerAddress,
+        selectedAddons,
+        basePrice: quote.basePrice,
+        addonsPrice: quote.addonsPrice,
+        taxesGst: quote.gst,
+        convenienceFee: quote.convenienceFee,
+        discount: quote.discount,
+        totalAmount: quote.total,
+        ...(quote.couponCode ? { appliedCoupon: quote.couponCode } : {}),
+        paymentMethod: 'COD',
+        paymentStatus: 'PENDING',
+        status: 'PAYMENT_PENDING',
+        assignedHubId: selectedHub?.id || 'hub-gurugram-cyber',
+        startOtp: String(Math.floor(1000 + Math.random() * 9000)),
+        completionOtp: String(Math.floor(1000 + Math.random() * 9000)),
+        createdAt: now,
+        updatedAt: now,
+        notes: 'Cash on delivery / pay after service. Payment is pending; do not mark as paid until collected.'
+      };
+
+      const savedBooking = await createNewBooking(codBooking);
+      setConfirmedBookingRecord(savedBooking);
+      try { confetti({ particleCount: 100, spread: 65, origin: { y: 0.6 } }); } catch {}
+      setStep(4);
+      onBookingSuccess(savedBooking);
+      try {
+        localStorage.setItem('bharat_pro_last_customer_name', name.trim());
+        localStorage.setItem('bharat_pro_last_customer_phone', phone.replace(/\D/g, '').slice(-10));
+      } catch {}
+    } catch (err: any) {
+      setErrorBanner(err?.message || 'COD booking could not be saved. Please retry.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Step 3: Payment + Booking
@@ -1019,25 +1127,57 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               </form>
               {couponMessage && <div className="text-xs text-green-700">{couponMessage}</div>}
 
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-teal-50 border border-teal-200 text-sm text-teal-800">
-                <CreditCard className="w-4 h-4" />
-                Online Payment (UPI / Cards / Netbanking)
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-gray-800">Choose payment method</p>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('UPI / Cards / Netbanking')}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-50 ring-1 ring-teal-600' : 'border-gray-200 bg-white'}`}
+                  aria-pressed={paymentMethod === 'UPI / Cards / Netbanking'}
+                >
+                  <CreditCard className="w-5 h-5 text-teal-700" />
+                  <span className="flex-1">
+                    <span className="block text-sm font-semibold">Pay Online</span>
+                    <span className="block text-xs text-gray-500">UPI, debit/credit cards and netbanking</span>
+                  </span>
+                  <span className={`w-4 h-4 rounded-full border-2 ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-600' : 'border-gray-300'}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('COD')}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${paymentMethod === 'COD' ? 'border-teal-600 bg-teal-50 ring-1 ring-teal-600' : 'border-gray-200 bg-white'}`}
+                  aria-pressed={paymentMethod === 'COD'}
+                >
+                  <span className="w-5 h-5 rounded-full border border-emerald-600 text-emerald-700 flex items-center justify-center text-xs font-bold">₹</span>
+                  <span className="flex-1">
+                    <span className="block text-sm font-semibold">Cash on Delivery (COD)</span>
+                    <span className="block text-xs text-gray-500">Pay the displayed amount after the cleaning service. Booking remains unpaid until collection.</span>
+                  </span>
+                  <span className={`w-4 h-4 rounded-full border-2 ${paymentMethod === 'COD' ? 'border-teal-600 bg-teal-600' : 'border-gray-300'}`} />
+                </button>
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-gray-600">
-                <ShieldCheck className="w-4 h-4 text-green-600" />
-                Payments secured by Razorpay. 100% safe & encrypted.
-              </div>
+              {paymentMethod !== 'COD' && (
+                <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <ShieldCheck className="w-4 h-4 text-green-600" />
+                  Payments secured by Razorpay. Do not retry if your bank shows a debit; check payment status first.
+                </div>
+              )}
+              {paymentMethod === 'COD' && (
+                <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                  No online payment will be taken for this booking. The order will be saved as payment pending, not paid.
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <button onClick={() => setStep(2)} disabled={loading} className="flex-1 py-3 rounded-xl border border-gray-300 font-semibold disabled:opacity-50">Back</button>
                 <button
-                  onClick={handlePayAndConfirm}
+                  onClick={paymentMethod === 'COD' ? handleCodBooking : handlePayAndConfirm}
                   disabled={loading}
                   className="flex-1 bg-teal-600 text-white py-3 rounded-xl font-semibold hover:bg-teal-700 disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                  {loading ? 'Processing...' : `Pay ₹${netTotal}`}
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : paymentMethod === 'COD' ? <CheckCircle2 className="w-4 h-4" /> : <CreditCard className="w-4 h-4" />}
+                  {loading ? 'Processing...' : paymentMethod === 'COD' ? `Book & Pay ₹${netTotal}` : `Pay ₹${netTotal}`}
                 </button>
               </div>
             </>
@@ -1058,7 +1198,9 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 <div className="flex justify-between"><span className="text-gray-500">Service</span><span>{service.name}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Date</span><span>{selectedDate}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Slot</span><span>{selectedSlot}</span></div>
-                <div className="flex justify-between font-semibold"><span>Paid</span><span>₹{netTotal}</span></div>
+                <div className="flex justify-between font-semibold"><span>{confirmedBookingRecord.paymentStatus === 'PAID' ? 'Paid' : 'Due after service'}</span><span>₹{confirmedBookingRecord.totalAmount}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Payment method</span><span>{confirmedBookingRecord.paymentMethod === 'COD' || confirmedBookingRecord.paymentMethod === 'Pay after service' ? 'Cash on Delivery' : 'Online payment'}</span></div>
+                {confirmedBookingRecord.paymentStatus !== 'PAID' && <p className="text-xs text-amber-700 bg-amber-50 rounded p-2">Booking saved. Payment is pending and must only be marked paid after the amount is collected.</p>}
               </div>
 
               <div className="flex gap-2">
