@@ -40,7 +40,7 @@ function calculateQuote(body) {
     } else if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
       requestedId = typeof candidate.id === "string" ? candidate.id : "";
       requestedName = typeof candidate.name === "string"
-        ? candidate.name.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN")
+        ? candidate.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN")
         : "";
     } else {
       return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
@@ -49,7 +49,7 @@ function calculateQuote(body) {
     let canonicalId = Object.prototype.hasOwnProperty.call(ADDON_PRICES, requestedId) ? requestedId : "";
     if (!canonicalId && requestedName) {
       const matchedAddon = Object.entries(ADDON_PRICES).find(([, item]) =>
-        item.name.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN") === requestedName
+        item.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN") === requestedName
       );
       if (matchedAddon) canonicalId = matchedAddon[0];
     }
