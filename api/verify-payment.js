@@ -18,8 +18,9 @@ export default async function handler(req, res) {
     return json(res, 503, { verified: false, error: "Payment gateway is not configured on the server." });
   }
 
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
-  if (![razorpay_order_id, razorpay_payment_id, razorpay_signature].every(
+  const { bookingId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+  if (typeof bookingId !== "string" || !/^bpe_[a-zA-Z0-9_-]{8,100}$/.test(bookingId) ||
+      ![razorpay_order_id, razorpay_payment_id, razorpay_signature].every(
     value => typeof value === "string" && value.length > 0 && value.length <= 256
   )) {
     return json(res, 400, { verified: false, error: "Missing or invalid payment verification fields." });
@@ -45,6 +46,9 @@ export default async function handler(req, res) {
     ]);
 
     const notes = order.notes || {};
+    if (notes.bookingId !== bookingId) {
+      return json(res, 409, { verified: false, error: "Payment order does not match this booking reference." });
+    }
     const subtotal = Number(notes.subtotalInr);
     const gst = Number(notes.gstInr);
     const convenienceFee = Number(notes.convenienceFeeInr);
@@ -71,6 +75,7 @@ export default async function handler(req, res) {
 
     return json(res, 200, {
       verified: true,
+      bookingId,
       razorpay_order_id: order.id,
       razorpay_payment_id: payment.id,
       amount: payment.amount,
