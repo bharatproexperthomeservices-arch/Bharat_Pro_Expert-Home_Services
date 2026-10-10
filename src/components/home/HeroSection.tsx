@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MASTER_CATALOG_CATEGORIES, catalogItemToCleaningService } from '../../data/masterCatalogData';
+import { MASTER_CATALOG_CATEGORIES } from '../../data/masterCatalogData';
 import { 
   ArrowRight, 
   MapPin, 
@@ -183,7 +183,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     const firstActiveService = category?.items.find((item) => item.active);
 
     if (firstActiveService && onSelectServiceItem) {
-      onSelectServiceItem(catalogItemToCleaningService(firstActiveService));
+      onSelectServiceItem(firstActiveService);
       return;
     }
 
