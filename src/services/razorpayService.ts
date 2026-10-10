@@ -1,10 +1,12 @@
-// Public Razorpay key ID only. Never expose RAZORPAY_KEY_SECRET in browser code.
-// Vercel's VITE_RAZORPAY_KEY_ID takes precedence; this public ID is a fallback.
-const DEFAULT_RAZORPAY_KEY_ID = "rzp_live_Tlh9T3hoID4gmq";
-
+// Only the public Razorpay Key ID may be exposed to the browser.
+// Configure VITE_RAZORPAY_KEY_ID in Vercel for each deployment environment.
+// Never add a key or RAZORPAY_KEY_SECRET as a source-code fallback.
 export const getRazorpayKeyId = (): string | null => {
-  const key = (import.meta.env.VITE_RAZORPAY_KEY_ID || DEFAULT_RAZORPAY_KEY_ID).trim();
-  return key.startsWith("rzp_") ? key : null;
+  const configuredKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
+  if (typeof configuredKey !== "string") return null;
+
+  const key = configuredKey.trim();
+  return /^rzp_(test|live)_[A-Za-z0-9]+$/.test(key) ? key : null;
 };
 
 export const loadRazorpayScript = (): Promise<boolean> => {
