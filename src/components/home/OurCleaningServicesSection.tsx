@@ -120,7 +120,21 @@ export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProp
             <div
               key={c.id}
               className="group bg-white rounded-3xl border border-slate-200/90 shadow-[0_4px_20px_rgba(8,33,63,0.06)] hover:shadow-[0_20px_50px_rgba(8,33,63,0.15)] transition-all duration-500 overflow-hidden flex flex-col cursor-pointer hover:-translate-y-2"
-              onClick={() => onSelectCategory(c.id)}
+              onClick={() => {
+                if (onBookDirect) {
+                  onBookDirect(c.id);
+                } else {
+                  onSelectCategory(c.id);
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if ((e.key === 'Enter' || e.key === ' ') && onBookDirect) {
+                  e.preventDefault();
+                  onBookDirect(c.id);
+                }
+              }}
             >
               {/* चित्र भाग */}
               <div className="relative h-60 sm:h-64 lg:h-72 overflow-hidden bg-slate-100">
