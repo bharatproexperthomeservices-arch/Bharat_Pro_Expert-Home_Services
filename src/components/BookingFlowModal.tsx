@@ -1177,7 +1177,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                   className="flex-1 bg-teal-600 text-white py-3 rounded-xl font-semibold hover:bg-teal-700 disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : paymentMethod === 'COD' ? <CheckCircle2 className="w-4 h-4" /> : <CreditCard className="w-4 h-4" />}
-                  {loading ? 'Processing...' : paymentMethod === 'COD' ? `Book & Pay ₹${netTotal}` : `Pay ₹${netTotal}`}
+                  {loading ? 'Processing...' : paymentMethod === 'COD' ? `Confirm COD · ₹${netTotal}` : `Pay ₹${netTotal}`}
                 </button>
               </div>
             </>
@@ -1188,7 +1188,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             <>
               <div className="text-center py-4">
                 <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto" />
-                <h3 className="text-xl font-bold mt-3">Booking Confirmed!</h3>
+                <h3 className="text-xl font-bold mt-3">{confirmedBookingRecord.paymentStatus === 'PAID' ? 'Booking Confirmed!' : 'COD Booking Received!'}</h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Booking ID: <span className="font-mono font-semibold">{confirmedBookingRecord.id}</span>
                 </p>
