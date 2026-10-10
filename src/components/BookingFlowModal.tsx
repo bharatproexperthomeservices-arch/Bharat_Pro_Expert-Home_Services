@@ -4,7 +4,6 @@ import { BUMPER_OFFERS, INITIAL_HUBS } from '../data';
 import { useAuth } from '../context/AuthContext';
 import { createNewBooking, getAllHubs } from '../services/dbService';
 import { getRazorpayKeyId, loadRazorpayScript } from '../services/razorpayService';
-import { BookingPayload } from '../hooks/useRazorpayBooking';
 import { reverseGeocodeCoordinates, calculateHaversineKm } from '../services/indiaLocationHierarchy';
 import confetti from 'canvas-confetti';
 import { 
