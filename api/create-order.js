@@ -25,13 +25,44 @@ function calculateQuote(body) {
   }
 
   const requestedAddons = body?.addons === undefined ? [] : body.addons;
-  if (!Array.isArray(requestedAddons) || requestedAddons.length > 30 ||
-      requestedAddons.some(id => typeof id !== "string" || !Object.prototype.hasOwnProperty.call(ADDON_PRICES, id)) ||
-      new Set(requestedAddons).size !== requestedAddons.length) {
+  if (!Array.isArray(requestedAddons) || requestedAddons.length > 30) {
     return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
   }
 
-  const addonsPrice = requestedAddons.reduce((sum, id) => sum + ADDON_PRICES[id].price, 0);
+  // Support legacy/admin catalogue IDs by resolving their exact approved name to a
+  // server-owned add-on ID. Prices always come from ADDON_PRICES, never the browser.
+  const normalizedAddonIds = [];
+  for (const candidate of requestedAddons) {
+    let requestedId = "";
+    let requestedName = "";
+    if (typeof candidate === "string") {
+      requestedId = candidate;
+    } else if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+      requestedId = typeof candidate.id === "string" ? candidate.id : "";
+      requestedName = typeof candidate.name === "string"
+        ? candidate.name.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN")
+        : "";
+    } else {
+      return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
+    }
+
+    let canonicalId = Object.prototype.hasOwnProperty.call(ADDON_PRICES, requestedId) ? requestedId : "";
+    if (!canonicalId && requestedName) {
+      const matchedAddon = Object.entries(ADDON_PRICES).find(([, item]) =>
+        item.name.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN") === requestedName
+      );
+      if (matchedAddon) canonicalId = matchedAddon[0];
+    }
+    if (!canonicalId) {
+      return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
+    }
+    normalizedAddonIds.push(canonicalId);
+  }
+
+  if (new Set(normalizedAddonIds).size !== normalizedAddonIds.length) {
+    return { error: "Duplicate add-ons are not allowed. Refresh the booking and try again.", code: "INVALID_ADDONS" };
+  }
+  const addonsPrice = normalizedAddonIds.reduce((sum, id) => sum + ADDON_PRICES[id].price, 0);
   const subtotal = service.price + addonsPrice;
   const gst = Math.round(subtotal * GST_RATE);
   const convenienceFee = CONVENIENCE_FEE_INR;
