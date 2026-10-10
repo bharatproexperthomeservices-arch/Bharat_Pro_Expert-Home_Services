@@ -157,12 +157,27 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
   };
 
   const handleBookDirectFromCard = (cardId: string) => {
-    const targetCat = MASTER_CATALOG_CATEGORIES.find(c => c.id === cardId);
-    if (targetCat && targetCat.items.length > 0) {
-      handleSelectDirectService(targetCat.items[0]);
-    } else {
-      handleSelectCategory(cardId);
+    // Keep the visible homepage cards linked to their matching catalogue categories.
+    // These IDs intentionally map the display-card IDs to the actual catalogue IDs.
+    const categoryIdByCardId: Record<string, string> = {
+      'full-home-cleaning': 'complete-home-cleaning',
+      'kitchen-cleaning': 'kitchen-cleaning',
+      'bathroom-cleaning': 'bathroom-cleaning',
+      'sofa-shampooing': 'sofa-cleaning'
+    };
+    const categoryId = categoryIdByCardId[cardId];
+    const targetCat = MASTER_CATALOG_CATEGORIES.find(c => c.id === categoryId);
+
+    if (targetCat) {
+      const firstActiveItem = targetCat.items.find(item => item.active);
+      if (firstActiveItem) {
+        handleSelectDirectService(firstActiveItem);
+        return;
+      }
     }
+
+    // Safe fallback: if catalogue data is missing, navigate to the service section.
+    handleSelectCategory(categoryId || cardId);
   };
 
   const handleNavigate = (sectionId: string) => {
