@@ -1,5 +1,6 @@
-// Server-authoritative checkout prices copied from the maintained cleaning catalogue.
-// Update this file whenever service/add-on prices change. Never accept prices from the browser.
+// Server-authoritative prices for the current cleaning catalogue. `srv-*` prices match
+// the customer-facing discounted basePrice values in src/data.ts; other canonical
+// IDs are retained for compatibility. Update both catalogues together. Never accept browser prices.
 export const SERVICE_PRICES = {
   "home-1bhk-furnished": {
     "name": "1 BHK Furnished Home Cleaning",
@@ -357,6 +358,219 @@ export const SERVICE_PRICES = {
     "name": "Warehouse / Godown Cleaning",
     "price": 6999
   }
+,
+  "srv-home-unfurn-apt": {
+    name: "Unfurnished Apartment – Home Deep Cleaning",
+    price: 2719
+  },
+  "srv-home-furn-apt": {
+    name: "Furnished Apartment – Home Deep Cleaning",
+    price: 2974
+  },
+  "srv-home-unfurn-bungalow": {
+    name: "Unfurnished Bungalow / Duplex – Home Deep Cleaning",
+    price: 3569
+  },
+  "srv-home-furn-bungalow": {
+    name: "Furnished Bungalow / Duplex – Home Deep Cleaning",
+    price: 3994
+  },
+  "srv-home-partial": {
+    name: "Partial Home Cleaning",
+    price: 2166
+  },
+  "srv-home-living-bed-balcony": {
+    name: "Living + Bedroom + Balcony Custom Package",
+    price: 2379
+  },
+  "srv-bath-intense": {
+    name: "Intense Bathroom Cleaning",
+    price: 467
+  },
+  "srv-bath-movein": {
+    name: "Move-in Bathroom Cleaning",
+    price: 535
+  },
+  "srv-bath-2pack": {
+    name: "Intense Cleaning – 2 Bathrooms",
+    price: 814
+  },
+  "srv-bath-3pack": {
+    name: "Intense Cleaning – 3 Bathrooms",
+    price: 1170
+  },
+  "srv-bath-4pack": {
+    name: "Intense Cleaning – 4 Bathrooms",
+    price: 1357
+  },
+  "srv-bath-fan-pack": {
+    name: "Intense Bathroom + Ceiling Fan Pack (2)",
+    price: 983
+  },
+  "srv-bath-balcony": {
+    name: "Balcony Cleaning",
+    price: 467
+  },
+  "srv-kitchen-chimney-stove": {
+    name: "Regular Chimney & Stove Cleaning",
+    price: 466
+  },
+  "srv-kitchen-fan-window": {
+    name: "Kitchen Fan & Window Cleaning",
+    price: 424
+  },
+  "srv-kitchen-cabinets-tiles": {
+    name: "Cabinets, Tiles & Sink Cleaning",
+    price: 552
+  },
+  "srv-kitchen-complete-deep": {
+    name: "Complete Kitchen Deep Cleaning",
+    price: 849
+  },
+  "srv-kitchen-chimney-only": {
+    name: "Chimney Cleaning",
+    price: 339
+  },
+  "srv-kitchen-chimney-stove-pack": {
+    name: "Chimney + Stove Package",
+    price: 424
+  },
+  "srv-kitchen-fridge": {
+    name: "Fridge Cleaning",
+    price: 339
+  },
+  "srv-kitchen-microwave": {
+    name: "Microwave Cleaning",
+    price: 169
+  },
+  "srv-kitchen-gas-stove": {
+    name: "Gas Stove Cleaning",
+    price: 84
+  },
+  "srv-kitchen-airfryer": {
+    name: "Air Fryer Cleaning",
+    price: 169
+  },
+  "srv-kitchen-otg": {
+    name: "OTG Cleaning",
+    price: 339
+  },
+  "srv-kitchen-griller": {
+    name: "Sandwich Maker / Griller",
+    price: 84
+  },
+  "srv-kitchen-exhaust": {
+    name: "Kitchen Exhaust Fan",
+    price: 84
+  },
+  "srv-kitchen-window": {
+    name: "Kitchen Window",
+    price: 339
+  },
+  "srv-kitchen-hygiene": {
+    name: "Kitchen Intensive Hygiene Cleaning",
+    price: 135
+  },
+  "srv-sofa-fabric": {
+    name: "Fabric Sofa Cleaning",
+    price: 339
+  },
+  "srv-sofa-leather": {
+    name: "Leather Sofa Cleaning & Polishing",
+    price: 339
+  },
+  "srv-sofa-cumbed": {
+    name: "Sofa Cum Bed",
+    price: 339
+  },
+  "srv-carpet-deep": {
+    name: "Carpet Cleaning",
+    price: 339
+  },
+  "srv-sofa-protection": {
+    name: "Sofa Cleaning + Stain Protection Coating",
+    price: 1274
+  },
+  "srv-curtain-refresh": {
+    name: "Curtain Refresh / Curtain Cleaning",
+    price: 128
+  },
+  "srv-sofa-window-cobweb": {
+    name: "Sofa + Windows + Cobweb Cleaning",
+    price: 631
+  },
+  "srv-bedroom-essential": {
+    name: "Bedroom Essential Cleaning",
+    price: 679
+  },
+  "srv-mattress-deep": {
+    name: "Mattress Cleaning",
+    price: 339
+  },
+  "srv-bed-cleaning": {
+    name: "Bed Cleaning",
+    price: 382
+  },
+  "srv-furn-headboard": {
+    name: "Fabric Headboard",
+    price: 212
+  },
+  "srv-furn-dining": {
+    name: "Dining Table & Chairs Cleaning",
+    price: 424
+  },
+  "srv-furn-ottoman": {
+    name: "Ottoman",
+    price: 101
+  },
+  "srv-furn-showcase": {
+    name: "Showcase / Cabinet",
+    price: 169
+  },
+  "srv-furn-centre-table": {
+    name: "Sofa Centre Table",
+    price: 169
+  },
+  "srv-furn-study-table": {
+    name: "Study Table & Chair",
+    price: 212
+  },
+  "srv-furn-recliner": {
+    name: "Recliner / Lounge Chair",
+    price: 212
+  },
+  "srv-rec-sofa-2visit": {
+    name: "2 Visits – Fabric Sofa Cleaning (Recurring)",
+    price: 542
+  },
+  "srv-rec-mattress-3visit": {
+    name: "3 Visits – Mattress Cleaning (Recurring)",
+    price: 813
+  },
+  "srv-balcony-pressure-deep": {
+    name: "Balcony High-Pressure Wash & Tile Grout Buffing",
+    price: 679
+  },
+  "srv-chimney-exhaust-buffing": {
+    name: "Heavy Kitchen Chimney & Exhaust Degreasing",
+    price: 1019
+  },
+  "srv-leather-sofa-polish": {
+    name: "Pure Leather Sofa Conditioning & Wax Buffing",
+    price: 1444
+  },
+  "srv-mattress-steam-uv": {
+    name: "King Size Mattress Anti-Mite & Steam Extraction",
+    price: 1104
+  },
+  "srv-window-mesh-track-deep": {
+    name: "Glass Windows & Mesh Track Deep High-Pressure Scrub",
+    price: 764
+  },
+  "srv-terrace-courtyard-wash": {
+    name: "Terrace & Courtyard Anti-Fungal Pressure Scrub",
+    price: 1699
+  }
 };
 export const ADDON_PRICES = {
   "bath-exhaust-fan": {
@@ -474,6 +688,130 @@ export const ADDON_PRICES = {
   "add-window": {
     "name": "Glass Window Cleaning",
     "price": 299
+  },
+  "add-balcony-extra": {
+    name: "Additional Balcony Deep Wash",
+    price: 299
+  },
+  "add-wood-polish": {
+    name: "Wooden Doors Wax Polish (Pack of 4)",
+    price: 449
+  },
+  "add-fridge-int": {
+    name: "Interior Fridge Deep Scrub",
+    price: 299
+  },
+  "add-oven-int": {
+    name: "Microwave/Oven Carbon Removal",
+    price: 199
+  },
+  "add-terrace-wash": {
+    name: "Terrace Power Wash (up to 1000 sq ft)",
+    price: 799
+  },
+  "add-carpet-shampoo": {
+    name: "Master Living Carpet Shampoo Addon",
+    price: 349
+  },
+  "add-extra-room": {
+    name: "Add Another Room",
+    price: 599
+  },
+  "add-kitchen-express": {
+    name: "Add Express Kitchen Degrease",
+    price: 499
+  },
+  "add-bath-exhaust": {
+    name: "Bathroom Exhaust Fan Deep Clean",
+    price: 76
+  },
+  "add-bath-door": {
+    name: "Bathroom Door Both Sides Scrub",
+    price: 76
+  },
+  "add-bath-mirror": {
+    name: "Mirror Anti-Fog Nano Polish",
+    price: 69
+  },
+  "add-bath-drain": {
+    name: "Drain Trap & Pipe Clearance",
+    price: 89
+  },
+  "add-bath-exhaust-2": {
+    name: "2 Exhaust Fans Deep Degrease",
+    price: 140
+  },
+  "add-bath-door-3": {
+    name: "All 3 Doors Both Sides Scrub",
+    price: 199
+  },
+  "add-bath-exhaust-4": {
+    name: "4 Exhaust Fans Degrease",
+    price: 249
+  },
+  "add-extra-fan": {
+    name: "Add 1 More Ceiling Fan",
+    price: 79
+  },
+  "add-balcony-pots": {
+    name: "Plant Pots Wipe & Rearrange",
+    price: 99
+  },
+  "add-stove-pipe": {
+    name: "Gas Pipe & Regulator Degrease",
+    price: 49
+  },
+  "add-extra-kit-win": {
+    name: "Additional Kitchen Window",
+    price: 149
+  },
+  "add-cabinet-int": {
+    name: "Cabinet Interior Wipe (Empty)",
+    price: 249
+  },
+  "add-fridge-deep": {
+    name: "Refrigerator Interior Scrub",
+    price: 299
+  },
+  "add-stove-top": {
+    name: "Gas Stove Top Scrub",
+    price: 99
+  },
+  "add-micro-clean": {
+    name: "Microwave Deep Clean Addon",
+    price: 169
+  },
+  "add-deep-freeze": {
+    name: "Deep Freezer Frost Removal & Wash",
+    price: 99
+  },
+  "add-cushion-small": {
+    name: "Throw Cushion Shampoo (Pack of 2)",
+    price: 99
+  },
+  "add-stain-guard": {
+    name: "Hydrophobic Stain Guard Shield",
+    price: 199
+  },
+  "add-leather-recliner": {
+    name: "Footrest & Armrest Polish",
+    price: 99
+  },
+  "add-carpet-shield": {
+    name: "Anti-Stain Fluoropolymer Coat",
+    price: 149
+  },
+  "add-bed-wash": {
+    name: "Attached Bathroom Quick Descaling",
+    price: 349
+  },
+  "add-pillow-shampoo": {
+    name: "Pillow Deep Shampoo (Pack of 2)",
+    price: 99
+  },
+  "add-extra-chair": {
+    name: "Extra Dining Chair Shampoo",
+    price: 69
   }
 };
 export const COUPON_CODES = new Set(["BHARAT10", "PRO10", "FIRST10", "CLEAN10", "SAVE10"]);
