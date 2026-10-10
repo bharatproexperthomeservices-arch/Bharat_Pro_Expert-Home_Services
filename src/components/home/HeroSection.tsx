@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { MASTER_CATALOG_CATEGORIES } from '../../data/masterCatalogData';
 import { 
   ArrowRight, 
   MapPin, 
@@ -131,6 +132,7 @@ export interface HeroSectionProps {
 export const HeroSection: React.FC<HeroSectionProps> = ({
   selectedLocation = 'Delhi NCR',
   onOpenLocationModal,
+  onSelectServiceItem,
   onOpenBookNow
 }) => {
   const [current, setCurrent] = useState(0);
@@ -167,7 +169,26 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   };
 
   const handleBookSlide = (slide: UltraSlideItem) => {
-    const el = document.getElementById(slide.categoryTargetId);
+    // Open the booking flow for the exact service shown in the active hero slide.
+    const categoryIdBySlideId: Record<string, string> = {
+      sofa: 'sofa-cleaning',
+      carpet: 'carpet-cleaning',
+      kitchen: 'kitchen-cleaning',
+      apartment: 'apartment-cleaning',
+      mattress: 'mattress-cleaning',
+      bathroom: 'bathroom-cleaning'
+    };
+    const categoryId = categoryIdBySlideId[slide.id];
+    const category = MASTER_CATALOG_CATEGORIES.find((item) => item.id === categoryId);
+    const firstActiveService = category?.items.find((item) => item.active);
+
+    if (firstActiveService && onSelectServiceItem) {
+      onSelectServiceItem(firstActiveService);
+      return;
+    }
+
+    // If the matching service is unavailable, retain a safe navigation fallback.
+    const el = document.getElementById(categoryId || slide.categoryTargetId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
     } else if (onOpenBookNow) {
