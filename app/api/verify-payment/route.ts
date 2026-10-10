@@ -65,9 +65,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (payment.status !== "captured" && payment.status !== "authorized") {
+    if (payment.status !== "captured" || payment.captured !== true) {
       return NextResponse.json(
-        { success: false, verified: false, error: "Payment is not authorized or captured" },
+        { success: false, verified: false, error: "Payment has not been captured yet" },
         { status: 400 }
       );
     }
