@@ -95,14 +95,23 @@ export default async function handler(req, res) {
     return json(res, 200, { quote, currency: "INR", paymentMethod: "COD" });
   }
 
-  // Key ID is public; support the existing Vercel variable and the preferred server-side name.
-  const key_id = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
-  const key_secret = process.env.RAZORPAY_KEY_SECRET;
-  if (!key_id || !key_secret) {
-    console.error("Razorpay order endpoint is missing server credentials.");
+  // Server functions must use server-side variables only. Never rely on VITE_ values here.
+  const key_id = typeof process.env.RAZORPAY_KEY_ID === "string"
+    ? process.env.RAZORPAY_KEY_ID.trim()
+    : "";
+  const key_secret = typeof process.env.RAZORPAY_KEY_SECRET === "string"
+    ? process.env.RAZORPAY_KEY_SECRET.trim()
+    : "";
+  const missingVariables = [];
+  if (!key_id) missingVariables.push("RAZORPAY_KEY_ID");
+  if (!key_secret) missingVariables.push("RAZORPAY_KEY_SECRET");
+  if (missingVariables.length > 0) {
+    // Log only variable names, never credential values.
+    console.error("Razorpay order endpoint missing environment variables:", missingVariables.join(", "));
     return json(res, 503, {
-      error: "Payment gateway is not configured. In Vercel Environment Variables, set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET, then redeploy.",
-      code: "PAYMENT_GATEWAY_NOT_CONFIGURED"
+      error: "Payment gateway is not configured on this deployment. Check the listed Vercel Environment Variables and redeploy.",
+      code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
+      missingVariables
     });
   }
   const bookingId = typeof req.body?.bookingId === "string" ? req.body.bookingId.slice(0, 100) : "";
