@@ -47,12 +47,12 @@ function calculateQuote(body) {
       return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
     }
 
-    const quantityMatch = requestedName.match(/\((\\d+)x\)$/i);
+    const quantityMatch = requestedName.match(/\((\d+)x\)$/i);
     const quantity = quantityMatch ? Number(quantityMatch[1]) : 1;
     if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 30) {
       return { error: "One or more add-ons have an invalid quantity. Refresh the booking and try again.", code: "INVALID_ADDONS" };
     }
-    const normalizedName = requestedName.replace(/\s*\(\\d+x\)$/i, "").trim().toLocaleLowerCase("en-IN");
+    const normalizedName = requestedName.replace(/\s*\(\d+x\)$/i, "").trim().toLocaleLowerCase("en-IN");
 
     let kind = "";
     let canonicalId = "";
