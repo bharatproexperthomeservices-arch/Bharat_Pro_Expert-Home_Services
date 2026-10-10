@@ -195,7 +195,8 @@ export const createNewBooking = async (newBooking: Booking): Promise<Booking> =>
     const firestoreSafeBooking = removeUndefinedValues(bookingPendingAssignment);
     await setDoc(doc(db, 'bookings', firestoreSafeBooking.id), firestoreSafeBooking);
   } catch (err) {
-    console.warn('Firestore write fallback to local storage:', err);
+    console.error('Booking Firestore write failed:', err);
+    throw new Error('Booking could not be saved to the server. Please check your connection and try again. If payment was deducted, contact support before retrying.');
   }
 
   // Backup in LocalStorage (ensure no duplicate ID)
