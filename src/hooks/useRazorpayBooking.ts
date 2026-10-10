@@ -63,6 +63,10 @@ export const useRazorpayBooking = () => {
     setError(null);
 
     // 1. Basic Validation
+    if (!payload || typeof payload.bookingId !== 'string' || !payload.bookingId.trim()) {
+      const msg = 'Booking details are incomplete. Please refresh and try again.';
+      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
+    }
     if (!payload.customerPhone || payload.customerPhone.trim().length < 10) {
       const msg = 'Please enter a valid 10-digit mobile number.';
       setError(msg); setIsProcessing(false); options.onError?.(msg); return;
@@ -121,9 +125,20 @@ export const useRazorpayBooking = () => {
         },
         theme: { color: '#062A49' },
         handler: async (paymentResponse: any) => {
-          console.log('[useRazorpayBooking] Payment Success:', paymentResponse.razorpay_payment_id);
           try {
-            // 🚀 STEP 3: Firestore mein save karein (undefined values se bachein)
+            // Never save a booking as PAID until the server verifies the Razorpay signature.
+            const verifyResponse = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(paymentResponse)
+            });
+            const verifyData = await verifyResponse.json().catch(() => ({}));
+            if (!verifyResponse.ok || verifyData.verified !== true) {
+              throw new Error(verifyData.error || 'Payment verification failed. Please contact support before retrying.');
+            }
+
+            console.log('[useRazorpayBooking] Server verified payment:', paymentResponse.razorpay_payment_id);
+            // Save only after backend signature verification.
             const paidBookingRecord: Booking = {
               ...payload,
               id: payload.bookingId,
