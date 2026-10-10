@@ -29,40 +29,74 @@ function calculateQuote(body) {
     return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
   }
 
-  // Support legacy/admin catalogue IDs by resolving their exact approved name to a
-  // server-owned add-on ID. Prices always come from ADDON_PRICES, never the browser.
-  const normalizedAddonIds = [];
+  // A booking can contain either true add-ons or extra cleaning services added
+  // from the catalogue/cart. Resolve every price from this server-owned catalogue.
+  // Cart items encode quantity in names such as "Kitchen Deep Cleaning (2x)".
+  const normalizedAddons = [];
   for (const candidate of requestedAddons) {
     let requestedId = "";
     let requestedName = "";
     if (typeof candidate === "string") {
       requestedId = candidate;
     } else if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
-      requestedId = typeof candidate.id === "string" ? candidate.id : "";
+      requestedId = typeof candidate.id === "string" ? candidate.id.trim() : "";
       requestedName = typeof candidate.name === "string"
-        ? candidate.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN")
+        ? candidate.name.trim().replace(/\\s+/g, " ")
         : "";
     } else {
       return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
     }
 
-    let canonicalId = Object.prototype.hasOwnProperty.call(ADDON_PRICES, requestedId) ? requestedId : "";
-    if (!canonicalId && requestedName) {
-      const matchedAddon = Object.entries(ADDON_PRICES).find(([, item]) =>
-        item.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN") === requestedName
-      );
-      if (matchedAddon) canonicalId = matchedAddon[0];
+    const quantityMatch = requestedName.match(/\\((\\d+)x\\)$/i);
+    const quantity = quantityMatch ? Number(quantityMatch[1]) : 1;
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 30) {
+      return { error: "One or more add-ons have an invalid quantity. Refresh the booking and try again.", code: "INVALID_ADDONS" };
     }
+    const normalizedName = requestedName.replace(/\\s*\\(\\d+x\\)$/i, "").trim().toLocaleLowerCase("en-IN");
+
+    let kind = "";
+    let canonicalId = "";
+    if (Object.prototype.hasOwnProperty.call(ADDON_PRICES, requestedId)) {
+      kind = "addon";
+      canonicalId = requestedId;
+    } else if (Object.prototype.hasOwnProperty.call(SERVICE_PRICES, requestedId)) {
+      // A second catalogue service is allowed as a cart line item, but its price
+      // still comes from SERVICE_PRICES, never from a client-provided price.
+      kind = "service";
+      canonicalId = requestedId;
+    } else if (normalizedName) {
+      const matchedAddon = Object.entries(ADDON_PRICES).find(([, item]) =>
+        item.name.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN") === normalizedName
+      );
+      if (matchedAddon) {
+        kind = "addon";
+        canonicalId = matchedAddon[0];
+      } else {
+        const matchedService = Object.entries(SERVICE_PRICES).find(([, item]) =>
+          item.name.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN") === normalizedName
+        );
+        if (matchedService) {
+          kind = "service";
+          canonicalId = matchedService[0];
+        }
+      }
+    }
+
     if (!canonicalId) {
       return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
     }
-    normalizedAddonIds.push(canonicalId);
+    normalizedAddons.push({ id: canonicalId, kind, quantity });
   }
 
-  if (new Set(normalizedAddonIds).size !== normalizedAddonIds.length) {
+  // Repeated add-on/service IDs are rejected; quantity must be represented by one
+  // cart line (the UI already groups identical items into one line).
+  if (new Set(normalizedAddons.map(item => item.id)).size !== normalizedAddons.length) {
     return { error: "Duplicate add-ons are not allowed. Refresh the booking and try again.", code: "INVALID_ADDONS" };
   }
-  const addonsPrice = normalizedAddonIds.reduce((sum, id) => sum + ADDON_PRICES[id].price, 0);
+  const addonsPrice = normalizedAddons.reduce((sum, item) => {
+    const catalogueItem = item.kind === "service" ? SERVICE_PRICES[item.id] : ADDON_PRICES[item.id];
+    return sum + catalogueItem.price * item.quantity;
+  }, 0);
   const subtotal = service.price + addonsPrice;
   const gst = Math.round(subtotal * GST_RATE);
   const convenienceFee = CONVENIENCE_FEE_INR;
