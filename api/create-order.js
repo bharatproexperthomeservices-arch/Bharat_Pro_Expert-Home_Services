@@ -40,6 +40,19 @@ export default async function handler(req, res) {
     return json(res, 405, { error: "Method not allowed.", code: "METHOD_NOT_ALLOWED" });
   }
 
+  const currency = req.body?.currency || "INR";
+  if (currency !== "INR") {
+    return json(res, 400, { error: "Only INR checkout is supported.", code: "INVALID_CURRENCY" });
+  }
+
+  // COD needs an authoritative server quote, but must not require Razorpay credentials or create an order.
+  const calculated = calculateQuote(req.body);
+  if (calculated.error) return json(res, 400, { error: calculated.error, code: calculated.code });
+  const quote = calculated.quote;
+  if (req.body?.mode === "quote") {
+    return json(res, 200, { quote, currency: "INR", paymentMethod: "COD" });
+  }
+
   // Key ID is public; support the existing Vercel variable and the preferred server-side name.
   const key_id = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
   const key_secret = process.env.RAZORPAY_KEY_SECRET;
@@ -50,15 +63,6 @@ export default async function handler(req, res) {
       code: "PAYMENT_GATEWAY_NOT_CONFIGURED"
     });
   }
-
-  const currency = req.body?.currency || "INR";
-  if (currency !== "INR") {
-    return json(res, 400, { error: "Only INR checkout is supported.", code: "INVALID_CURRENCY" });
-  }
-
-  const calculated = calculateQuote(req.body);
-  if (calculated.error) return json(res, 400, { error: calculated.error, code: calculated.code });
-  const quote = calculated.quote;
   const bookingId = typeof req.body?.bookingId === "string" ? req.body.bookingId.slice(0, 100) : "";
   if (!/^bpe_[a-zA-Z0-9_-]{8,100}$/.test(bookingId)) {
     return json(res, 400, { error: "Invalid booking reference. Refresh the booking and retry.", code: "INVALID_BOOKING_REFERENCE" });
