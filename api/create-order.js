@@ -41,18 +41,18 @@ function calculateQuote(body) {
     } else if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
       requestedId = typeof candidate.id === "string" ? candidate.id.trim() : "";
       requestedName = typeof candidate.name === "string"
-        ? candidate.name.trim().replace(/\\s+/g, " ")
+        ? candidate.name.trim().replace(/\s+/g, " ")
         : "";
     } else {
       return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
     }
 
-    const quantityMatch = requestedName.match(/\\((\\d+)x\\)$/i);
+    const quantityMatch = requestedName.match(/\((\\d+)x\)$/i);
     const quantity = quantityMatch ? Number(quantityMatch[1]) : 1;
     if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 30) {
       return { error: "One or more add-ons have an invalid quantity. Refresh the booking and try again.", code: "INVALID_ADDONS" };
     }
-    const normalizedName = requestedName.replace(/\\s*\\(\\d+x\\)$/i, "").trim().toLocaleLowerCase("en-IN");
+    const normalizedName = requestedName.replace(/\s*\(\\d+x\)$/i, "").trim().toLocaleLowerCase("en-IN");
 
     let kind = "";
     let canonicalId = "";
@@ -66,14 +66,14 @@ function calculateQuote(body) {
       canonicalId = requestedId;
     } else if (normalizedName) {
       const matchedAddon = Object.entries(ADDON_PRICES).find(([, item]) =>
-        item.name.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN") === normalizedName
+        item.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN") === normalizedName
       );
       if (matchedAddon) {
         kind = "addon";
         canonicalId = matchedAddon[0];
       } else {
         const matchedService = Object.entries(SERVICE_PRICES).find(([, item]) =>
-          item.name.trim().replace(/\\s+/g, " ").toLocaleLowerCase("en-IN") === normalizedName
+          item.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN") === normalizedName
         );
         if (matchedService) {
           kind = "service";
