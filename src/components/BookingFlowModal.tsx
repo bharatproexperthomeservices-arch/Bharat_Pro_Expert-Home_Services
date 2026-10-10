@@ -610,7 +610,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         throw new Error('Razorpay Checkout could not load. Check your internet connection and retry.');
       }
 
-      if (!name.trim() || phone.replace(/\\D/g, '').length < 10) {
+      if (!name.trim() || phone.replace(/\D/g, '').length < 10) {
         throw new Error('Please enter your name and a valid 10-digit mobile number.');
       }
       if (!flatOrHouseNo.trim() || !buildingOrStreet.trim() || !pincode.trim()) {
@@ -657,7 +657,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         currency: orderData.currency || 'INR',
         name: 'Bharat Pro Expert',
         description: `${service.name} - ${serviceConfig}`,
-        prefill: { name: name.trim(), email: email || user?.email || '', contact: phone.replace(/\\D/g, '').slice(-10) },
+        prefill: { name: name.trim(), email: email || user?.email || '', contact: phone.replace(/\D/g, '').slice(-10) },
         notes: { bookingId, bookingNumber, serviceId: service.id },
         theme: { color: '#0d9488' },
         handler: async (response: any) => {
@@ -685,7 +685,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               customerId: user?.uid || profile?.id || profile?.uid || 'authenticated-customer',
               customerName: name.trim(),
               customerEmail: email || user?.email || '',
-              customerPhone: phone.replace(/\\D/g, '').slice(-10),
+              customerPhone: phone.replace(/\D/g, '').slice(-10),
               serviceId: service.id,
               serviceName: service.name,
               categoryName: serviceConfig,
@@ -725,7 +725,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             onBookingSuccess(confirmed);
             try {
               localStorage.setItem('bharat_pro_last_customer_name', name.trim());
-              localStorage.setItem('bharat_pro_last_customer_phone', phone.replace(/\\D/g, '').slice(-10));
+              localStorage.setItem('bharat_pro_last_customer_phone', phone.replace(/\D/g, '').slice(-10));
             } catch {}
           } catch (err: any) {
             const message = err?.message || 'Payment was received but booking confirmation failed.';
