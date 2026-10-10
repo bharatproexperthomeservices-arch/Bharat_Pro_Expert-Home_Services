@@ -23,6 +23,8 @@ export async function POST(request) {
     const body = await request.json();
     const amount = Number(body.amount);
     const currency = body.currency || "INR";
+    const bookingId = typeof body.bookingId === "string" ? body.bookingId.slice(0, 100) : "";
+    const receipt = typeof body.receipt === "string" && body.receipt.trim() ? body.receipt.slice(0, 40) : `bpe_${Date.now()}`;
 
     if (!Number.isFinite(amount) || amount <= 0 || amount > 1000000) {
       return NextResponse.json(
@@ -42,8 +44,8 @@ export async function POST(request) {
     const order = await razorpay.orders.create({
       amount: Math.round(amount * 100),
       currency: "INR",
-      receipt: `bpe_${Date.now()}`,
-      notes: { service: "Bharat Pro Expert Home Cleaning" }
+      receipt,
+      notes: { service: "Bharat Pro Expert Home Cleaning", ...(bookingId ? { bookingId } : {}) }
     });
 
     // Keep both fields for compatibility with existing frontend callers.

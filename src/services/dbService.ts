@@ -136,7 +136,30 @@ export const sendWhatsAppNotification = async (
 // BUSINESS RULE: MANUAL PARTNER ASSIGNMENT ONLY
 // Booking is created with status = SEARCHING_PROFESSIONAL.
 // NO automatic assignment based on distance, rating, skill or availability.
+// Remove undefined values recursively: Firestore rejects undefined fields and malformed IDs
+// can surface as opaque SDK errors such as "Cannot read properties of undefined (reading 'indexOf')".
+const removeUndefinedValues = <T,>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map((item) => removeUndefinedValues(item)) as T;
+  }
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (child !== undefined) cleaned[key] = removeUndefinedValues(child);
+    }
+    return cleaned as T;
+  }
+  return value;
+};
+
 export const createNewBooking = async (newBooking: Booking): Promise<Booking> => {
+  if (!newBooking || typeof newBooking.id !== 'string' || !newBooking.id.trim()) {
+    throw new Error('Booking cannot be saved: missing booking ID.');
+  }
+  if (!newBooking.customerPhone || typeof newBooking.customerPhone !== 'string') {
+    throw new Error('Booking cannot be saved: customer phone is required.');
+  }
+
   const calculatedRef = Math.round(newBooking.basePrice / 0.85);
   const priceSnapshot = newBooking.priceSnapshot || {
     basePrice: newBooking.basePrice,
@@ -169,9 +192,11 @@ export const createNewBooking = async (newBooking: Booking): Promise<Booking> =>
 
   // Save to Firestore
   try {
-    await setDoc(doc(db, 'bookings', bookingPendingAssignment.id), bookingPendingAssignment);
+    const firestoreSafeBooking = removeUndefinedValues(bookingPendingAssignment);
+    await setDoc(doc(db, 'bookings', firestoreSafeBooking.id), firestoreSafeBooking);
   } catch (err) {
-    console.warn('Firestore write fallback to local storage:', err);
+    console.error('Booking Firestore write failed:', err);
+    throw new Error('Booking could not be saved to the server. Please check your connection and try again. If payment was deducted, contact support before retrying.');
   }
 
   // Backup in LocalStorage (ensure no duplicate ID)
