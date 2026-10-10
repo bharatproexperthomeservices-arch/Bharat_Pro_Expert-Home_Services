@@ -619,6 +619,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         body: JSON.stringify({
           mode: 'quote',
           serviceId: service.id,
+          serviceName: service.name,
           addons: selectedAddons.map(addon => addon.id),
           couponCode: isCouponApplied ? couponCode.trim().toUpperCase() : null,
           currency: 'INR'
@@ -737,6 +738,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceId: service.id,
+          serviceName: service.name,
           addons: selectedAddons.map(addon => addon.id),
           couponCode: isCouponApplied ? couponCode.trim().toUpperCase() : null,
           clientTotal: Number(netTotal),
