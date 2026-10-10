@@ -142,13 +142,26 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
   };
 
   const handleSelectCategory = (categoryId: string) => {
-    const el = document.getElementById(categoryId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      const catEl = document.getElementById('service-catalogue-sections');
-      if (catEl) catEl.scrollIntoView({ behavior: 'smooth' });
+    // The large home-page cards use presentation IDs; map them to the real
+    // catalogue IDs so tapping a category lands on that category, not the
+    // top of the catalogue.
+    const categoryAliases: Record<string, string> = {
+      'full-home-cleaning': 'complete-home-cleaning',
+      'sofa-shampooing': 'sofa-cleaning',
+    };
+    const targetId = categoryAliases[categoryId] || categoryId;
+    const target = document.getElementById(targetId);
+
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
     }
+
+    // Fallback for a future card whose ID has not yet been added to the
+    // catalogue: take the customer to the catalogue section rather than doing
+    // nothing. The section's scroll margin accounts for the sticky header.
+    const catalogue = document.getElementById('service-catalogue-sections');
+    catalogue?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleSelectDirectService = (item: CatalogItem) => {
