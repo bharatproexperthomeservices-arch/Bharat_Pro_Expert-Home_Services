@@ -20,7 +20,8 @@ function calculateQuote(body) {
     return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
   }
 
-  const subtotal = service.price + requestedAddons.reduce((sum, id) => sum + ADDON_PRICES[id].price, 0);
+  const addonsPrice = requestedAddons.reduce((sum, id) => sum + ADDON_PRICES[id].price, 0);
+  const subtotal = service.price + addonsPrice;
   const gst = Math.round(subtotal * GST_RATE);
   const convenienceFee = CONVENIENCE_FEE_INR;
   const couponCode = typeof body?.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
@@ -30,7 +31,7 @@ function calculateQuote(body) {
   if (!Number.isSafeInteger(total) || total <= 0 || total > 500000) {
     return { error: "Calculated checkout total is invalid. Please contact support.", code: "INVALID_SERVER_TOTAL" };
   }
-  return { quote: { serviceId, subtotal, gst, convenienceFee, discount, couponCode: discount ? couponCode : null, total } };
+  return { quote: { serviceId, basePrice: service.price, addonsPrice, subtotal, gst, convenienceFee, discount, couponCode: discount ? couponCode : null, total } };
 }
 
 export default async function handler(req, res) {
@@ -57,6 +58,10 @@ export default async function handler(req, res) {
   const calculated = calculateQuote(req.body);
   if (calculated.error) return json(res, 400, { error: calculated.error, code: calculated.code });
   const quote = calculated.quote;
+  const bookingId = typeof req.body?.bookingId === "string" ? req.body.bookingId.slice(0, 100) : "";
+  if (!/^bpe_[a-zA-Z0-9_-]{8,100}$/.test(bookingId)) {
+    return json(res, 400, { error: "Invalid booking reference. Refresh the booking and retry.", code: "INVALID_BOOKING_REFERENCE" });
+  }
 
   // Reject stale/tampered client totals; the server's catalogue is authoritative.
   const clientTotal = Number(req.body?.clientTotal);
@@ -77,6 +82,7 @@ export default async function handler(req, res) {
       receipt: `bpe_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`,
       notes: {
         serviceId: quote.serviceId,
+        bookingId,
         subtotalInr: String(quote.subtotal),
         gstInr: String(quote.gst),
         convenienceFeeInr: String(quote.convenienceFee),
