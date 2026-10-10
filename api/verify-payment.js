@@ -12,11 +12,24 @@ export default async function handler(req, res) {
     return json(res, 405, { verified: false, error: "Method not allowed." });
   }
 
-  // Key ID is public; support the existing Vercel variable and the preferred server-side name.
-  const key_id = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
-  const key_secret = process.env.RAZORPAY_KEY_SECRET;
-  if (!key_id || !key_secret) {
-    return json(res, 503, { verified: false, error: "Payment gateway is not configured on the server." });
+  // Server-side credentials only. Never depend on VITE_ variables in API functions.
+  const key_id = typeof process.env.RAZORPAY_KEY_ID === "string"
+    ? process.env.RAZORPAY_KEY_ID.trim()
+    : "";
+  const key_secret = typeof process.env.RAZORPAY_KEY_SECRET === "string"
+    ? process.env.RAZORPAY_KEY_SECRET.trim()
+    : "";
+  const missingVariables = [];
+  if (!key_id) missingVariables.push("RAZORPAY_KEY_ID");
+  if (!key_secret) missingVariables.push("RAZORPAY_KEY_SECRET");
+  if (missingVariables.length > 0) {
+    console.error("Razorpay verification endpoint missing environment variables:", missingVariables.join(", "));
+    return json(res, 503, {
+      verified: false,
+      error: "Payment gateway is not configured on this deployment.",
+      code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
+      missingVariables
+    });
   }
 
   const { bookingId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
