@@ -164,8 +164,7 @@ export const hasCompletedBooking = async (customerId: string): Promise<boolean> 
 export const createNewBooking = async (newBooking: Booking): Promise<Booking> => {
   const normalizedPaymentMethod = String(newBooking?.paymentMethod || '').trim().toUpperCase().replace(/[\s/-]+/g, '_');
   if (normalizedPaymentMethod === 'COD' || normalizedPaymentMethod === 'CASH_ON_DELIVERY' || normalizedPaymentMethod === 'PAY_AFTER_SERVICE') {
-    const eligible = await hasCompletedBooking(String(newBooking?.customerId || ''));
-    if (!eligible) throw new Error('COD is available only after you have completed at least one previous booking. Please pay online.');
+    throw new Error('COD cannot create an unpaid booking. Please complete online payment before booking confirmation.');
   }
   if (!newBooking || typeof newBooking.id !== 'string' || !newBooking.id.trim()) {
     throw new Error('Booking cannot be saved: missing booking ID.');
