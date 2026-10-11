@@ -156,7 +156,7 @@ export const hasCompletedBooking = async (customerId: string): Promise<boolean> 
     const snapshot = await getDocs(query(collection(db, 'bookings'), where('customerId', '==', customerId)));
     return snapshot.docs.some((item: any) => {
       const booking = item.data() as Booking;
-      return ['COMPLETED', 'SETTLED'].includes(String(booking.status || '').toUpperCase()) && String(booking.paymentStatus || '').toUpperCase() !== 'REFUNDED';
+      return ['COMPLETED', 'SETTLED'].includes(String(booking.status || '').toUpperCase()) && String(booking.paymentStatus || '').toUpperCase() === 'PAID';
     });
   } catch (error) { console.error('Unable to verify COD eligibility:', error); return false; }
 };
