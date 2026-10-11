@@ -1075,6 +1075,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 <ShieldCheck className="w-4 h-4 text-green-600" />
                 Online payments are secured by Razorpay. Booking is confirmed only after payment verification.
               </div>
+              )}
 
               <div className="flex gap-2">
                 <button onClick={() => setStep(2)} disabled={loading} className="flex-1 py-3 rounded-xl border border-gray-300 font-semibold disabled:opacity-50">Back</button>
