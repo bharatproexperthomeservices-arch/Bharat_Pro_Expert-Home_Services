@@ -277,7 +277,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [isCouponApplied, setIsCouponApplied] = useState(true);
 
   // Online payment only. COD / pay-after-service is permanently disabled.
-  const paymentMethod = 'Cashfree' as const;
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{ name?: boolean; phone?: boolean; street?: boolean }>({});
@@ -988,19 +987,19 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               {couponMessage && <div className="text-xs text-green-700">{couponMessage}</div>}
 
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-gray-800">Choose payment method</p>
+                <p className="text-sm font-semibold text-gray-800">Payment provider</p>
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod('Cashfree')}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${paymentMethod === 'Cashfree' ? 'border-teal-600 bg-teal-50 ring-1 ring-teal-600' : 'border-gray-200 bg-white'}`}
-                  aria-pressed={paymentMethod === 'UPI / Cards / Netbanking'}
+                  
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${'border-teal-600 bg-teal-50 ring-1 ring-teal-600'}`}
+                  aria-pressed={true}
                 >
                   <CreditCard className="w-5 h-5 text-teal-700" />
                   <span className="flex-1">
-                    <span className="block text-sm font-semibold">Pay Online</span>
+                    <span className="block text-sm font-semibold">Cashfree Secure Checkout</span>
                     <span className="block text-xs text-gray-500">Pay securely through Cashfree using available UPI, cards or netbanking options</span>
                   </span>
-                  <span className={`w-4 h-4 rounded-full border-2 ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-600' : 'border-gray-300'}`} />
+                  <span className={`w-4 h-4 rounded-full border-2 ${'border-teal-600 bg-teal-600'}`} />
                 </button>
               </div>
 
