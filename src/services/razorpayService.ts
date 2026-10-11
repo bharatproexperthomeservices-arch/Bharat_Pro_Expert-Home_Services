@@ -1,17 +1,21 @@
 // src/services/razorpayService.ts
 export const getRazorpayKeyId = (): string | null => {
-  const configuredKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
-  
-  // 🚨 DEBUGGING LOG: Yeh check karega ki Vite ko kya mil raha hai
-  console.log("DEBUG CHECK - VITE KEY:", configuredKey);
+  // 1. Vercel se key uthane ki koshish karo
+  let key = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
-  if (typeof configuredKey !== "string" || configuredKey.trim() === "") {
-    console.error("❌ VITE_RAZORPAY_KEY_ID is missing or empty.");
+  // 2. 🚨 TEMPORARY FALLBACK (Sirf tab chalega jab Vercel wali key na mile)
+  // ⚠️ Warning: Baad mein ise hata dena, kyunki yeh GitHub par public hai.
+  if (!key) {
+    console.warn("⚠️ Vercel se key nahi mili, temporary fallback use kar rahe hain.");
+    key = "rzp_live_Tlh9T3hoID4gmq"; 
+  }
+
+  if (typeof key !== "string" || key.trim() === "") {
+    console.error("❌ Razorpay Key ID is completely missing.");
     return null;
   }
   
-  // Filhal regex hata diya hai taaki key direct pass ho jaye
-  return configuredKey.trim(); 
+  return key.trim(); 
 };
 
 export const loadRazorpayScript = (): Promise<boolean> => {
