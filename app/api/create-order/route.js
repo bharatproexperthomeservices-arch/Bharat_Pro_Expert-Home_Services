@@ -82,17 +82,22 @@ export default async function handler(req, res) {
     return json(res, 405, { error: "Method not allowed.", code: "METHOD_NOT_ALLOWED" });
   }
 
+  const requestedPaymentMethod = String(req.body?.paymentMethod || "").trim().toUpperCase().replace(/[\\s/-]+/g, "_");
+  if (["COD", "CASH_ON_DELIVERY", "PAY_AFTER_SERVICE"].includes(requestedPaymentMethod)) {
+    return json(res, 400, { error: "Cash on Delivery is permanently disabled. Complete online payment to book this service.", code: "COD_DISABLED" });
+  }
+
   const currency = req.body?.currency || "INR";
   if (currency !== "INR") {
     return json(res, 400, { error: "Only INR checkout is supported.", code: "INVALID_CURRENCY" });
   }
 
-  // COD needs an authoritative server quote, but must not require Razorpay credentials or create an order.
+  // Quote-only requests support checkout price calculation; every actual booking must use online payment.
   const calculated = calculateQuote(req.body);
   if (calculated.error) return json(res, 400, { error: calculated.error, code: calculated.code });
   const quote = calculated.quote;
   if (req.body?.mode === "quote") {
-    return json(res, 200, { quote, currency: "INR", paymentMethod: "COD" });
+    return json(res, 200, { quote, currency: "INR", paymentMethod: "ONLINE" });
   }
 
   // Key ID is public; support the existing Vercel variable and the preferred server-side name.
