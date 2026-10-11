@@ -1,1 +1,32 @@
-{"name":"bharat-pro-expert-home-services","version":"2.0.0","private":true,"packageManager":"npm@10.8.2","workspaces":["apps/web","apps/api","packages/ui","packages/db","packages/types"],"scripts":{"dev":"turbo dev","build":"turbo build","lint":"turbo lint","typecheck":"turbo typecheck","test":"turbo test","format":"prettier --write .","format:check":"prettier --check ."},"devDependencies":{"prettier":"^3.5.3","turbo":"^2.5.0","typescript":"^5.8.3"}}
+{
+  "name": "bharat-pro-expert-home-services",
+  "version": "2.0.0",
+  "private": true,
+  "packageManager": "npm@10.8.2",
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "packages/ui",
+    "packages/db",
+    "packages/types"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "npm run prisma:generate --workspace @bpe/db",
+    "db:validate": "npm run prisma:validate --workspace @bpe/db",
+    "db:migrate": "npm run prisma:migrate:dev --workspace @bpe/db",
+    "db:seed": "npm run prisma:seed --workspace @bpe/db",
+    "db:studio": "npm run prisma:studio --workspace @bpe/db"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.3"
+  }
+}
