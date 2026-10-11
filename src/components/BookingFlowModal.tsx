@@ -3,7 +3,7 @@ import { CleaningService, ServiceAddon, Booking, HubLocation } from '../types';
 import { BUMPER_OFFERS, INITIAL_HUBS } from '../data';
 import { useAuth } from '../context/AuthContext';
 import { createNewBooking, getAllHubs } from '../services/dbService';
-import { getRazorpayKeyId, loadRazorpayScript } from '../services/razorpayService';
+import { loadCashfreeScript } from '../services/cashfreeService';
 import { reverseGeocodeCoordinates, calculateHaversineKm } from '../services/indiaLocationHierarchy';
 import confetti from 'canvas-confetti';
 import { 
@@ -277,7 +277,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [isCouponApplied, setIsCouponApplied] = useState(true);
 
   // Online payment only. COD / pay-after-service is permanently disabled.
-  const paymentMethod = 'UPI / Cards / Netbanking' as const;
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{ name?: boolean; phone?: boolean; street?: boolean }>({});
@@ -603,15 +602,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     let paymentId = '';
 
     try {
-      const keyId = getRazorpayKeyId();
-      if (!keyId) throw new Error('Razorpay Key ID missing. Please contact support.');
-
-      const sdkOk = await loadRazorpayScript();
-      if (!sdkOk || typeof (window as any).Razorpay !== 'function') {
-        throw new Error('Razorpay Checkout could not load. Check your internet connection and retry.');
-      }
-
-      if (!name.trim() || phone.replace(/\D/g, '').length < 10) {
+      if (!name.trim() || phone.replace(/\\D/g, '').length < 10) {
         throw new Error('Please enter your name and a valid 10-digit mobile number.');
       }
       if (!flatOrHouseNo.trim() || !buildingOrStreet.trim() || !pincode.trim()) {
@@ -621,10 +612,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         throw new Error('Invalid booking amount. Please review your service and add-ons.');
       }
 
+      const sdkOk = await loadCashfreeScript();
+      if (!sdkOk || typeof window.Cashfree !== 'function') {
+        throw new Error('Cashfree Checkout could not load. Check your internet connection and retry.');
+      }
+
       const bookingId = `bpe_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const bookingNumber = `BPE-${new Date().getFullYear()}-${Date.now().toString().slice(-7)}`;
 
-      // The server calculates the final amount from its approved catalogue.
       const orderResponse = await fetch('/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -635,13 +630,18 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
           couponCode: isCouponApplied ? couponCode.trim().toUpperCase() : null,
           clientTotal: Number(netTotal),
           currency: 'INR',
-          bookingId
+          bookingId,
+          customerName: name.trim(),
+          customerPhone: phone.replace(/\\D/g, '').slice(-10),
+          customerEmail: email || user?.email || ''
         })
       });
       const orderData = await orderResponse.json().catch(() => ({}));
       if (!orderResponse.ok ||
-          typeof orderData.id !== 'string' ||
-          !orderData.id.startsWith('order_') ||
+          typeof orderData.order_id !== 'string' ||
+          !orderData.order_id ||
+          typeof orderData.payment_session_id !== 'string' ||
+          !orderData.payment_session_id ||
           !Number.isSafeInteger(orderData.amount) ||
           orderData.amount <= 0 ||
           orderData.currency !== 'INR' ||
@@ -651,7 +651,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
           orderData.quote.total !== Number(netTotal) ||
           !Number.isSafeInteger(orderData.quote.basePrice) ||
           !Number.isSafeInteger(orderData.quote.addonsPrice)) {
-        const message = typeof orderData.error === 'string' ? orderData.error : 'Unable to create a secure payment order. Please retry.';
+        const message = typeof orderData.error === 'string' ? orderData.error : 'Unable to create a secure Cashfree payment order. Please retry.';
         throw new Error(`Order creation failed (HTTP ${orderResponse.status}): ${message}`);
       }
 
@@ -666,113 +666,78 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         ...(landmark.trim() ? { landmark: landmark.trim() } : {})
       };
 
-      const rzp = new (window as any).Razorpay({
-        key: keyId,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        order_id: orderData.id,
-        name: 'Bharat Pro Expert',
-        description: `${service.name} - ${serviceConfig}`,
-        prefill: { name: name.trim(), email: email || user?.email || '', contact: phone.replace(/\D/g, '').slice(-10) },
-        notes: { bookingId, bookingNumber, serviceId: service.id },
-        theme: { color: '#0d9488' },
-        handler: async (response: any) => {
-          paymentId = response?.razorpay_payment_id || '';
-          try {
-            const res = await fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                bookingId,
-                razorpay_order_id: response?.razorpay_order_id,
-                razorpay_payment_id: response?.razorpay_payment_id,
-                razorpay_signature: response?.razorpay_signature
-              })
-            });
-            const verification = await res.json().catch(() => ({}));
-            if (!res.ok || verification.verified !== true ||
-                verification.bookingId !== bookingId ||
-                verification.razorpay_order_id !== response.razorpay_order_id ||
-                verification.razorpay_payment_id !== response.razorpay_payment_id ||
-                verification.currency !== 'INR' ||
-                verification.status !== 'captured' ||
-                !Number.isSafeInteger(verification.amount) ||
-                verification.amount !== orderData.amount) {
-              throw new Error(verification.error || 'Payment verification failed or the captured amount does not match the order. Booking is not confirmed.');
-            }
-
-            const now = new Date().toISOString();
-            const confirmedBooking: Booking = {
-              id: bookingId,
-              bookingNumber,
-              customerId: user?.uid || profile?.id || profile?.uid || 'authenticated-customer',
-              customerName: name.trim(),
-              customerEmail: email || user?.email || '',
-              customerPhone: phone.replace(/\D/g, '').slice(-10),
-              serviceId: service.id,
-              serviceName: service.name,
-              categoryName: serviceConfig,
-              date: selectedDate,
-              timeSlot: selectedSlot,
-              address: customerAddress,
-              selectedAddons,
-              basePrice: orderData.quote.basePrice,
-              addonsPrice: orderData.quote.addonsPrice,
-              taxesGst: orderData.quote.gst,
-              convenienceFee: orderData.quote.convenienceFee,
-              discount: orderData.quote.discount,
-              totalAmount: orderData.quote.total,
-              ...(orderData.quote.couponCode ? { appliedCoupon: orderData.quote.couponCode } : {}),
-              paymentMethod: 'UPI / Cards / Netbanking',
-              paymentStatus: 'PAID',
-              transactionId: verification.razorpay_payment_id,
-              status: 'SEARCHING_PROFESSIONAL',
-              assignedHubId: selectedHub?.id || 'hub-gurugram-cyber',
-              startOtp: String(Math.floor(1000 + Math.random() * 9000)),
-              completionOtp: String(Math.floor(1000 + Math.random() * 9000)),
-              createdAt: now,
-              updatedAt: now,
-              razorpayDetails: {
-                paymentId: verification.razorpay_payment_id,
-                orderId: verification.razorpay_order_id,
-                signature: response.razorpay_signature,
-                verifiedAt: now,
-                verificationStatus: 'VERIFIED'
-              }
-            };
-
-            // Only create the booking after the server confirms a captured payment.
-            const savedBooking = await createNewBooking(confirmedBooking);
-            setConfirmedBookingRecord(savedBooking);
-            try { confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } }); } catch {}
-            setStep(4);
-            onBookingSuccess(savedBooking);
-            try {
-              localStorage.setItem('bharat_pro_last_customer_name', name.trim());
-              localStorage.setItem('bharat_pro_last_customer_phone', phone.replace(/\D/g, '').slice(-10));
-            } catch {}
-          } catch (err: any) {
-            const message = err?.message || 'Payment was received but booking confirmation failed.';
-            setErrorBanner(paymentId ? `${message} Payment ID: ${paymentId}` : message);
-          } finally {
-            setLoading(false);
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            setLoading(false);
-            setErrorBanner('Payment cancelled. Your booking was not confirmed. If money was deducted, contact support before retrying.');
-          }
-        }
+      const cashfree = window.Cashfree!({
+        mode: orderData.environment === 'production' ? 'production' : 'sandbox'
+      });
+      await cashfree.checkout({
+        paymentSessionId: orderData.payment_session_id,
+        redirectTarget: '_modal'
       });
 
-      rzp.on('payment.failed', (resp: any) => {
-        setErrorBanner(resp?.error?.description || 'Payment failed. Please retry after checking payment status.');
-        setLoading(false);
+      const res = await fetch('/api/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId, order_id: orderData.order_id, serviceId: service.id })
       });
-      rzp.open();
+      const verification = await res.json().catch(() => ({}));
+      if (!res.ok || verification.verified !== true ||
+          verification.bookingId !== bookingId ||
+          verification.order_id !== orderData.order_id ||
+          verification.currency !== 'INR' ||
+          verification.status !== 'PAID' ||
+          !Number.isSafeInteger(verification.amount) ||
+          verification.amount !== orderData.amount) {
+        throw new Error(verification.error || 'Cashfree has not confirmed a successful payment. Booking is not confirmed. If your bank shows a debit, check payment status before retrying.');
+      }
+      paymentId = String(verification.payment_id || orderData.order_id);
+
+      const now = new Date().toISOString();
+      const confirmedBooking: Booking = {
+        id: bookingId,
+        bookingNumber,
+        customerId: user?.uid || profile?.id || profile?.uid || 'authenticated-customer',
+        customerName: name.trim(),
+        customerEmail: email || user?.email || '',
+        customerPhone: phone.replace(/\\D/g, '').slice(-10),
+        serviceId: service.id,
+        serviceName: service.name,
+        categoryName: serviceConfig,
+        date: selectedDate,
+        timeSlot: selectedSlot,
+        address: customerAddress,
+        selectedAddons,
+        basePrice: orderData.quote.basePrice,
+        addonsPrice: orderData.quote.addonsPrice,
+        taxesGst: orderData.quote.gst,
+        convenienceFee: orderData.quote.convenienceFee,
+        discount: orderData.quote.discount,
+        totalAmount: orderData.quote.total,
+        ...(orderData.quote.couponCode ? { appliedCoupon: orderData.quote.couponCode } : {}),
+        paymentMethod: 'Cashfree',
+        paymentStatus: 'PAID',
+        transactionId: paymentId,
+        status: 'SEARCHING_PROFESSIONAL',
+        assignedHubId: selectedHub?.id || 'hub-gurugram-cyber',
+        startOtp: String(Math.floor(1000 + Math.random() * 9000)),
+        completionOtp: String(Math.floor(1000 + Math.random() * 9000)),
+        createdAt: now,
+        updatedAt: now,
+        notes: `Cashfree order: ${orderData.order_id}; payment verified by server at ${now}`
+      };
+
+      const savedBooking = await createNewBooking(confirmedBooking);
+      setConfirmedBookingRecord(savedBooking);
+      try { confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } }); } catch {}
+      setStep(4);
+      onBookingSuccess(savedBooking);
+      try {
+        localStorage.setItem('bharat_pro_last_customer_name', name.trim());
+        localStorage.setItem('bharat_pro_last_customer_phone', phone.replace(/\\D/g, '').slice(-10));
+      } catch {}
     } catch (err: any) {
-      setErrorBanner(err?.message || 'Something went wrong. Please try again.');
+      const message = err?.message || 'Something went wrong. Please try again.';
+      setErrorBanner(paymentId ? `${message} Payment reference: ${paymentId}` : message);
+    } finally {
       setLoading(false);
     }
   };
@@ -1022,26 +987,26 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
               {couponMessage && <div className="text-xs text-green-700">{couponMessage}</div>}
 
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-gray-800">Choose payment method</p>
+                <p className="text-sm font-semibold text-gray-800">Payment provider</p>
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod('UPI / Cards / Netbanking')}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-50 ring-1 ring-teal-600' : 'border-gray-200 bg-white'}`}
-                  aria-pressed={paymentMethod === 'UPI / Cards / Netbanking'}
+                  
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${'border-teal-600 bg-teal-50 ring-1 ring-teal-600'}`}
+                  aria-pressed={true}
                 >
                   <CreditCard className="w-5 h-5 text-teal-700" />
                   <span className="flex-1">
-                    <span className="block text-sm font-semibold">Pay Online</span>
-                    <span className="block text-xs text-gray-500">UPI, debit/credit cards and netbanking</span>
+                    <span className="block text-sm font-semibold">Cashfree Secure Checkout</span>
+                    <span className="block text-xs text-gray-500">Pay securely through Cashfree using available UPI, cards or netbanking options</span>
                   </span>
-                  <span className={`w-4 h-4 rounded-full border-2 ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-600' : 'border-gray-300'}`} />
+                  <span className={`w-4 h-4 rounded-full border-2 ${'border-teal-600 bg-teal-600'}`} />
                 </button>
               </div>
 
               {(
                 <div className="flex items-center gap-2 text-xs text-gray-600">
                   <ShieldCheck className="w-4 h-4 text-green-600" />
-                  Payments secured by Razorpay. Do not retry if your bank shows a debit; check payment status first.
+                  Payments secured by Cashfree. Do not retry if your bank shows a debit; check payment status first.
                 </div>
               )}
 
@@ -1076,7 +1041,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 <div className="flex justify-between"><span className="text-gray-500">Date</span><span>{selectedDate}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Slot</span><span>{selectedSlot}</span></div>
                 <div className="flex justify-between font-semibold"><span>{confirmedBookingRecord.paymentStatus === 'PAID' ? 'Paid' : 'Due after service'}</span><span>₹{confirmedBookingRecord.totalAmount}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Payment method</span><span>Online payment</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Payment method</span><span>Cashfree</span></div>
                 {confirmedBookingRecord.paymentStatus !== 'PAID' && <p className="text-xs text-amber-700 bg-amber-50 rounded p-2">Payment is pending verification. Your booking will be confirmed only after online payment succeeds.</p>}
               </div>
 
