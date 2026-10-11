@@ -25,6 +25,8 @@ jobs:
         run: npm run typecheck --workspace @bpe/db
       - name: Typecheck API
         run: npm run typecheck --workspace apps/api
+      - name: Build Vite website (Vercel root app)
+        run: npm run build
       - name: Build API
         run: npm run build --workspace apps/api
       - name: Build web
