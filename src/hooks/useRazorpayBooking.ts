@@ -1,8 +1,7 @@
-// src/hooks/useRazorpayBooking.ts
 import { useState, useCallback } from 'react';
 import { Booking } from '../types';
 import { createNewBooking } from '../services/dbService';
-import { getRazorpayKeyId, loadRazorpayScript } from '../services/razorpayService';
+import { loadCashfreeScript } from '../services/cashfreeService';
 import confetti from 'canvas-confetti';
 
 export type PaymentMethodSelection = 'online' | 'cash' | 'UPI' | 'CARD' | 'NET_BANKING' | 'PAY_AFTER_SERVICE';
@@ -44,7 +43,7 @@ export interface BookingPayload {
   completionOtp: string;
 }
 
-export interface UseRazorpayBookingOptions {
+export interface UseCashfreeBookingOptions {
   onSuccess: (booking: Booking) => void | Promise<void>;
   onError?: (errorMessage: string) => void;
   onDismiss?: () => void;
@@ -56,151 +55,116 @@ export const useRazorpayBooking = () => {
 
   const processBooking = useCallback(async (
     payload: BookingPayload,
-    paymentMethod: PaymentMethodSelection,
-    options: UseRazorpayBookingOptions
+    _paymentMethod: PaymentMethodSelection,
+    options: UseCashfreeBookingOptions
   ): Promise<void> => {
     setIsProcessing(true);
     setError(null);
 
-    // 1. Basic Validation
-    if (!payload.customerPhone || payload.customerPhone.trim().length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number.';
-      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
-    }
-    if (!payload.address || !payload.address.street) {
-      const msg = 'Please enter complete service address.';
-      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
-    }
-    if (payload.totalAmount <= 0) {
-      const msg = 'Invalid total amount. Please review your cart.';
-      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
-    }
+    const fail = (message: string) => {
+      setError(message);
+      setIsProcessing(false);
+      options.onError?.(message);
+    };
 
-    const keyId = getRazorpayKeyId();
-    if (!keyId) {
-      const msg = 'Razorpay Key ID is not configured. Please verify API credentials.';
-      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
+    if (!payload.customerPhone || payload.customerPhone.replace(/\D/g, '').length < 10) {
+      fail('Please enter a valid 10-digit mobile number.');
+      return;
     }
-
-    const scriptLoaded = await loadRazorpayScript();
-    if (!scriptLoaded || !(window as any).Razorpay) {
-      const msg = 'Could not load Razorpay SDK. Please check your internet connection.';
-      setError(msg); setIsProcessing(false); options.onError?.(msg); return;
+    if (!payload.address?.street?.trim()) {
+      fail('Please enter complete service address.');
+      return;
+    }
+    if (!Number.isSafeInteger(payload.totalAmount) || payload.totalAmount <= 0) {
+      fail('Invalid total amount. Please review your cart.');
+      return;
     }
 
     try {
-      // 🚀 STEP 1: Backend se Order ID mangwayein
-      console.log("[useRazorpayBooking] Backend se order id mang rahe hain...");
+      const sdkLoaded = await loadCashfreeScript();
+      if (!sdkLoaded || typeof window.Cashfree !== 'function') {
+        throw new Error('Cashfree Checkout could not load. Please check your internet connection.');
+      }
+
+      const serviceName = payload.serviceName.replace(/\s*\([^)]*\)\s*$/, '').trim();
       const orderResponse = await fetch('/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: payload.totalAmount })
+        body: JSON.stringify({
+          bookingId: payload.bookingId,
+          serviceId: payload.serviceId,
+          serviceName,
+          addons: payload.selectedAddons || [],
+          couponCode: payload.appliedCoupon || null,
+          clientTotal: Number(payload.totalAmount),
+          currency: 'INR',
+          customerName: payload.customerName,
+          customerPhone: payload.customerPhone.replace(/\D/g, '').slice(-10),
+          customerEmail: payload.customerEmail || ''
+        })
       });
-
-      const orderData = await orderResponse.json();
-
-      if (!orderResponse.ok || !orderData.id) {
-        throw new Error(orderData.details || orderData.error || 'Backend did not return Razorpay order ID.');
+      const orderData = await orderResponse.json().catch(() => ({}));
+      if (!orderResponse.ok || typeof orderData.order_id !== 'string' ||
+          typeof orderData.payment_session_id !== 'string' ||
+          !Number.isSafeInteger(orderData.amount) ||
+          orderData.amount !== payload.totalAmount * 100 ||
+          orderData.currency !== 'INR') {
+        throw new Error(orderData.error || 'Cashfree could not create an order for this service and price. Please refresh the cart or contact support.');
       }
 
-      const razorpayOrderId = orderData.id;
-      console.log("[useRazorpayBooking] Order ID mil gayi:", razorpayOrderId);
-
-      // 🚀 STEP 2: Razorpay Options taiyaar karein
-      const razorpayConfig = {
-        key: keyId,
-        amount: orderData.amount,
-        currency: 'INR',
-        name: 'Bharat Pro Expert',
-        description: `Payment for ${payload.serviceName}`,
-        order_id: razorpayOrderId, // 🔥 Yeh sabse zaroori hai
-        prefill: {
-          name: payload.customerName || 'Customer',
-          email: payload.customerEmail || 'customer@bharatproexpert.com',
-          contact: payload.customerPhone || ''
-        },
-        theme: { color: '#062A49' },
-        handler: async (paymentResponse: any) => {
-          console.log('[useRazorpayBooking] Payment Success:', paymentResponse.razorpay_payment_id);
-          try {
-            // Verify the payment signature on the server before saving a paid booking.
-            const verifyResponse = await fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                razorpay_order_id: paymentResponse.razorpay_order_id,
-                razorpay_payment_id: paymentResponse.razorpay_payment_id,
-                razorpay_signature: paymentResponse.razorpay_signature
-              })
-            });
-            const verification = await verifyResponse.json().catch(() => ({}));
-            if (
-              !verifyResponse.ok ||
-              verification.verified !== true ||
-              verification.razorpay_order_id !== paymentResponse.razorpay_order_id ||
-              verification.razorpay_payment_id !== paymentResponse.razorpay_payment_id ||
-              verification.currency !== 'INR' ||
-              !Number.isSafeInteger(verification.amount) ||
-              verification.amount <= 0 ||
-              verification.amount !== orderData.amount
-            ) {
-              const verifyMsg = verification.error || 'Payment verification failed. Booking was not marked as paid.';
-              setError(verifyMsg);
-              setIsProcessing(false);
-              options.onError?.(verifyMsg);
-              return;
-            }
-
-            // Save the booking only after the server confirms the payment signature.
-            const paidBookingRecord: Booking = {
-              ...payload,
-              id: payload.bookingId,
-              categoryName: payload.categoryName || 'Deep Cleaning',
-              selectedAddons: payload.selectedAddons || [],
-              appliedCoupon: payload.appliedCoupon || null,
-              unlockedBumperOffer: payload.unlockedBumperOffer || null,
-              priceSnapshot: payload.priceSnapshot || null,
-              paymentMethod: 'UPI',
-              paymentStatus: 'PAID',
-              transactionId: paymentResponse.razorpay_payment_id,
-              totalAmount: Math.round(verification.amount / 100),
-              status: 'SEARCHING_PROFESSIONAL',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            };
-
-            const savedBooking = await createNewBooking(paidBookingRecord);
-            try { confetti({ particleCount: 100, spread: 75, origin: { y: 0.6 } }); } catch {}
-            setIsProcessing(false);
-            await options.onSuccess(savedBooking);
-          } catch (saveError: any) {
-            console.error('[useRazorpayBooking] Firestore error:', saveError);
-            const saveMsg = 'Payment success, but booking save nahi hui. Contact support. Payment ID: ' + paymentResponse.razorpay_payment_id;
-            setError(saveMsg); setIsProcessing(false); options.onError?.(saveMsg);
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            setIsProcessing(false);
-            options.onDismiss?.();
-          }
-        }
-      };
-
-      const razorpayInstance = new (window as any).Razorpay(razorpayConfig);
-      
-      razorpayInstance.on('payment.failed', (failedResp: any) => {
-        const failDesc = failedResp.error?.description || 'Payment failed or cancelled.';
-        setIsProcessing(false); setError(failDesc); options.onError?.(failDesc);
+      const cashfree = window.Cashfree!({
+        mode: orderData.environment === 'production' ? 'production' : 'sandbox'
+      });
+      await cashfree.checkout({
+        paymentSessionId: orderData.payment_session_id,
+        redirectTarget: '_modal'
       });
 
-      razorpayInstance.open();
+      const verifyResponse = await fetch('/api/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: payload.bookingId,
+          order_id: orderData.order_id,
+          serviceId: payload.serviceId
+        })
+      });
+      const verification = await verifyResponse.json().catch(() => ({}));
+      if (!verifyResponse.ok || verification.verified !== true ||
+          verification.bookingId !== payload.bookingId ||
+          verification.order_id !== orderData.order_id ||
+          verification.currency !== 'INR' ||
+          verification.status !== 'PAID' ||
+          verification.amount !== orderData.amount) {
+        throw new Error(verification.error || 'Cashfree has not confirmed the payment yet. Booking is not confirmed.');
+      }
 
-    } catch (launchError: any) {
-      console.error('[useRazorpayBooking] Error:', launchError);
+      const now = new Date().toISOString();
+      const paidBookingRecord: Booking = {
+        ...payload,
+        id: payload.bookingId,
+        categoryName: payload.categoryName || 'Deep Cleaning',
+        selectedAddons: payload.selectedAddons || [],
+        appliedCoupon: payload.appliedCoupon || null,
+        unlockedBumperOffer: payload.unlockedBumperOffer || null,
+        priceSnapshot: payload.priceSnapshot || null,
+        paymentMethod: 'Cashfree',
+        paymentStatus: 'PAID',
+        transactionId: String(verification.payment_id || orderData.order_id),
+        totalAmount: Math.round(verification.amount / 100),
+        status: 'SEARCHING_PROFESSIONAL',
+        notes: `Cashfree order: ${orderData.order_id}; verified at ${now}`,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      const savedBooking = await createNewBooking(paidBookingRecord);
+      try { confetti({ particleCount: 100, spread: 75, origin: { y: 0.6 } }); } catch {}
       setIsProcessing(false);
-      const openErr = launchError?.message || 'Failed to open Razorpay.';
-      setError(openErr); options.onError?.(openErr);
+      await options.onSuccess(savedBooking);
+    } catch (err: any) {
+      const message = err?.message || 'Cashfree payment could not be completed.';
+      fail(message);
     }
   }, []);
 
