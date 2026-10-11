@@ -1,5 +1,3 @@
-import { SERVICE_PRICES } from "./pricing-catalog.js";
-
 function json(res, status, body) {
   return res.status(status).json(body);
 }
@@ -48,15 +46,17 @@ export default async function handler(req, res) {
       return json(res, 502, { verified: false, error: "Could not confirm payment status with Cashfree. Please retry or contact support." });
     }
 
-    const successfulPayment = Array.isArray(payments)
-      ? payments.find((payment) => payment?.payment_status === "SUCCESS" && payment?.order_id === orderId)
-      : null;
     const amountInPaise = Math.round(Number(order.order_amount) * 100);
-    const serviceId = typeof req.body?.serviceId === "string" ? req.body.serviceId : "";
+    const successfulPayment = Array.isArray(payments)
+      ? payments.find((payment) =>
+          payment?.payment_status === "SUCCESS" &&
+          payment?.order_id === orderId &&
+          Math.round(Number(payment?.payment_amount) * 100) === amountInPaise
+        )
+      : null;
     if (order.order_id !== orderId || order.order_currency !== "INR" ||
         order.order_status !== "PAID" || !successfulPayment ||
-        !Number.isSafeInteger(amountInPaise) || amountInPaise <= 0 ||
-        (serviceId && !Object.prototype.hasOwnProperty.call(SERVICE_PRICES, serviceId))) {
+        !Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) {
       return json(res, 409, { verified: false, error: "Cashfree has not confirmed a successful payment for this booking yet." });
     }
 
