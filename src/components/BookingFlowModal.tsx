@@ -277,7 +277,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [isCouponApplied, setIsCouponApplied] = useState(true);
 
   // Online payment only. COD / pay-after-service is permanently disabled.
-  const paymentMethod = 'UPI / Cards / Netbanking' as const;
+  const paymentMethod = 'Cashfree' as const;
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{ name?: boolean; phone?: boolean; street?: boolean }>({});
@@ -714,7 +714,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         discount: orderData.quote.discount,
         totalAmount: orderData.quote.total,
         ...(orderData.quote.couponCode ? { appliedCoupon: orderData.quote.couponCode } : {}),
-        paymentMethod: 'UPI / Cards / Netbanking',
+        paymentMethod: 'Cashfree',
         paymentStatus: 'PAID',
         transactionId: paymentId,
         status: 'SEARCHING_PROFESSIONAL',
@@ -991,14 +991,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 <p className="text-sm font-semibold text-gray-800">Choose payment method</p>
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod('UPI / Cards / Netbanking')}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-50 ring-1 ring-teal-600' : 'border-gray-200 bg-white'}`}
+                  onClick={() => setPaymentMethod('Cashfree')}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${paymentMethod === 'Cashfree' ? 'border-teal-600 bg-teal-50 ring-1 ring-teal-600' : 'border-gray-200 bg-white'}`}
                   aria-pressed={paymentMethod === 'UPI / Cards / Netbanking'}
                 >
                   <CreditCard className="w-5 h-5 text-teal-700" />
                   <span className="flex-1">
                     <span className="block text-sm font-semibold">Pay Online</span>
-                    <span className="block text-xs text-gray-500">UPI, debit/credit cards and netbanking</span>
+                    <span className="block text-xs text-gray-500">Pay securely through Cashfree using available UPI, cards or netbanking options</span>
                   </span>
                   <span className={`w-4 h-4 rounded-full border-2 ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-600' : 'border-gray-300'}`} />
                 </button>
@@ -1042,7 +1042,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 <div className="flex justify-between"><span className="text-gray-500">Date</span><span>{selectedDate}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Slot</span><span>{selectedSlot}</span></div>
                 <div className="flex justify-between font-semibold"><span>{confirmedBookingRecord.paymentStatus === 'PAID' ? 'Paid' : 'Due after service'}</span><span>₹{confirmedBookingRecord.totalAmount}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Payment method</span><span>Online payment</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Payment method</span><span>Cashfree</span></div>
                 {confirmedBookingRecord.paymentStatus !== 'PAID' && <p className="text-xs text-amber-700 bg-amber-50 rounded p-2">Payment is pending verification. Your booking will be confirmed only after online payment succeeds.</p>}
               </div>
 
