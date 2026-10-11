@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { CleaningService, ServiceAddon, Booking, HubLocation } from '../types';
 import { BUMPER_OFFERS, INITIAL_HUBS } from '../data';
 import { useAuth } from '../context/AuthContext';
-import { createNewBooking, getAllHubs, hasCompletedBooking } from '../services/dbService';
+import { createNewBooking, getAllHubs } from '../services/dbService';
 import { getRazorpayKeyId, loadRazorpayScript } from '../services/razorpayService';
 import { reverseGeocodeCoordinates, calculateHaversineKm } from '../services/indiaLocationHierarchy';
 import confetti from 'canvas-confetti';
@@ -276,16 +276,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [couponMessage, setCouponMessage] = useState<string | null>('🎉 BHARAT10 applied! 10% discount unlocked.');
   const [isCouponApplied, setIsCouponApplied] = useState(true);
 
-  // COD is displayed as a locked future benefit only. Every booking requires verified online payment.
-  const [isCodEligible, setIsCodEligible] = useState(false);
+  // COD is fully disabled. All customers must complete online payment for every booking.
   const paymentMethod = 'UPI / Cards / Netbanking' as const;
-  const customerIdentity = user?.uid || profile?.id || profile?.uid || '';
-  useEffect(() => {
-    let active = true;
-    setIsCodEligible(false);
-    if (customerIdentity) hasCompletedBooking(customerIdentity).then(eligible => { if (active) setIsCodEligible(eligible); }).catch(() => { if (active) setIsCodEligible(false); });
-    return () => { active = false; };
-  }, [customerIdentity]);
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{ name?: boolean; phone?: boolean; street?: boolean }>({});
@@ -1046,7 +1038,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                   <span className="w-5 h-5 rounded-full border border-gray-400 text-gray-500 flex items-center justify-center text-xs font-bold">₹</span>
                   <span className="flex-1">
                     <span className="block text-sm font-semibold text-gray-700">Cash on Delivery (COD) <span className="text-xs font-normal text-amber-700">Locked</span></span>
-                    <span className="block text-xs text-gray-600">{isCodEligible ? 'Your previous booking is verified. COD is a future benefit, but this booking still requires online payment.' : 'Next booking par COD unlock hoga. Is booking ke liye online payment zaroori hai.'}</span>
+                    <span className="block text-xs text-gray-600">'Cash on Delivery is currently unavailable. Please pay online to confirm your booking.'</span>
                   </span>
                   <span className="text-xs font-semibold text-gray-500">🔒</span>
                 </div>
