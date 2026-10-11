@@ -150,6 +150,10 @@ const removeUndefinedValues = <T,>(value: T): T => {
 };
 
 export const createNewBooking = async (newBooking: Booking): Promise<Booking> => {
+  const normalizedPaymentMethod = String(newBooking?.paymentMethod || '').trim().toUpperCase().replace(/[\s/-]+/g, '_');
+  if (normalizedPaymentMethod === 'COD' || normalizedPaymentMethod === 'PAY_AFTER_SERVICE' || normalizedPaymentMethod === 'PAY_AFTER_SERVICE') {
+    throw new Error('Cash on Delivery is disabled. Please complete online payment to place this booking.');
+  }
   if (!newBooking || typeof newBooking.id !== 'string' || !newBooking.id.trim()) {
     throw new Error('Booking cannot be saved: missing booking ID.');
   }
