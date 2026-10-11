@@ -192,7 +192,7 @@ model Customer {
   userId            String?   @unique
   fullName          String
   email             String?
-  phone             String
+  phone             String    @unique
   alternatePhone    String?
   dateOfBirth       DateTime?
   notes             String?
@@ -203,9 +203,9 @@ model Customer {
   addresses         CustomerAddress[]
   bookings          Booking[]
   supportTickets    SupportTicket[]
+  reviews           Review[]
 
   @@index([fullName])
-  @@index([phone])
   @@index([email])
   @@index([createdAt])
 }
