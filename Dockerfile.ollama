@@ -1,0 +1,4 @@
+FROM ollama/ollama:latest
+EXPOSE 11434
+# Start the model server separately; pull models explicitly after confirming host resources:
+# docker compose exec ollama ollama pull llama3:8b
