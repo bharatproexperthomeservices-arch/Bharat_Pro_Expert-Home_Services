@@ -1034,14 +1034,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                   </span>
                   <span className={`w-4 h-4 rounded-full border-2 ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-600' : 'border-gray-300'}`} />
                 </button>
-                <div className="w-full flex items-center gap-3 p-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 text-left opacity-90" aria-disabled="true">
-                  <span className="w-5 h-5 rounded-full border border-gray-400 text-gray-500 flex items-center justify-center text-xs font-bold">₹</span>
-                  <span className="flex-1">
-                    <span className="block text-sm font-semibold text-gray-700">Cash on Delivery (COD) <span className="text-xs font-normal text-amber-700">Locked</span></span>
-                    <span className="block text-xs text-gray-600">'Cash on Delivery is currently unavailable. Please pay online to confirm your booking.'</span>
-                  </span>
-                  <span className="text-xs font-semibold text-gray-500">🔒</span>
-                </div>
               </div>
 
               <div className="flex items-center gap-2 text-xs text-gray-600">
@@ -1080,7 +1072,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 <div className="flex justify-between"><span className="text-gray-500">Slot</span><span>{selectedSlot}</span></div>
                 <div className="flex justify-between font-semibold"><span>{confirmedBookingRecord.paymentStatus === 'PAID' ? 'Paid' : 'Due after service'}</span><span>₹{confirmedBookingRecord.totalAmount}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Payment method</span><span>Online payment</span></div>
-                {confirmedBookingRecord.paymentStatus !== 'PAID' && <p className="text-xs text-amber-700 bg-amber-50 rounded p-2">Payment is pending. Please complete payment or follow the selected COD collection terms.</p>}
               </div>
 
               <div className="flex gap-2">
