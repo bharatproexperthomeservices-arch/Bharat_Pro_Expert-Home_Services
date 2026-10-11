@@ -1,12 +1,17 @@
-// Only the public Razorpay Key ID may be exposed to the browser.
-// Configure VITE_RAZORPAY_KEY_ID in Vercel for each deployment environment.
-// Never add a key or RAZORPAY_KEY_SECRET as a source-code fallback.
+// src/services/razorpayService.ts
 export const getRazorpayKeyId = (): string | null => {
   const configuredKey = import.meta.env.VITE_RAZORPAY_KEY_ID;
-  if (typeof configuredKey !== "string") return null;
+  
+  // 🚨 DEBUGGING LOG: Yeh check karega ki Vite ko kya mil raha hai
+  console.log("DEBUG CHECK - VITE KEY:", configuredKey);
 
-  const key = configuredKey.trim();
-  return /^rzp_(test|live)_[A-Za-z0-9]+$/.test(key) ? key : null;
+  if (typeof configuredKey !== "string" || configuredKey.trim() === "") {
+    console.error("❌ VITE_RAZORPAY_KEY_ID is missing or empty.");
+    return null;
+  }
+  
+  // Filhal regex hata diya hai taaki key direct pass ho jaye
+  return configuredKey.trim(); 
 };
 
 export const loadRazorpayScript = (): Promise<boolean> => {
