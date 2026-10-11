@@ -18,5 +18,9 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
+      - name: Validate Prisma schema
+        run: npx prisma validate --schema packages/db/prisma/schema.prisma
+      - name: Generate Prisma client
+        run: npx prisma generate --schema packages/db/prisma/schema.prisma
       - name: Build production website
         run: npm run build
