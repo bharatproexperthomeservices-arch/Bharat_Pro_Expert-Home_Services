@@ -15,6 +15,14 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Validate Prisma schema
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bpe_ci
+        run: npx prisma validate --schema packages/db/prisma/schema.prisma
+      - name: Generate Prisma client
+        run: npx prisma generate --schema packages/db/prisma/schema.prisma
+      - name: Typecheck database package
+        run: npm run typecheck --workspace @bpe/db
       - name: Typecheck API
         run: npm run typecheck --workspace apps/api
       - name: Build API
