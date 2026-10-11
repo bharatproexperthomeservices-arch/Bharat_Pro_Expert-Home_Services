@@ -149,10 +149,23 @@ const removeUndefinedValues = <T,>(value: T): T => {
   return value;
 };
 
+// COD eligibility requires at least one successfully completed previous booking.
+export const hasCompletedBooking = async (customerId: string): Promise<boolean> => {
+  if (!customerId || customerId === 'authenticated-customer') return false;
+  try {
+    const snapshot = await getDocs(query(collection(db, 'bookings'), where('customerId', '==', customerId)));
+    return snapshot.docs.some((item: any) => {
+      const booking = item.data() as Booking;
+      return ['COMPLETED', 'SETTLED'].includes(String(booking.status || '').toUpperCase()) && String(booking.paymentStatus || '').toUpperCase() !== 'REFUNDED';
+    });
+  } catch (error) { console.error('Unable to verify COD eligibility:', error); return false; }
+};
+
 export const createNewBooking = async (newBooking: Booking): Promise<Booking> => {
   const normalizedPaymentMethod = String(newBooking?.paymentMethod || '').trim().toUpperCase().replace(/[\s/-]+/g, '_');
   if (normalizedPaymentMethod === 'COD' || normalizedPaymentMethod === 'CASH_ON_DELIVERY' || normalizedPaymentMethod === 'PAY_AFTER_SERVICE') {
-    throw new Error('Cash on Delivery is disabled. Please complete online payment to place this booking.');
+    const eligible = await hasCompletedBooking(String(newBooking?.customerId || ''));
+    if (!eligible) throw new Error('COD is available only after you have completed at least one previous booking. Please pay online.');
   }
   if (!newBooking || typeof newBooking.id !== 'string' || !newBooking.id.trim()) {
     throw new Error('Booking cannot be saved: missing booking ID.');
