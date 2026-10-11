@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Booking, HubLocation } from '../types';
 import { CLEANING_20_CATEGORIES, CleaningCategoryDetail } from '../cleaningCategoriesData';
 import { createNewBooking, getAllHubs, getAllBookings } from '../services/dbService';
-import { useRazorpayBooking, BookingPayload } from '../hooks/useRazorpayBooking';
+import { useCashfreeBooking, BookingPayload } from '../hooks/useCashfreeBooking';
 import { reverseGeocodeCoordinates } from '../services/indiaLocationHierarchy';
 import confetti from 'canvas-confetti';
 import { 
@@ -148,7 +148,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
   const [couponFeedback, setCouponFeedback] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
-  const { processBooking } = useRazorpayBooking();
+  const { processBooking } = useCashfreeBooking();
 
   // Customer Bookings
   const [customerBookings, setCustomerBookings] = useState<Booking[]>([]);
