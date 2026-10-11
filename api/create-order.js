@@ -1,5 +1,3 @@
-import Razorpay from "razorpay";
-import crypto from "node:crypto";
 import { ADDON_PRICES, CONVENIENCE_FEE_INR, COUPON_CODES, GST_RATE, SERVICE_PRICES } from "./pricing-catalog.js";
 
 function json(res, status, body) {
@@ -125,7 +123,7 @@ export default async function handler(req, res) {
   }
 
   const customerName = typeof req.body?.customerName === "string" ? req.body.customerName.trim().slice(0, 100) : "";
-  const customerPhone = typeof req.body?.customerPhone === "string" ? req.body.customerPhone.replace(/\\D/g, "").slice(-10) : "";
+  const customerPhone = typeof req.body?.customerPhone === "string" ? req.body.customerPhone.replace(/\D/g, "").slice(-10) : "";
   const customerEmail = typeof req.body?.customerEmail === "string" ? req.body.customerEmail.trim().slice(0, 150) : "";
   if (!customerName || customerPhone.length !== 10) {
     return json(res, 400, { error: "Enter a valid customer name and 10-digit phone number.", code: "INVALID_CUSTOMER_DETAILS" });
@@ -133,7 +131,7 @@ export default async function handler(req, res) {
 
   const isProduction = process.env.CASHFREE_ENV === "production";
   const apiBase = isProduction ? "https://api.cashfree.com/pg" : "https://sandbox.cashfree.com/pg";
-  const appBaseUrl = (process.env.PUBLIC_APP_URL || process.env.FRONTEND_ORIGIN || "").split(",")[0].trim().replace(/\\/$/, "");
+  const appBaseUrl = (process.env.PUBLIC_APP_URL || process.env.FRONTEND_ORIGIN || "").split(",")[0].trim().replace(/\/$/, "");
   const orderId = bookingId.slice(0, 45);
   const payload = {
     order_id: orderId,
