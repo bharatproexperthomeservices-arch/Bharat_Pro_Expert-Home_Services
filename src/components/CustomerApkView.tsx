@@ -1983,7 +1983,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 <span className="text-[#0b3ba8] font-bold text-xs bg-blue-100 px-2.5 py-1 rounded-md">✓ Razorpay Secure</span>
               </div>
               <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 font-medium">
-                🛡️ <b>Notice:</b> Cash on Delivery (COD) is disabled across all hubs. All bookings are confirmed instantly after secure online payment.
+                🛡️ <b>Online payment only:</b> Bookings are confirmed only after secure online payment succeeds.
               </div>
             </div>
 
