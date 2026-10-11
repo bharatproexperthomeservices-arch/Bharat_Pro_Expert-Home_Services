@@ -7,34 +7,26 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-bharatproexpert}
       POSTGRES_USER: ${POSTGRES_USER:-bpe_app}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bpe_local_dev_password}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    ports: ["5432:5432"]
+    volumes: [postgres_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bpe_app} -d ${POSTGRES_DB:-bharatproexpert}"]
       interval: 5s
       timeout: 3s
       retries: 20
-
   redis:
     image: redis:7-alpine
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
+    ports: ["6379:6379"]
+    volumes: [redis_data:/data]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 20
-
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
+    build: { context: ., dockerfile: Dockerfile.api }
     restart: unless-stopped
     environment:
       NODE_ENV: development
@@ -46,85 +38,55 @@ services:
       OWNER_NAME: ${OWNER_NAME:-Anil Chauhan}
       SUPPORT_EMAIL: ${SUPPORT_EMAIL:-Bharatproexpert@gmail.com}
       SUPPORT_PHONE: ${SUPPORT_PHONE:-8920252626}
-    ports:
-      - "4000:4000"
+    ports: ["4000:4000"]
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 4s
       retries: 10
-
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile.web
+    build: { context: ., dockerfile: Dockerfile.web }
     restart: unless-stopped
     environment:
       NODE_ENV: development
       PORT: 3000
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Bharat Pro Expert Home Services}
-    ports:
-      - "3000:3000"
+    ports: ["3000:3000"]
     depends_on:
-      api:
-        condition: service_healthy
-
+      api: { condition: service_healthy }
   ollama:
     image: ollama/ollama:latest
     profiles: ["ai"]
     restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-
+    ports: ["11434:11434"]
+    volumes: [ollama_data:/root/.ollama]
   nginx:
     image: nginx:1.27-alpine
     profiles: ["edge"]
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - web
-      - api
-
+    ports: ["8080:80"]
+    volumes: ["./nginx.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [web, api]
   pgadmin:
     image: dpage/pgadmin4:latest
     profiles: ["tools"]
-    restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@bharatproexpert.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-change-this-pgadmin-password}
-    ports:
-      - "5050:80"
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-change-this-password}
+    ports: ["5050:80"]
     depends_on:
-      postgres:
-        condition: service_healthy
-
+      postgres: { condition: service_healthy }
   bull-board:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
+    build: { context: ., dockerfile: Dockerfile.api }
     profiles: ["tools"]
-    restart: unless-stopped
     command: ["npm", "run", "bull-board", "--workspace", "apps/api"]
-    environment:
-      REDIS_URL: redis://redis:6379
-      API_PORT: 4001
-    ports:
-      - "4001:4001"
+    environment: { REDIS_URL: redis://redis:6379, API_PORT: 4001 }
+    ports: ["4001:4001"]
     depends_on:
-      redis:
-        condition: service_healthy
-
+      redis: { condition: service_healthy }
 volumes:
   postgres_data:
   redis_data:
