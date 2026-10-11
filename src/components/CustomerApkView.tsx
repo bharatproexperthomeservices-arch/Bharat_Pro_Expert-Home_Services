@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { Booking, HubLocation } from '../types';
 import { CLEANING_20_CATEGORIES, CleaningCategoryDetail } from '../cleaningCategoriesData';
 import { createNewBooking, getAllHubs, getAllBookings } from '../services/dbService';
-import { openRazorpayPaymentModal, getRazorpayKeyId } from '../services/razorpayService';
 import { useRazorpayBooking, BookingPayload } from '../hooks/useRazorpayBooking';
 import { reverseGeocodeCoordinates } from '../services/indiaLocationHierarchy';
 import confetti from 'canvas-confetti';
@@ -487,7 +486,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
       };
 
       // Execute via API hook:
-      // - Explicitly triggers Razorpay only after validating 'UPI / Cards / Netbanking' selection
+      // - Opens Cashfree Checkout for all supported online payment methods
       // - Ensures Firestore booking creation ONLY occurs inside handler.success callback
       // - Prevents premature booking creation or confirmation
       await processBooking(bookingPayload, paymentMethod, {
@@ -1976,11 +1975,11 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">💳</span>
                   <div>
-                    <b className="text-sm text-[#111827] block">100% Secure Online Payment</b>
-                    <span className="text-xs text-[#6b7280]">GPay, PhonePe, Paytm, UPI, Cards &amp; Netbanking</span>
+                    <b className="text-sm text-[#111827] block">Cashfree Secure Checkout</b>
+                    <span className="text-xs text-[#6b7280]">UPI, cards and netbanking options available inside Cashfree</span>
                   </div>
                 </div>
-                <span className="text-[#0b3ba8] font-bold text-xs bg-blue-100 px-2.5 py-1 rounded-md">✓ Razorpay Secure</span>
+                <span className="text-[#0b3ba8] font-bold text-xs bg-blue-100 px-2.5 py-1 rounded-md">✓ Cashfree Secure</span>
               </div>
               <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 font-medium">
                 🛡️ <b>Online payment only:</b> Bookings are confirmed only after secure online payment succeeds.
