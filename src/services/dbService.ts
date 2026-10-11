@@ -154,7 +154,7 @@ export const createNewBooking = async (newBooking: Booking): Promise<Booking> =>
     throw new Error('Booking cannot be saved: missing booking ID.');
   }
   const requestedPaymentMethod = String(newBooking.paymentMethod || '').trim().toUpperCase().replace(/[\\s/-]+/g, '_');
-  if (requestedPaymentMethod === 'COD' || requestedPaymentMethod === 'CASH_ON_DELIVERY' || requestedPaymentMethod === 'PAY_AFTER_SERVICE' || requestedPaymentMethod === 'PAY_AFTER_SERVICE') {
+  if (requestedPaymentMethod === 'COD' || requestedPaymentMethod === 'CASH_ON_DELIVERY' || requestedPaymentMethod === 'PAY_AFTER_SERVICE') {
     throw new Error('Cash on Delivery is permanently disabled. Complete online payment to book this service.');
   }
   if (!newBooking.customerPhone || newBooking.customerPhone.replace(/\D/g, '').length < 10) {
