@@ -36,6 +36,8 @@ const FALLBACK_HUB: HubLocation = {
   city: 'Unconfirmed',
   district: 'Unconfirmed',
   address: 'Choose a supported service location',
+  lat: 0,
+  lng: 0,
   coveredSectors: [],
   pincodes: [],
   serviceRadiusKm: 0,
