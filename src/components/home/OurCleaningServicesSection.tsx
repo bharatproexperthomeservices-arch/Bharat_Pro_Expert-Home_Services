@@ -16,14 +16,14 @@ export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProp
   const categoryPrice = (categoryId: string) =>
     MASTER_CATALOG_CATEGORIES.find((category) => category.id === categoryId)?.startingPrice ?? 0;
 
-  // Pexels stock photos: real cleaning actions, not AI-generated illustrations.
+  // Use the catalog's category-specific interior photo so each service card stays aligned with its own category.
   const cards = [
     {
       id: 'complete-home-cleaning',
       title: 'Full House Cleaning',
       subtitle: 'Whole-home deep cleaning',
       fromPrice: categoryPrice('complete-home-cleaning'),
-      image: 'https://images.pexels.com/photos/6195278/pexels-photo-6195278.jpeg?auto=compress&cs=tinysrgb&w=1200',
+      image: MASTER_CATALOG_CATEGORIES.find(category => category.id === 'complete-home-cleaning')?.heroImage || '',
       duration: 'Varies by home size',
       badge: 'Whole home',
       features: ['Rooms and surfaces', 'Kitchen and bathroom options', 'Choose a suitable package']
@@ -33,7 +33,7 @@ export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProp
       title: 'Kitchen Cleaning',
       subtitle: 'Detailed kitchen surface care',
       fromPrice: categoryPrice('kitchen-cleaning'),
-      image: 'https://images.pexels.com/photos/10568269/pexels-photo-10568269.jpeg?auto=compress&cs=tinysrgb&w=1200',
+      image: MASTER_CATALOG_CATEGORIES.find(category => category.id === 'kitchen-cleaning')?.heroImage || '',
       duration: 'Varies by package',
       badge: 'Kitchen care',
       features: ['Counter and surface cleaning', 'Sink and fixture care', 'Select add-ons when booking']
@@ -43,7 +43,7 @@ export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProp
       title: 'Bathroom Cleaning',
       subtitle: 'Tiles, fittings and surfaces',
       fromPrice: categoryPrice('bathroom-cleaning'),
-      image: 'https://images.pexels.com/photos/9462766/pexels-photo-9462766.jpeg?auto=compress&cs=tinysrgb&w=1200',
+      image: MASTER_CATALOG_CATEGORIES.find(category => category.id === 'bathroom-cleaning')?.heroImage || '',
       duration: 'Varies by package',
       badge: 'Bathroom care',
       features: ['Tile and grout attention', 'Sink and fitting care', 'Choose the required service']
@@ -53,7 +53,7 @@ export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProp
       title: 'Sofa & Upholstery',
       subtitle: 'Fabric and seating care',
       fromPrice: categoryPrice('sofa-cleaning'),
-      image: 'https://images.pexels.com/photos/4401538/pexels-photo-4401538.jpeg?auto=compress&cs=tinysrgb&w=1200',
+      image: MASTER_CATALOG_CATEGORIES.find(category => category.id === 'sofa-cleaning')?.heroImage || '',
       duration: 'Varies by seating',
       badge: 'Upholstery',
       features: ['Sofa surface vacuuming', 'Select seating options', 'Fabric suitability may vary']
