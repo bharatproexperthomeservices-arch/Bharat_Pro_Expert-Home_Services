@@ -312,7 +312,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       try {
         const hubsList = await getAllHubs();
         if (cancelled) return;
-        if (hubsList && hubsList.length > 0) {
+        if (Array.isArray(hubsList)) {
           const activeHubsList = hubsList.filter((hub: HubLocation) => hub && hub.id !== 'hub-default' && hub.active !== false && hub.status !== 'INACTIVE');
           setAvailableHubs(activeHubsList);
           if (activeHubsList.length === 0) return;
