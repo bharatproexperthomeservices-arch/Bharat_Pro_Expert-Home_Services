@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import './BookingFlowModal.css';
 import { CleaningService, ServiceAddon, Booking, HubLocation } from '../types';
 import { BUMPER_OFFERS, INITIAL_HUBS } from '../data';
 import { useAuth } from '../context/AuthContext';
@@ -783,10 +784,10 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   // RENDER
   // =========================================================
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3 overflow-y-auto">
-      <div className="bg-white rounded-2xl w-full max-w-2xl my-6 shadow-2xl">
+    <div className="bpe-booking-fullscreen fixed inset-0 z-[100] bg-slate-950/70 flex items-stretch justify-stretch p-0 overflow-hidden">
+      <div className="bpe-booking-fullscreen__panel bg-white rounded-none w-full max-w-none h-[100dvh] min-h-0 my-0 shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b">
+        <div className="flex items-center justify-between px-5 sm:px-8 py-4 border-b bg-white shrink-0">
           <div>
             <h2 className="text-lg font-bold text-gray-900">{service.name}</h2>
             <p className="text-xs text-gray-500">Step {step} of 4</p>
@@ -807,7 +808,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
           </div>
         )}
 
-        <div className="p-5 space-y-4">
+        <div className="bpe-booking-fullscreen__body p-4 sm:p-6 lg:p-8 space-y-4 overflow-y-auto flex-1 min-h-0">
           {/* STEP 1: Add-ons & Schedule */}
           {step === 1 && (
             <>

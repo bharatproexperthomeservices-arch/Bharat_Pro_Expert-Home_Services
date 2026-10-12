@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './HeroSection.css';
-import { ArrowRight, CheckCircle2, ChevronDown, MapPin, Search, ShieldCheck, Sparkles, Tag } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
+import { MASTER_CATALOG_CATEGORIES } from '../../data/masterCatalogData';
 
 export interface HeroSectionProps {
   selectedLocation?: string;
@@ -9,85 +10,86 @@ export interface HeroSectionProps {
   onOpenBookNow?: () => void;
 }
 
+const SERVICE_SLIDES = [
+  { id: 'sofa-cleaning', label: 'Sofa Cleaning', categoryId: 'sofa-cleaning', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=2200&q=90', eyebrow: 'FABRIC CARE, REFINED', headline: 'Bring Your Sofa Back to Life', detail: 'Deep fabric cleaning, fresh finishes and expert care for your favourite place to relax.', icon: '🛋️' },
+  { id: 'carpet-cleaning', label: 'Carpet Cleaning', categoryId: 'carpet-cleaning', image: 'https://images.unsplash.com/photo-1600166898405-da9535204843?auto=format&fit=crop&w=2200&q=90', eyebrow: 'DEEP FIBRE RESTORATION', headline: 'Luxury Care for Every Fibre', detail: 'Refresh carpets and rugs with detailed cleaning designed for a cleaner, brighter home.', icon: '✦' },
+  { id: 'chair-cleaning', label: 'Chairs Cleaning', categoryId: 'chair-cleaning', image: 'https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=2200&q=90', eyebrow: 'DETAIL IN EVERY DETAIL', headline: 'Make Every Seat Feel New', detail: 'Specialist chair and upholstery cleaning for dining, office and accent seating.', icon: '🪑' },
+  { id: 'kitchen-cleaning', label: 'Kitchen Cleaning', categoryId: 'kitchen-cleaning', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=2200&q=90', eyebrow: 'A FRESH START, EVERY DAY', headline: 'A Kitchen That Truly Shines', detail: 'Thoughtful degreasing and detailed cleaning for the heart of your home.', icon: '✧' },
+  { id: 'apartment-cleaning', label: 'Apartment Cleaning', categoryId: 'apartment-cleaning', image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=2200&q=90', eyebrow: 'WHOLE-HOME PERFECTION', headline: 'Come Home to Exceptional Clean', detail: 'A considered deep clean for rooms, surfaces and the spaces you live in.', icon: '⌂' },
+  { id: 'bathroom-cleaning', label: 'Bathroom Cleaning', categoryId: 'bathroom-cleaning', image: 'https://images.unsplash.com/photo-1620626011761-996317b8d101?auto=format&fit=crop&w=2200&q=90', eyebrow: 'SPA-INSPIRED CLEANLINESS', headline: 'A Brighter, Fresher Bathroom', detail: 'Detailed bathroom cleaning for sparkling fittings, tiles and everyday comfort.', icon: '✦' }
+];
+
 export const HeroSection: React.FC<HeroSectionProps> = ({
-  selectedLocation = 'Gurugram, Haryana',
+  selectedLocation = '',
   onOpenLocationModal,
+  onSelectServiceItem,
   onOpenBookNow
 }) => {
-  const [serviceQuery, setServiceQuery] = useState('');
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const slide = SERVICE_SLIDES[activeSlide];
 
-  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (serviceQuery.trim()) {
-      const query = serviceQuery.trim().toLowerCase();
-      const targetId = query.includes('kitchen') ? 'kitchen-cleaning' :
-        query.includes('bath') ? 'bathroom-cleaning' :
-        query.includes('sofa') || query.includes('carpet') ? 'sofa-shampooing' :
-        'full-home-cleaning';
-      const target = document.getElementById(targetId);
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-      }
+  useEffect(() => {
+    if (paused) return;
+    const timer = window.setInterval(() => setActiveSlide(current => (current + 1) % SERVICE_SLIDES.length), 5200);
+    return () => window.clearInterval(timer);
+  }, [paused]);
+
+  const bookSlide = (categoryId: string) => {
+    const category = MASTER_CATALOG_CATEGORIES.find(item => item.id === categoryId && item.active);
+    const service = category?.items.find(item => item.active) || category?.items[0];
+    if (service && onSelectServiceItem) {
+      onSelectServiceItem(service);
+      return;
     }
     onOpenBookNow?.();
   };
 
+  const changeSlide = (next: number) => setActiveSlide((next + SERVICE_SLIDES.length) % SERVICE_SLIDES.length);
+
   return (
-    <section className="bpe-reference-hero relative isolate w-full overflow-hidden">
-      <img
-        className="bpe-reference-hero__background"
-        src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=2400&q=90"
-        alt="Bright luxury living room with elegant sofa and large windows"
-        fetchPriority="high"
-      />
-      <div className="bpe-reference-hero__overlay" />
-
-      <div className="bpe-reference-hero__inner relative z-10 mx-auto flex h-full w-full max-w-[1440px] flex-col px-5 sm:px-8 lg:px-16">
-        <div className="bpe-reference-hero__content">
-          <div className="bpe-reference-hero__trust-pill">
-            <ShieldCheck className="h-5 w-5 shrink-0 fill-emerald-600 text-white" />
-            <span>Trusted Home Cleaning Services</span>
-          </div>
-
-          <h1 className="bpe-reference-hero__headline">Bharat Pro Expert</h1>
-          <p className="bpe-reference-hero__tagline">Professional. Reliable. Premium.</p>
-
-          <form className="bpe-reference-hero__searchbar" onSubmit={handleSearch}>
-            <button type="button" onClick={onOpenLocationModal} className="bpe-reference-hero__location" aria-label="Choose service location">
-              <MapPin className="h-6 w-6 shrink-0 fill-[#08213f] text-white" />
-              <span className="bpe-reference-hero__location-label">{selectedLocation || 'Choose your location'}</span>
-              <ChevronDown className="h-5 w-5 shrink-0" />
-            </button>
-            <label className="bpe-reference-hero__service-search">
-              <Search className="h-6 w-6 shrink-0 text-[#08213f]" />
-              <input type="search" value={serviceQuery} onChange={(event) => setServiceQuery(event.target.value)} placeholder="Search cleaning services..." aria-label="Search cleaning services" />
-            </label>
-            <button className="bpe-reference-hero__book-button" type="submit">
-              <span>Book Now</span><ArrowRight className="h-5 w-5" />
-            </button>
-          </form>
-
-          <div className="bpe-reference-hero__locations" aria-label="Service locations">
-            <span>Serving:</span>
-            {['Delhi', 'Gurgaon', 'Noida', 'Haryana', 'Patna', 'Jharkhand'].map((city) => (
-              <button type="button" key={city} onClick={onOpenLocationModal}>{city}</button>
-            ))}
-          </div>
+    <section
+      className="bpe-ultra-slider"
+      aria-label="Premium cleaning services"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {SERVICE_SLIDES.map((item, index) => (
+        <div key={item.id} className={`bpe-ultra-slider__scene ${index === activeSlide ? 'is-active' : ''}`} aria-hidden={index !== activeSlide}>
+          <img className="bpe-ultra-slider__photo" src={item.image} alt="" fetchPriority={index === 0 ? 'high' : 'auto'} />
         </div>
+      ))}
+      <div className="bpe-ultra-slider__veil" />
+      <div className="bpe-ultra-slider__topline">
+        <div className="bpe-ultra-slider__trust"><ShieldCheck size={17} /><span>Trusted Home Cleaning Services</span></div>
+        <button type="button" className="bpe-ultra-slider__location" onClick={onOpenLocationModal}>
+          <MapPin size={16} /><span>{selectedLocation || 'Choose your location'}</span><span className="bpe-ultra-slider__change">Change</span>
+        </button>
+      </div>
 
-        <aside className="bpe-reference-hero__offer" aria-label="First booking offer">
-          <div className="bpe-reference-hero__offer-icon"><Tag className="h-5 w-5" /></div>
-          <div>
-            <strong>Get 20% OFF</strong>
-            <span>Your First Booking</span>
-            <small><Sparkles className="h-4 w-4" /> CLEANING <Sparkles className="h-4 w-4" /></small>
-          </div>
-        </aside>
+      <div className="bpe-ultra-slider__copy" key={slide.id}>
+        <p className="bpe-ultra-slider__eyebrow"><Sparkles size={14} /> {slide.eyebrow}</p>
+        <h1>{slide.headline}</h1>
+        <p className="bpe-ultra-slider__description">{slide.detail}</p>
+        <div className="bpe-ultra-slider__proof"><CheckCircle2 size={16} /> Professional service <span /> Transparent pricing <span /> Easy booking</div>
+        <button type="button" className="bpe-ultra-slider__book" onClick={() => bookSlide(slide.categoryId)}>
+          <span>Book {slide.label}</span><ArrowRight size={17} />
+        </button>
+      </div>
 
-        <div className="bpe-reference-hero__bottom-note">
-          <CheckCircle2 className="h-4 w-4" /> Premium care for every corner of your home
+      <button type="button" aria-label="Previous service" className="bpe-ultra-slider__arrow bpe-ultra-slider__arrow--left" onClick={() => changeSlide(activeSlide - 1)}><ChevronLeft size={23} /></button>
+      <button type="button" aria-label="Next service" className="bpe-ultra-slider__arrow bpe-ultra-slider__arrow--right" onClick={() => changeSlide(activeSlide + 1)}><ChevronRight size={23} /></button>
+
+      <div className="bpe-ultra-slider__bottom">
+        <div className="bpe-ultra-slider__service-tabs" role="tablist" aria-label="Choose cleaning service">
+          {SERVICE_SLIDES.map((item, index) => (
+            <button key={item.id} type="button" role="tab" aria-selected={index === activeSlide} className={index === activeSlide ? 'is-selected' : ''} onClick={() => changeSlide(index)}>
+              <span className="bpe-ultra-slider__tab-icon">{item.icon}</span><span>{item.label}</span>
+              <span className="bpe-ultra-slider__mini-book" onClick={(event) => { event.stopPropagation(); bookSlide(item.categoryId); }}>Book <ArrowRight size={12} /></span>
+            </button>
+          ))}
         </div>
+        <div className="bpe-ultra-slider__progress"><span>{String(activeSlide + 1).padStart(2, '0')}</span><div><i style={{ width: `${((activeSlide + 1) / SERVICE_SLIDES.length) * 100}%` }} /></div><span>{String(SERVICE_SLIDES.length).padStart(2, '0')}</span></div>
       </div>
     </section>
   );
