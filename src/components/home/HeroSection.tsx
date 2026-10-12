@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import './HeroSection.css';
 import { 
   ArrowRight, 
   MapPin, 
