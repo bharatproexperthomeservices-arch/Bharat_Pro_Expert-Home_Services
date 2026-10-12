@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { CleaningService } from '../types';
 import { 
-  Star, 
   Clock, 
   CheckCircle2, 
   X, 
@@ -33,8 +32,9 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   if (!service) return null;
 
   const basePrice = service.basePrice;
-  const refPrice = service.referencePrice || Math.round(basePrice * 1.18);
-  const savings = refPrice - basePrice;
+  const refPrice = service.referencePrice && service.referencePrice > basePrice ? service.referencePrice : 0;
+  const savings = refPrice ? refPrice - basePrice : 0;
+  const discountPercent = refPrice ? Math.round((savings / refPrice) * 100) : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md overflow-y-auto">
@@ -70,9 +70,11 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                 alt={service.name}
                 className="w-full h-full object-cover"
               />
-              <span className="absolute top-3 left-3 bg-[#2FA84F] text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-xs">
-                15% OFF
-              </span>
+              {discountPercent > 0 && (
+                <span className="absolute top-3 left-3 bg-[#2FA84F] text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow-xs">
+                  {discountPercent}% OFF
+                </span>
+              )}
             </div>
 
             <div className="md:col-span-6 space-y-3">
@@ -84,16 +86,10 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                 {service.shortDesc || service.detailedDesc}
               </p>
 
-              {/* Rating & Duration */}
               <div className="flex flex-wrap items-center gap-3 pt-1 text-xs">
-                <div className="flex items-center gap-1 text-amber-500 font-bold bg-amber-50 px-2.5 py-1 rounded-md">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  <span>{service.rating || '4.8'}</span>
-                  <span className="text-gray-400 font-normal">({service.reviewCount || 42} reviews)</span>
-                </div>
                 <div className="flex items-center gap-1 text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
                   <Clock className="w-3.5 h-3.5 text-gray-500" />
-                  <span>~{service.estimatedMinutes || 120} mins</span>
+                  <span>Estimated ~{service.estimatedMinutes || 120} mins</span>
                 </div>
               </div>
 
@@ -102,14 +98,18 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                 <div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-black text-[#0B2A4A]">₹{basePrice.toLocaleString('en-IN')}</span>
-                    <span className="text-xs text-gray-400 line-through">₹{refPrice.toLocaleString('en-IN')}</span>
+                    {refPrice > 0 && <span className="text-xs text-gray-400 line-through">₹{refPrice.toLocaleString('en-IN')}</span>}
                   </div>
-                  <span className="text-[11px] font-bold text-[#2FA84F]">Save ₹{savings.toLocaleString('en-IN')} (Direct Benchmark Price)</span>
+                  {refPrice > 0 ? (
+                    <span className="text-[11px] font-bold text-[#2FA84F]">Save ₹{savings.toLocaleString('en-IN')} vs. listed reference price</span>
+                  ) : (
+                    <span className="text-[11px] text-gray-500">Listed service price</span>
+                  )}
                 </div>
 
                 <div className="text-right">
-                  <span className="text-[10px] text-gray-500 block">Pay After Inspection</span>
-                  <span className="text-[11px] font-bold text-[#0B2A4A]">Zero Advance Needed</span>
+                  <span className="text-[10px] text-gray-500 block">Payment</span>
+                  <span className="text-[11px] font-bold text-[#0B2A4A]">Online checkout</span>
                 </div>
               </div>
             </div>
@@ -153,26 +153,26 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
           {activeTab === 'overview' && (
             <div className="space-y-4 text-xs text-gray-600 leading-relaxed">
               <p>
-                {service.detailedDesc || 'Our certified BharatProExpert deep cleaning professionals deploy hospital-grade Diversey chemicals and German extraction equipment. Every corner is descaled, scrubbed, and sanitized with zero harsh acidic fumes.'}
+                {service.detailedDesc || 'Review the selected package, included tasks and exclusions before booking. Cleaning methods and products should be chosen according to the surface and its condition.'}
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                 <div className="p-3 rounded-xl bg-white border border-[#E2E8F0] space-y-1">
                   <Leaf className="w-4 h-4 text-[#2FA84F]" />
-                  <div className="font-bold text-[#0B2A4A]">Diversey Solutions</div>
-                  <div className="text-[11px] text-gray-500">100% infant &amp; pet safe formulations.</div>
+                  <div className="font-bold text-[#0B2A4A]">Cleaning Products</div>
+                  <div className="text-[11px] text-gray-500">Check product suitability for your surface.</div>
                 </div>
 
                 <div className="p-3 rounded-xl bg-white border border-[#E2E8F0] space-y-1">
                   <ShieldCheck className="w-4 h-4 text-[#0B2A4A]" />
-                  <div className="font-bold text-[#0B2A4A]">7-Point Police Check</div>
-                  <div className="text-[11px] text-gray-500">Aadhaar verified &amp; uniformed pros.</div>
+                  <div className="font-bold text-[#0B2A4A]">Service Details</div>
+                  <div className="text-[11px] text-gray-500">Review the package before booking.</div>
                 </div>
 
                 <div className="p-3 rounded-xl bg-white border border-[#E2E8F0] space-y-1">
                   <Sparkles className="w-4 h-4 text-[#F5A400]" />
-                  <div className="font-bold text-[#0B2A4A]">48-Hour Re-Clean</div>
-                  <div className="text-[11px] text-gray-500">Free touch-up if any spot is missed.</div>
+                  <div className="font-bold text-[#0B2A4A]">Customer Support</div>
+                  <div className="text-[11px] text-gray-500">Contact support if you have a service concern.</div>
                 </div>
               </div>
             </div>
@@ -191,7 +191,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                     'Intense tile descaling with rotary scrubbing machine',
                     'Hard-water stain removal on taps, shower & basins',
                     'Mirror buffing & glass streak-free squeegee wash',
-                    'Floor scrubbing & hospital-grade surface sanitization',
+                    'Floor cleaning with suitable surface products',
                     'Cobweb removal and ceiling fixtures dusting'
                   ]).map((inc, i) => (
                     <li key={i} className="flex items-start gap-1.5">
