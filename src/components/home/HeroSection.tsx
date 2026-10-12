@@ -8,7 +8,8 @@ import {
   ChevronRight, 
   ShieldCheck, 
   Star,
-  CheckCircle2
+  CheckCircle2,
+  ArrowUpRight
 } from 'lucide-react';
 
 // EXACT 6 CATEGORIES REQUESTED: SOFA, CARPET, KITCHEN, APARTMENT, MATTRESS, BATHROOM
@@ -177,7 +178,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   return (
     <div 
-      className="relative w-full h-[540px] sm:h-[600px] md:h-[650px] lg:h-[720px] overflow-hidden bg-slate-950 select-none group"
+      aria-label="Bharat Pro Expert premium home cleaning services" className="bpe-luxury-hero relative w-full h-[600px] sm:h-[650px] md:h-[690px] lg:h-[740px] overflow-hidden bg-slate-950 select-none group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={handleTouchStart}
@@ -203,18 +204,18 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   target.src = slide.fallbackImage;
                 }
               }}
-              className={`w-full h-full object-cover transition-transform duration-6000 ease-out ${
+              className={`bpe-luxury-hero__image w-full h-full object-cover transition-transform duration-[6500ms] ease-out ${
                 isActive ? 'scale-105' : 'scale-100'
               }`}
               loading={idx === 0 ? 'eager' : 'lazy'}
             />
 
             {/* Premium Multi-Layer Gradient Overlays for Maximum Text Legibility */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/65 to-black/30" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#07152a]/95 via-[#07152a]/72 to-[#07152a]/22" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#07152a]/80 via-transparent to-[#07152a]/30" />
 
             {/* Slide Text Content Container */}
-            <div className="absolute inset-0 flex flex-col justify-center px-5 sm:px-10 md:px-16 lg:px-24 max-w-5xl z-10">
+            <div className="bpe-luxury-hero__copy absolute inset-0 flex flex-col justify-center px-5 sm:px-10 md:px-16 lg:px-24 max-w-5xl z-10 pt-14 sm:pt-12">
               
               {/* Badges / Chips */}
               <div className="flex items-center gap-2 sm:gap-3 flex-wrap mb-3 sm:mb-4">
@@ -222,17 +223,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 <button
                   type="button"
                   onClick={onOpenLocationModal}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold transition-all border border-white/25 cursor-pointer shadow-sm active:scale-95"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/12 hover:bg-white/20 backdrop-blur-xl text-white text-xs font-bold transition-all border border-white/25 cursor-pointer shadow-sm active:scale-95"
                 >
                   <MapPin className="w-3.5 h-3.5 text-amber-400" />
                   <span>{selectedLocation ? `Serving ${selectedLocation}` : '📍 Auto-Detect My Location'}</span>
-                  <span className="text-[10px] text-amber-300 underline font-medium ml-0.5">
+                  <span className="text-[10px] text-[#8b6427] underline font-medium ml-0.5">
                     {selectedLocation ? 'Change' : 'Detect'}
                   </span>
                 </button>
 
                 {/* 10% OFF Promo Badge */}
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/90 text-white text-xs font-extrabold backdrop-blur-md shadow-sm border border-emerald-400/50">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#cba45d] text-[#102443] text-xs font-extrabold backdrop-blur-md shadow-sm border border-[#f1dba9]/70">
                   <Tag className="w-3 h-3 text-white" />
                   <span>Flat 10% OFF • Code: BHARAT10</span>
                 </div>
@@ -245,12 +246,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </div>
 
               {/* Hindi Category Subtitle */}
-              <p className="text-amber-400 font-bold text-xs sm:text-sm tracking-wide mb-1">
+              <p className="text-[#f0d49a] font-bold text-xs sm:text-sm tracking-[.08em] mb-2">
                 {slide.hindiTitle}
               </p>
 
               {/* Main Headline */}
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.12] mb-3 drop-shadow-xl max-w-3xl">
+              <h1 className="bpe-luxury-hero__title text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.08] mb-4 drop-shadow-xl max-w-3xl">
                 {slide.title}
               </h1>
 
@@ -277,7 +278,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => handleBookSlide(slide)}
-                  className="bg-gradient-to-r from-[#00A86B] to-[#008f5b] hover:from-[#008f5b] hover:to-[#007349] text-white font-black text-sm sm:text-base px-7 sm:px-9 py-3.5 sm:py-4 rounded-2xl transition-all shadow-xl hover:shadow-2xl flex items-center gap-2 cursor-pointer active:scale-95 group"
+                  className="bpe-luxury-hero__cta bg-gradient-to-r from-[#f1d69a] to-[#c69b4f] hover:from-[#f7e4b9] hover:to-[#d2aa61] text-[#102443] font-black text-sm sm:text-base px-7 sm:px-9 py-3.5 sm:py-4 rounded-2xl transition-all shadow-xl hover:shadow-2xl flex items-center gap-2 cursor-pointer active:scale-95 group"
                 >
                   <Sparkles className="w-4 h-4 text-amber-300" />
                   <span>Book Now / अभी बुक करें</span>
@@ -285,7 +286,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 </button>
 
                 {/* Price Display */}
-                <div className="flex items-baseline gap-2 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/20">
+                <div className="flex items-baseline gap-2 bg-white/10 backdrop-blur-xl px-4 py-2.5 rounded-xl border border-white/25">
                   <span className="text-[11px] text-slate-300 font-medium">Starts from:</span>
                   <span className="text-lg sm:text-xl font-black text-white">₹{slide.priceFrom}</span>
                   <span className="text-xs text-slate-400 line-through">₹{slide.originalPrice}</span>
@@ -302,8 +303,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
       {/* ================= TOP INTERACTIVE CATEGORY TABS ================= */}
       {/* Allows instant one-click switching directly to Sofa, Carpet, Kitchen, Apartment, Mattress, Bathroom */}
-      <div className="absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-20 w-full max-w-4xl px-3 sm:px-6">
-        <div className="flex items-center justify-center gap-1 sm:gap-2 bg-black/40 hover:bg-black/60 backdrop-blur-lg p-1.5 rounded-2xl border border-white/15 shadow-2xl overflow-x-auto no-scrollbar">
+      <div className="absolute top-3 sm:top-5 left-1/2 -translate-x-1/2 z-20 w-full max-w-5xl px-3 sm:px-6">
+        <div className="flex items-center justify-center gap-1 sm:gap-2 bg-[#07152a]/45 hover:bg-[#07152a]/65 backdrop-blur-xl p-1.5 rounded-2xl border border-white/20 shadow-2xl overflow-x-auto no-scrollbar">
           {ULTRA_SLIDES.map((item, idx) => {
             const isSelected = idx === current;
             return (
@@ -313,8 +314,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 onClick={() => goTo(idx)}
                 className={`flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   isSelected
-                    ? 'bg-white text-[#08213F] shadow-lg scale-102 font-black'
-                    : 'text-slate-200 hover:text-white hover:bg-white/10'
+                    ? 'bg-gradient-to-r from-[#f4dfad] to-[#cda254] text-[#102443] shadow-lg font-black'
+                    : 'text-slate-100 hover:text-white hover:bg-white/10'
                 }`}
               >
                 <span>{item.tabIcon}</span>
@@ -365,6 +366,34 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               }`}
             />
           ))}
+        </div>
+      </div>
+      {/* Service location quick links */}
+      <div className="bpe-luxury-hero__locations absolute bottom-0 left-0 right-0 z-20 border-t border-white/15 bg-[#07152a]/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-10 lg:px-16">
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-white/65">
+            <MapPin className="h-3.5 w-3.5 text-[#e4c27e]" />
+            <span>Our Service Locations</span>
+          </div>
+          <div className="flex flex-1 flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+            {['Delhi', 'Gurgaon', 'Noida', 'Haryana', 'Patna', 'Jharkhand'].map((city) => (
+              <button
+                type="button"
+                key={city}
+                onClick={onOpenLocationModal}
+                className="rounded-full border border-white/20 bg-white/[.07] px-3 py-1.5 text-[11px] font-semibold text-white/90 transition hover:border-[#e4c27e]/70 hover:bg-white/15 hover:text-[#f3dba7]"
+              >
+                {city}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={onOpenLocationModal}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#f0d49a] hover:text-white"
+          >
+            Change location <ArrowUpRight className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     </div>
