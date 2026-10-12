@@ -98,14 +98,14 @@ const IMG = {
   chandelier: 'https://images.unsplash.com/photo-1524634126442-357e0eac3c14?w=800&q=85',
   curtain: 'https://images.unsplash.com/photo-1616627561950-9f746e330187?w=800&q=85',
   balcony: 'https://images.pexels.com/photos/6197116/pexels-photo-6197116.jpeg?auto=compress&cs=tinysrgb&w=1200',
-  door: 'https://images.pexels.com/photos/9462224/pexels-photo-9462224.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  door: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800&q=85',
   moveIn: 'https://images.pexels.com/photos/6197117/pexels-photo-6197117.jpeg?auto=compress&cs=tinysrgb&w=1200',
   moveOut: 'https://images.pexels.com/photos/38325/vacuum-cleaner-carpet-cleaner-housework-housekeeping-38325.jpeg?auto=compress&cs=tinysrgb&w=1200',
-  office: 'https://images.pexels.com/photos/6195949/pexels-photo-6195949.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  office: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800&q=85',
   officeLarge: 'https://images.pexels.com/photos/6195949/pexels-photo-6195949.jpeg?auto=compress&cs=tinysrgb&w=1200',
   clinic: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800&q=85',
   shop: 'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?w=800&q=85',
-  recurring: 'https://images.pexels.com/photos/6197117/pexels-photo-6197117.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  recurring: 'https://images.unsplash.com/photo-1524634126442-357e0eac3c14?w=800&q=85',
 };
 
 const BATHROOM_ADDONS: ServiceAddOn[] = [
