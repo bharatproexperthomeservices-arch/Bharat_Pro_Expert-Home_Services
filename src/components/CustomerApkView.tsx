@@ -665,7 +665,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                   </span>
                   <span className="text-center w-16">
                     <i className="block not-italic text-xl">✅</i>
-                    Satisfaction Guaranteed
+                    Package details before booking
                   </span>
                 </div>
                 <button
@@ -1193,7 +1193,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                           </span>
                         )}
                         <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200">
-                          ✓ 100% Police Verified Staff
+                          Service details before booking
                         </span>
                         <span className="bg-blue-50 text-[#0b3ba8] text-[10px] font-bold px-2 py-0.5 rounded border border-blue-200">
                           ⏱ {cat.duration}
@@ -1251,7 +1251,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                           className="w-full h-full object-cover"
                         />
                         <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-xs text-white text-[10px] px-2 py-0.5 rounded font-mono">
-                          {cat.duration} &bull; German Kärcher tech
+                          {cat.duration} &bull; Check service details
                         </div>
                       </div>
                     </div>
@@ -1458,13 +1458,13 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                   {/* Safety & Cancellation Guarantees */}
                   <div className="bg-[#eaf0ff] rounded-2xl p-4 border border-blue-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                      <b className="text-[#0b3ba8] block mb-1">🛡️ Safety &amp; Diversey Chemicals</b>
+                      <b className="text-[#0b3ba8] block mb-1">🛡️ Service and safety notes</b>
                       <p className="text-[#374151] leading-relaxed">
-                        {cat.safety}
+                        Review the selected package details and tell support about any surface or product concerns before booking.
                       </p>
                     </div>
                     <div>
-                      <b className="text-[#0b3ba8] block mb-1">↩️ Cancellation &amp; 100% Refund Policy</b>
+                      <b className="text-[#0b3ba8] block mb-1">↩️ Cancellation policy</b>
                       <p className="text-[#374151] leading-relaxed">
                         {cat.cancellationPolicy}
                       </p>
@@ -1912,7 +1912,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
               })}
             </div>
             <div className="text-[11px] text-[#6b7280]">
-              🔥 Fast filling slots &bull; Cleaning experts arrive with full German Kärcher equipment
+              Availability varies by location and selected service.
             </div>
 
             <button
@@ -1974,8 +1974,8 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">💳</span>
                   <div>
-                    <b className="text-sm text-[#111827] block">100% Secure Online Payment</b>
-                    <span className="text-xs text-[#6b7280]">GPay, PhonePe, Paytm, UPI, Cards &amp; Netbanking</span>
+                    <b className="text-sm text-[#111827] block">Online Payment</b>
+                    <span className="text-xs text-[#6b7280]">Available methods are shown during checkout.</span>
                   </div>
                 </div>
                 <span className="text-[#0b3ba8] font-bold text-xs bg-blue-100 px-2.5 py-1 rounded-md">✓ Razorpay Secure</span>
@@ -2607,7 +2607,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
             {/* Drawer Footer */}
             <div className="p-4 bg-slate-50 border-t border-slate-200 text-center text-[11px] text-[#6b7280]">
               <p className="font-bold text-[#111827]">Bharat Pro Expert &bull; Gurgaon</p>
-              <p>100% Police Verified &bull; Diversey Taski SOPs</p>
+              <p>Service details and booking support</p>
             </div>
           </div>
         </div>
