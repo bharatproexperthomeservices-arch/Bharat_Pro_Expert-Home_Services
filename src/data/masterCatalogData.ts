@@ -517,7 +517,7 @@ export function catalogItemToCleaningService(item: CatalogItem): CleaningService
     reviewCount: item.reviewCount,
     imageUrl: item.imageUrl,
     beforeAfterImage: item.imageUrl,
-    demoVideoBadge: 'Diversey Certified',
+    demoVideoBadge: 'Service overview',
     popular: item.popular,
     steps: item.processSteps,
     inclusions: item.inclusions,
