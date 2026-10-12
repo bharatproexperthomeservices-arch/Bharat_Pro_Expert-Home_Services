@@ -31,15 +31,17 @@ import {
 const FALLBACK_HUB: HubLocation = {
   id: 'hub-default',
   code: 'BPE-000',
-  name: 'Default Hub',
+  name: 'Service Area Not Confirmed',
   state: 'India',
-  city: 'Delhi',
-  district: 'Delhi',
-  address: 'Delhi, India',
+  city: 'Unconfirmed',
+  district: 'Unconfirmed',
+  address: 'Choose a supported service location',
+  lat: 0,
+  lng: 0,
   coveredSectors: [],
   pincodes: [],
-  serviceRadiusKm: 30,
-  contactPhone: '+91 92660 23301',
+  serviceRadiusKm: 0,
+  contactPhone: '+91 89202 52647',
   managerName: 'Operations',
   operatingHours: '07:30 - 21:00',
   status: 'ACTIVE',
@@ -74,6 +76,19 @@ interface BookingFlowModalProps {
   onRequireAuth: () => void;
   onTrackBooking?: (booking: Booking) => void;
 }
+
+const normalizeCityName = (value?: string | null) =>
+  String(value || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase()
+    .replace(/gurgaon/g, 'gurugram');
+
+const findHubByCity = (hubs: HubLocation[], city?: string | null) => {
+  const normalizedCity = normalizeCityName(city);
+  if (!normalizedCity) return undefined;
+  return hubs.find((hub) => hub?.id !== 'hub-default' && hub?.active !== false && hub?.status !== 'INACTIVE' && normalizeCityName(hub?.city) === normalizedCity);
+};
 
 export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   service,
@@ -144,6 +159,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   });
 
   const [customerCity, setCustomerCity] = useState<string>(() => {
+    if (selectedCity) return selectedCity.split(',')[0].trim();
     try {
       const saved = localStorage.getItem('bpe_customer_location_v1');
       if (saved) {
@@ -151,11 +167,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         if (parsed.city) return parsed.city;
       }
     } catch {}
-    if (selectedCity) return selectedCity.split(',')[0].trim();
     return '';
   });
 
   const [customerState, setCustomerState] = useState<string>(() => {
+    if (selectedCity && selectedCity.includes(',')) return selectedCity.split(',')[1].trim();
     try {
       const saved = localStorage.getItem('bpe_customer_location_v1');
       if (saved) {
@@ -163,69 +179,41 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         if (parsed.state) return parsed.state;
       }
     } catch {}
-    if (selectedCity && selectedCity.includes(',')) return selectedCity.split(',')[1].trim();
     return '';
   });
 
   // Address & Nearest Hub Selection (Based on real GPS coordinates or selected city)
   const [selectedHub, setSelectedHub] = useState<HubLocation>(() => {
-    // 1. Try reading saved real location
     try {
       const saved = localStorage.getItem('bpe_customer_location_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.latitude && parsed.longitude) {
-          let closest = SAFE_HUBS[0] || FALLBACK_HUB;
-          let minDist = 999999;
-          for (const h of SAFE_HUBS) {
-            if (h && h.lat && h.lng) {
-              const d = calculateHaversineKm(parsed.latitude, parsed.longitude, h.lat, h.lng);
-              if (typeof d === 'number' && d < minDist) {
-                minDist = d;
-                closest = h;
+        const savedMatchesSelectedCity = !selectedCity || Boolean(parsed.city && normalizeCityName(parsed.city) === normalizeCityName(selectedCity));
+        if (savedMatchesSelectedCity) {
+          const savedCityHub = findHubByCity(SAFE_HUBS, parsed.city);
+          if (savedCityHub) return savedCityHub;
+
+          if (parsed.latitude && parsed.longitude) {
+            let closest = SAFE_HUBS[0] || FALLBACK_HUB;
+            let minDist = Number.POSITIVE_INFINITY;
+            for (const hub of SAFE_HUBS) {
+              if (hub && hub.id !== 'hub-default' && hub.active !== false && hub.status !== 'INACTIVE' && hub.lat && hub.lng) {
+                const distance = calculateHaversineKm(parsed.latitude, parsed.longitude, hub.lat, hub.lng);
+                if (typeof distance === 'number' && distance < minDist) {
+                  minDist = distance;
+                  closest = hub;
+                }
               }
             }
-          }
-          if (minDist <= 50) return closest;
-
-          // If more than 50km from existing hub, create dynamic hub for real city
-          if (parsed.city) {
-            const citySafe = String(parsed.city);
-            return {
-              ...FALLBACK_HUB,
-              id: `hub-${citySafe.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-              code: `BPE-${citySafe.toUpperCase().slice(0, 3)}-01`,
-              name: `${citySafe} Express Hub`,
-              state: parsed.state || 'India',
-              city: citySafe,
-              district: parsed.district || citySafe,
-              address: `${parsed.locality || citySafe}, ${parsed.state || ''}`,
-              coveredSectors: [parsed.locality, parsed.sector, 'City Central'].filter(Boolean) as string[],
-              pincodes: [parsed.pincode].filter(Boolean) as string[],
-              lat: parsed.latitude,
-              lng: parsed.longitude,
-            };
+            const closestRadiusKm = Number(closest?.serviceRadiusKm) || 0;
+            if (closestRadiusKm > 0 && minDist <= closestRadiusKm) return closest;
           }
         }
       }
     } catch {}
 
-    // 2. Try matching selectedCity
-    if (selectedCity) {
-      const clean = selectedCity.toLowerCase().split(',')[0].trim();
-      const match = SAFE_HUBS.find(h => 
-        h && h.city && (
-          h.city.toLowerCase() === clean ||
-          h.city.toLowerCase().includes(clean) ||
-          clean.includes(h.city.toLowerCase()) ||
-          (clean.includes('gurgaon') && h.city.toLowerCase().includes('gurugram')) ||
-          (clean.includes('gurugram') && h.city.toLowerCase().includes('gurgaon'))
-        )
-      );
-      if (match) return match;
-    }
-
-    return SAFE_HUBS[0] || FALLBACK_HUB;
+    const cityHub = findHubByCity(SAFE_HUBS, selectedCity);
+    return cityHub || SAFE_HUBS[0] || FALLBACK_HUB;
   });
 
   const [selectedSector, setSelectedSector] = useState<string>(() => {
@@ -267,7 +255,21 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [confirmedBookingRecord, setConfirmedBookingRecord] = useState<Booking | null>(null);
 
   // Live Geolocation / Geography Coordinates
-  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem('bpe_customer_location_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (selectedCity && (!parsed.city || normalizeCityName(parsed.city) !== normalizeCityName(selectedCity))) return null;
+        const lat = Number(parsed.latitude ?? parsed.lat);
+        const lng = Number(parsed.longitude ?? parsed.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
+          return { lat, lng, accuracy: Number(parsed.accuracy) || undefined };
+        }
+      }
+    } catch {}
+    return null;
+  });
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [geoStatusMsg, setGeoStatusMsg] = useState<string | null>(null);
   
@@ -296,7 +298,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   // Sync selectedCity to matching hub on mount or city change
   useEffect(() => {
     if (selectedCity && availableHubs.length > 0) {
-      const match = availableHubs.find(h => h && h.city && h.city.toLowerCase() === selectedCity.toLowerCase());
+      const match = findHubByCity(availableHubs, selectedCity);
       if (match) {
         setSelectedHub(prev => (prev?.id === match.id ? prev : match));
         if (match.coveredSectors && match.coveredSectors.length > 0) {
@@ -313,19 +315,23 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       try {
         const hubsList = await getAllHubs();
         if (cancelled) return;
-        if (hubsList && hubsList.length > 0) {
-          setAvailableHubs(hubsList);
+        if (Array.isArray(hubsList)) {
+          const activeHubsList = hubsList.filter((hub: HubLocation) => hub && hub.id !== 'hub-default' && hub.active !== false && hub.status !== 'INACTIVE');
+          setAvailableHubs(activeHubsList);
+          if (activeHubsList.length === 0) return;
           if (selectedCity) {
-            const match = hubsList.find((h: HubLocation) => h && h.city && h.city.toLowerCase() === selectedCity.toLowerCase());
+            const match = findHubByCity(activeHubsList, selectedCity);
             if (match) {
               setSelectedHub(match);
               if (match.coveredSectors && match.coveredSectors.length > 0) setSelectedSector(match.coveredSectors[0]);
               return;
             }
+            // Do not silently route an unsupported city to the first available hub.
+            return;
           }
-          setSelectedHub(prev => (prev?.id ? prev : hubsList[0]));
-          if (hubsList[0]?.coveredSectors?.length > 0) {
-            setSelectedSector(hubsList[0].coveredSectors[0]);
+          setSelectedHub(prev => (prev?.id && prev.id !== 'hub-default' ? prev : activeHubsList[0]));
+          if (activeHubsList[0]?.coveredSectors?.length > 0) {
+            setSelectedSector(activeHubsList[0].coveredSectors[0]);
           }
         }
       } catch (err) {
@@ -390,6 +396,17 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   }, [rawSubtotal, isCouponApplied]);
 
   const netTotal = Math.max(0, grossBeforeDiscount - discountAmount);
+  const coverageCity = customerCity || selectedCity || '';
+  const hasServiceCoverage = Boolean(
+    findHubByCity(availableHubs, coverageCity) ||
+    (geoCoords && availableHubs.some((hub) => {
+      if (!hub?.id || hub.id === 'hub-default' || hub.active === false || hub.status === 'INACTIVE' || !hub.lat || !hub.lng) return false;
+      const distance = calculateHaversineKm(geoCoords.lat, geoCoords.lng, hub.lat, hub.lng);
+      const radiusKm = Number(hub.serviceRadiusKm) || 0;
+      return typeof distance === 'number' && radiusKm > 0 && distance <= radiusKm;
+    }))
+  );
+  const coverageMessage = 'We do not currently have a verified service hub for this city. Please choose a supported location or contact support before booking.';
 
   // Auto detect Bumper Offer (SAFE)
   const unlockedOffer = useMemo(() => {
@@ -571,6 +588,10 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
   // Step 2 to Step 3 Validation
   const handleContinueFromStep2 = () => {
+    if (!hasServiceCoverage) {
+      setErrorBanner(coverageMessage);
+      return;
+    }
     if (!user && !profile) {
       setErrorBanner('🔒 Login required: Please sign in or register with your mobile/email to book.');
       onRequireAuth();
@@ -596,6 +617,10 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     if (!user && !profile) {
       setErrorBanner('Login required: Please sign in to book.');
       onRequireAuth();
+      return;
+    }
+    if (!hasServiceCoverage) {
+      setErrorBanner(coverageMessage);
       return;
     }
 

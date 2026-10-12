@@ -29,11 +29,11 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPartner, onOpenHelp, onOpe
               </div>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              India's premier technology-driven home deep cleaning &amp; sanitization platform. 100% verified professionals, Diversey hospital-grade eco-certified solutions, and upfront transparent pricing.
+              Home cleaning services with clear package details, online booking, and pricing shown before checkout.
             </p>
             <div className="flex items-center gap-2 text-xs text-blue-400">
               <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
-              <span className="font-semibold">ISO 9001:2015 Hygiene Protocol Compliant</span>
+              <span className="font-semibold">Service details available before booking</span>
             </div>
           </div>
 
@@ -78,8 +78,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPartner, onOpenHelp, onOpe
                 </div>
                 <div className="flex items-center gap-2">
                   <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                  <a href="mailto:support@bharatproexpert.com" className="hover:text-white text-slate-300">
-                    support@bharatproexpert.com
+                  <a href="mailto:bharatproexpert@gmail.com" className="hover:text-white text-slate-300">
+                    bharatproexpert@gmail.com
                   </a>
                 </div>
                 <button

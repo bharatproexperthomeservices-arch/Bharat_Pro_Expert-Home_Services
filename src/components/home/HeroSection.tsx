@@ -11,12 +11,12 @@ export interface HeroSectionProps {
 }
 
 const SERVICE_SLIDES = [
-  { id: 'sofa-cleaning', label: 'Sofa Cleaning', categoryId: 'sofa-cleaning', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=2200&q=90', eyebrow: 'FABRIC CARE, REFINED', headline: 'Bring Your Sofa Back to Life', detail: 'Deep fabric cleaning, fresh finishes and expert care for your favourite place to relax.', icon: '🛋️' },
-  { id: 'carpet-cleaning', label: 'Carpet Cleaning', categoryId: 'carpet-cleaning', image: 'https://images.unsplash.com/photo-1600166898405-da9535204843?auto=format&fit=crop&w=2200&q=90', eyebrow: 'DEEP FIBRE RESTORATION', headline: 'Luxury Care for Every Fibre', detail: 'Refresh carpets and rugs with detailed cleaning designed for a cleaner, brighter home.', icon: '✦' },
-  { id: 'chair-cleaning', label: 'Chairs Cleaning', categoryId: 'chair-cleaning', image: 'https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=2200&q=90', eyebrow: 'DETAIL IN EVERY DETAIL', headline: 'Make Every Seat Feel New', detail: 'Specialist chair and upholstery cleaning for dining, office and accent seating.', icon: '🪑' },
-  { id: 'kitchen-cleaning', label: 'Kitchen Cleaning', categoryId: 'kitchen-cleaning', image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=2200&q=90', eyebrow: 'A FRESH START, EVERY DAY', headline: 'A Kitchen That Truly Shines', detail: 'Thoughtful degreasing and detailed cleaning for the heart of your home.', icon: '✧' },
-  { id: 'apartment-cleaning', label: 'Apartment Cleaning', categoryId: 'apartment-cleaning', image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=2200&q=90', eyebrow: 'WHOLE-HOME PERFECTION', headline: 'Come Home to Exceptional Clean', detail: 'A considered deep clean for rooms, surfaces and the spaces you live in.', icon: '⌂' },
-  { id: 'bathroom-cleaning', label: 'Bathroom Cleaning', categoryId: 'bathroom-cleaning', image: 'https://images.unsplash.com/photo-1620626011761-996317b8d101?auto=format&fit=crop&w=2200&q=90', eyebrow: 'SPA-INSPIRED CLEANLINESS', headline: 'A Brighter, Fresher Bathroom', detail: 'Detailed bathroom cleaning for sparkling fittings, tiles and everyday comfort.', icon: '✦' }
+  { id: 'sofa-cleaning', label: 'Sofa Cleaning', categoryId: 'sofa-cleaning', image: 'https://images.pexels.com/photos/4401538/pexels-photo-4401538.jpeg?auto=compress&cs=tinysrgb&w=1800', eyebrow: 'FABRIC CARE, REFINED', headline: 'Bring Your Sofa Back to Life', detail: 'Deep fabric cleaning, fresh finishes and expert care for your favourite place to relax.', icon: '🛋️' },
+  { id: 'carpet-cleaning', label: 'Carpet Cleaning', categoryId: 'carpet-cleaning', image: 'https://images.pexels.com/photos/4107284/pexels-photo-4107284.jpeg?auto=compress&cs=tinysrgb&w=1800', eyebrow: 'DEEP FIBRE RESTORATION', headline: 'Luxury Care for Every Fibre', detail: 'Refresh carpets and rugs with detailed cleaning designed for a cleaner, brighter home.', icon: '✦' },
+  { id: 'chair-cleaning', label: 'Chairs Cleaning', categoryId: 'chair-cleaning', image: 'https://images.pexels.com/photos/18947371/pexels-photo-18947371.jpeg?auto=compress&cs=tinysrgb&w=1800', eyebrow: 'CARE IN EVERY DETAIL', headline: 'Make Every Seat Feel New', detail: 'Specialist chair and upholstery cleaning for dining, office and accent seating.', icon: '🪑' },
+  { id: 'kitchen-cleaning', label: 'Kitchen Cleaning', categoryId: 'kitchen-cleaning', image: 'https://images.pexels.com/photos/10568269/pexels-photo-10568269.jpeg?auto=compress&cs=tinysrgb&w=1800', eyebrow: 'A FRESH START, EVERY DAY', headline: 'A Kitchen That Truly Shines', detail: 'Thoughtful degreasing and detailed cleaning for the heart of your home.', icon: '✧' },
+  { id: 'apartment-cleaning', label: 'Apartment Cleaning', categoryId: 'apartment-cleaning', image: 'https://images.pexels.com/photos/6195278/pexels-photo-6195278.jpeg?auto=compress&cs=tinysrgb&w=1800', eyebrow: 'WHOLE-HOME PERFECTION', headline: 'Come Home to Exceptional Clean', detail: 'A considered deep clean for rooms, surfaces and the spaces you live in.', icon: '⌂' },
+  { id: 'bathroom-cleaning', label: 'Bathroom Cleaning', categoryId: 'bathroom-cleaning', image: 'https://images.pexels.com/photos/4239114/pexels-photo-4239114.jpeg?auto=compress&cs=tinysrgb&w=1800', eyebrow: 'SPA-INSPIRED CLEANLINESS', headline: 'A Brighter, Fresher Bathroom', detail: 'Detailed bathroom cleaning for sparkling fittings, tiles and everyday comfort.', icon: '✦' }
 ];
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
@@ -56,7 +56,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     >
       {SERVICE_SLIDES.map((item, index) => (
         <div key={item.id} className={`bpe-ultra-slider__scene ${index === activeSlide ? 'is-active' : ''}`} aria-hidden={index !== activeSlide}>
-          <img className="bpe-ultra-slider__photo" src={item.image} alt="" fetchPriority={index === 0 ? 'high' : 'auto'} />
+          <img className="bpe-ultra-slider__photo" src={item.image} alt="" loading={index === 0 ? 'eager' : 'lazy'} decoding="async" fetchPriority={index === 0 ? 'high' : 'auto'} />
         </div>
       ))}
       <div className="bpe-ultra-slider__veil" />
@@ -81,12 +81,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       <button type="button" aria-label="Next service" className="bpe-ultra-slider__arrow bpe-ultra-slider__arrow--right" onClick={() => changeSlide(activeSlide + 1)}><ChevronRight size={23} /></button>
 
       <div className="bpe-ultra-slider__bottom">
-        <div className="bpe-ultra-slider__service-tabs" role="tablist" aria-label="Choose cleaning service">
+        <div className="bpe-ultra-slider__service-tabs" role="group" aria-label="Choose cleaning service">
           {SERVICE_SLIDES.map((item, index) => (
-            <button key={item.id} type="button" role="tab" aria-selected={index === activeSlide} className={index === activeSlide ? 'is-selected' : ''} onClick={() => changeSlide(index)}>
-              <span className="bpe-ultra-slider__tab-icon">{item.icon}</span><span>{item.label}</span>
-              <span className="bpe-ultra-slider__mini-book" onClick={(event) => { event.stopPropagation(); bookSlide(item.categoryId); }}>Book <ArrowRight size={12} /></span>
-            </button>
+            <div key={item.id} className={`bpe-ultra-slider__tab-item ${index === activeSlide ? 'is-selected' : ''}`}>
+              <button type="button" aria-pressed={index === activeSlide} className="bpe-ultra-slider__tab-select" onClick={() => changeSlide(index)}>
+                <span className="bpe-ultra-slider__tab-icon">{item.icon}</span><span>{item.label}</span>
+              </button>
+              <button type="button" className="bpe-ultra-slider__mini-book" onClick={() => bookSlide(item.categoryId)}>
+                Book <ArrowRight size={12} />
+              </button>
+            </div>
           ))}
         </div>
         <div className="bpe-ultra-slider__progress"><span>{String(activeSlide + 1).padStart(2, '0')}</span><div><i style={{ width: `${((activeSlide + 1) / SERVICE_SLIDES.length) * 100}%` }} /></div><span>{String(SERVICE_SLIDES.length).padStart(2, '0')}</span></div>

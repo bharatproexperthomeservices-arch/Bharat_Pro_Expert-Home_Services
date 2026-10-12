@@ -49,7 +49,7 @@ export const HelpSupportModal: React.FC<HelpSupportModalProps> = ({ isOpen, onCl
               <div>
                 <span className="text-xs font-bold text-emerald-950 block">WhatsApp Support</span>
                 <span className="text-[11px] text-emerald-700 mt-0.5 block font-medium">Instant Live Chat</span>
-                <span className="text-[10px] text-emerald-600 font-mono mt-1 block">Replies in ~2 mins</span>
+                <span className="text-[10px] text-emerald-600 font-mono mt-1 block">Message the support team</span>
               </div>
             </a>
 
@@ -82,8 +82,8 @@ export const HelpSupportModal: React.FC<HelpSupportModalProps> = ({ isOpen, onCl
             <Mail className="w-4 h-4 text-slate-500 shrink-0" />
             <div className="text-slate-700">
               <span className="font-bold text-slate-900">Official Support: </span>
-              <a href="mailto:support@bharatproexpert.com" className="text-blue-700 hover:underline font-medium">
-                support@bharatproexpert.com
+              <a href="mailto:bharatproexpert@gmail.com" className="text-blue-700 hover:underline font-medium">
+                bharatproexpert@gmail.com
               </a>
             </div>
           </div>
@@ -97,21 +97,21 @@ export const HelpSupportModal: React.FC<HelpSupportModalProps> = ({ isOpen, onCl
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <span className="font-bold text-slate-900 block">How do I track my assigned professional?</span>
                 <p className="text-slate-600 mt-1 text-[11px] leading-relaxed">
-                  Go to "My Account" or "Track Booking" to see real-time updates and contact your verified professional.
+                  Go to "My Account" or "Track Booking" to view the booking status and any details currently available.
                 </p>
               </div>
 
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <span className="font-bold text-slate-900 block">Can I reschedule or cancel a booking?</span>
                 <p className="text-slate-600 mt-1 text-[11px] leading-relaxed">
-                  Yes, free rescheduling is available up to 2 hours prior to the booked slot time via WhatsApp or your account portal.
+                  Cancellation and rescheduling options can depend on the booking. Contact support as early as possible and share your booking number.
                 </p>
               </div>
 
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="font-bold text-slate-900 block">Are the chemicals and equipment hospital-grade?</span>
+                <span className="font-bold text-slate-900 block">How do I check which products or equipment are used?</span>
                 <p className="text-slate-600 mt-1 text-[11px] leading-relaxed">
-                  Yes, 100% genuine Diversey &amp; Taski hospital-grade eco-certified chemicals and single-use microfiber pads are provided.
+                  Check the package details for the selected service. If you have a sensitive surface or product concern, contact support before booking.
                 </p>
               </div>
             </div>
@@ -121,7 +121,7 @@ export const HelpSupportModal: React.FC<HelpSupportModalProps> = ({ isOpen, onCl
           <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 flex items-center gap-2.5 text-xs text-blue-900">
             <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
             <span className="font-medium text-[11px]">
-              Bharat Pro 100% Satisfaction Guarantee with free rework within 24 hours if not satisfied.
+              For a service concern, contact support and share your booking number so the team can review the details.
             </span>
           </div>
         </div>

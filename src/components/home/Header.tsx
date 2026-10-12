@@ -62,17 +62,22 @@ export const Header: React.FC<HeaderProps> = ({
           
           {/* LEFT: Logo & Brand Name + Live Location Selector */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => onNavigate('home')}>
+            <button
+              type="button"
+              aria-label="Go to home"
+              onClick={() => onNavigate('home')}
+              className="flex items-center gap-3 cursor-pointer select-none text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            >
               <BharatProLogo size="md" />
-              <div className="flex flex-col">
+              <span className="flex flex-col">
                 <span className="text-xl sm:text-2xl font-black text-[#08213F] tracking-tight leading-tight">
                   Bharat Pro Expert
                 </span>
                 <span className="text-xs sm:text-sm font-bold text-[#E5A812] tracking-normal">
                   Home Services
                 </span>
-              </div>
-            </div>
+              </span>
+            </button>
 
             {/* Desktop Location Quick Switcher */}
             <button
@@ -88,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* CENTER & RIGHT: Navigation Links & Actions */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
+          <nav className="hidden xl:flex items-center gap-6 xl:gap-8">
             {navLinks.map((item) => {
               const isActive = activeNav === item.id;
               return (
@@ -148,7 +153,7 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* Mobile Hamburger Toggle */}
-          <div className="flex md:hidden items-center gap-2">
+          <div className="flex xl:hidden items-center gap-2">
             <button
               onClick={onOpenTrackBookingModal}
               className="p-2 rounded-xl bg-blue-50 text-blue-800 text-xs font-bold border border-blue-200"
@@ -160,6 +165,8 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200"
               aria-label="Toggle Menu"
+              aria-expanded={mobileMenuOpen}
+              aria-controls="bpe-mobile-menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -169,7 +176,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 animate-in slide-in-from-top-4 duration-150 shadow-xl">
+        <div id="bpe-mobile-menu" className="xl:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 animate-in slide-in-from-top-4 duration-150 shadow-xl">
           {/* City selector on mobile */}
           <button
             onClick={() => {

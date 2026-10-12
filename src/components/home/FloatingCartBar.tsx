@@ -15,6 +15,13 @@ export const FloatingCartBar: React.FC<FloatingCartBarProps> = ({
 }) => {
   const totalCount = cart.reduce((sum, c) => sum + c.quantity, 0);
   const totalAmount = cart.reduce((sum, c) => sum + c.item.offerPrice * c.quantity, 0);
+  const originalTotal = cart.reduce((sum, c) => {
+    const listedPrice = Number(c.item.originalPrice) > Number(c.item.offerPrice)
+      ? Number(c.item.originalPrice)
+      : Number(c.item.offerPrice);
+    return sum + listedPrice * c.quantity;
+  }, 0);
+  const savings = Math.max(0, originalTotal - totalAmount);
 
   if (totalCount === 0) return null;
 
@@ -36,13 +43,16 @@ export const FloatingCartBar: React.FC<FloatingCartBarProps> = ({
               <span className="text-sm sm:text-base font-black text-white">
                 ₹{totalAmount.toLocaleString('en-IN')}
               </span>
-              <span className="text-[10px] text-emerald-300 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
-                10-20% Saved
-              </span>
+              {savings > 0 && (
+                <span className="text-[10px] text-emerald-300 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+                  Save ₹{savings.toLocaleString('en-IN')}
+                </span>
+              )}
             </div>
             <p className="text-[11px] text-slate-300 truncate max-w-[200px] sm:max-w-xs">
               {cart.map(c => `${c.item.name} (${c.quantity})`).join(', ')}
             </p>
+            <p className="text-[10px] text-slate-400">Service subtotal; taxes and fees shown at checkout</p>
           </div>
         </div>
 

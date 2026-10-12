@@ -25,19 +25,19 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({
     {
       step: '02',
       title: 'Expert Matching & Dispatch',
-      desc: 'Our dispatch engine assigns the highest-rated background-verified specialist in your local hub. You receive live SMS & WhatsApp tracking.',
+      desc: 'After booking, review the booking status and any assignment details shown in your account.',
       icon: <UserCheck className="w-5 h-5 text-emerald-600" />
     },
     {
       step: '03',
-      title: 'Hospital-Grade Deep Cleaning',
-      desc: 'Specialists arrive in uniform with full German Kärcher machines and Diversey Taski chemicals. Job starts with an OTP verification.',
+      title: 'Service Delivery',
+      desc: 'The team follows the tasks listed for the selected package. If an OTP step is shown for your booking, use it as instructed.',
       icon: <ShieldCheck className="w-5 h-5 text-indigo-600" />
     },
     {
       step: '04',
       title: 'Inspect & Confirm Satisfaction',
-      desc: 'Inspect the immaculate sparkling clean home. Provide completion OTP with 100% Free Re-clean guarantee. All bookings are confirmed with secure 100% online payment (UPI, Cards, NetBanking).',
+      desc: 'Review the completed service and follow the booking confirmation instructions. Online payment options are shown during checkout.',
       icon: <Smile className="w-5 h-5 text-amber-600" />
     }
   ];
@@ -53,7 +53,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({
             <BharatProLogo size="sm" />
             <div>
               <h3 className="text-sm font-bold text-slate-900">How Bharat Pro Expert Works</h3>
-              <p className="text-[11px] text-slate-500">Simple, verified 4-step home service delivery</p>
+              <p className="text-[11px] text-slate-500">Simple 4-step booking process</p>
             </div>
           </div>
           <button 
@@ -91,7 +91,7 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({
 
           <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-between gap-4">
             <div>
-              <h5 className="text-xs font-bold text-emerald-950">100% Satisfaction or Free Re-service</h5>
+              <h5 className="text-xs font-bold text-emerald-950">Contact support about service concerns</h5>
               <p className="text-[11px] text-emerald-800">If any designated corner is not cleaned to standard, we re-clean within 24 hours.</p>
             </div>
             <button

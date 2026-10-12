@@ -665,7 +665,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                   </span>
                   <span className="text-center w-16">
                     <i className="block not-italic text-xl">✅</i>
-                    Satisfaction Guaranteed
+                    Package details before booking
                   </span>
                 </div>
                 <button
@@ -687,7 +687,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
                 <div className="absolute bottom-2.5 right-2.5 bg-white/95 backdrop-blur-xs text-[#0b3ba8] text-[10px] font-black px-2.5 py-1 rounded-md shadow-xs">
-                  ✨ 100% Descaled Mirror Finish
+                  Detailed cleaning for a fresher finish
                 </div>
               </div>
             </div>
@@ -697,7 +697,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
               <div className="flex justify-between items-center mb-2.5">
                 <div>
                   <h2 className="text-lg font-extrabold text-[#111827]">Our Cleaning Services</h2>
-                  <p className="text-xs text-[#6b7280]">20 specialized hospital-grade cleaning categories</p>
+                  <p className="text-xs text-[#6b7280]">Browse available cleaning services and packages</p>
                 </div>
                 <span 
                   onClick={() => { setActiveCategoryFilter('all'); setSearchFilter(''); }}
@@ -758,9 +758,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                           </span>
                         )}
                       </div>
-                      <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-xs text-amber-300 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                        ★ {s.detail.rating}
-                      </div>
+                      
 
                       <div className="absolute bottom-1.5 left-2 text-white flex items-center gap-1">
                         <span className="text-base select-none">{s.e}</span>
@@ -807,7 +805,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 <span>🏷️</span> Affordable Pricing
               </div>
               <div className="flex items-center gap-2">
-                <span>✅</span> Satisfaction Guaranteed
+                <span>✅</span> Package details before booking
               </div>
             </div>
 
@@ -867,7 +865,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                   </div>
                   <div className="pt-2 px-1">
                     <b className="text-xs text-[#111827] block">Bathroom Tile Descaling</b>
-                    <span className="text-[10px] text-[#6b7280]">Removed 100% hard water calcium scale</span>
+                    <span className="text-[10px] text-[#6b7280]">Designed to address visible mineral deposits; results vary by surface.</span>
                   </div>
                 </div>
 
@@ -1076,40 +1074,17 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
               </div>
             </div>
 
-            {/* Customer Testimonials */}
+            {/* Booking guidance, not fabricated testimonials */}
             <div>
-              <h2 className="text-lg font-bold text-[#111827] mb-3">
-                What Our Customers Say
-              </h2>
+              <h2 className="text-lg font-bold text-[#111827] mb-3">Before You Book</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb] flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#e11d48] text-white font-bold grid place-items-center shrink-0">
-                    N
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <b className="text-sm">Neha Sharma</b>
-                      <span className="text-[#f5a623] text-xs">★★★★★</span>
-                    </div>
-                    <p className="text-xs text-[#111827] mt-1 mb-1 leading-relaxed">
-                      Very professional service. Diversey chemicals were used and the bathroom was descaled perfectly. Highly recommended!
-                    </p>
-                    <span className="text-[11px] text-[#6b7280]">Sushant Lok, Gurgaon</span>
-                  </div>
+                <div className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb]">
+                  <h3 className="text-sm font-bold text-[#111827]">Review the package</h3>
+                  <p className="text-xs text-[#6b7280] mt-2 leading-relaxed">Check included tasks, exclusions and estimated duration for the selected service.</p>
                 </div>
-
-                <div className="bg-[#eaf0ff] rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-blue-200 flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-black text-[#111827]">
-                      <span className="text-[#f5a623]">★</span> 4.8 / 5
-                    </div>
-                    <div className="text-xs text-[#6b7280] font-medium mt-0.5">
-                      From 2,350+ verified bookings
-                    </div>
-                  </div>
-                  <div className="text-3xl select-none">
-                    ⭐
-                  </div>
+                <div className="bg-[#eaf0ff] rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-blue-200">
+                  <h3 className="text-sm font-bold text-[#111827]">Check your total</h3>
+                  <p className="text-xs text-[#6b7280] mt-2 leading-relaxed">Review the service, add-ons and total at checkout. Contact support if anything is unclear.</p>
                 </div>
               </div>
             </div>
@@ -1120,10 +1095,10 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 <span>🛡️</span> Frequently Asked Questions &amp; Safety Standard
               </h3>
               {[
-                { q: 'How does Bharat Pro Expert ensure quality and safety?', a: 'All cleaning professionals are 100% police verified, background-checked, and trained in German SOPs. We only use authentic Diversey Taski R1-R9 eco-safe hospital-grade chemicals.' },
-                { q: 'What is your cancellation and refund policy?', a: 'Free cancellation up to 2 hours before your scheduled appointment slot. 100% instant refund back to your payment source, no questions asked.' },
+                { q: 'How can I check service quality and safety details?', a: 'Review the selected package inclusions and exclusions. If you have a surface, product or safety concern, contact support before booking.' },
+                { q: 'What is your cancellation and refund policy?', a: 'Cancellation and refund terms depend on the booking and payment status. Review the terms shown during booking or contact support with your booking number.' },
                 { q: 'How does the Start OTP and Completion OTP work?', a: 'When the technician arrives, share the 4-digit Start OTP to begin service. Only provide the Completion OTP after you have thoroughly inspected the work and are completely satisfied.' },
-                { q: 'Are there any hidden visit or travel charges?', a: 'Zero hidden charges. Inspection and visit charges are completely FREE. What you see is what you pay.' }
+                { q: 'How do I check the final price?', a: 'Review the selected service, add-ons and total at checkout. Contact support if any line item is unclear.' }
               ].map((faq, i) => (
                 <div key={i} className="border border-slate-100 rounded-xl overflow-hidden">
                   <button 
@@ -1152,7 +1127,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 <span>&bull;</span>
                 <span>Privacy</span>
                 <span>&bull;</span>
-                <span>Refund Guarantee</span>
+                <span>Cancellation terms</span>
                 <span>&bull;</span>
                 <button
                   onClick={() => onOpenAdmin()}
@@ -1195,7 +1170,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                           </span>
                         )}
                         <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200">
-                          ✓ 100% Police Verified Staff
+                          Service details before booking
                         </span>
                         <span className="bg-blue-50 text-[#0b3ba8] text-[10px] font-bold px-2 py-0.5 rounded border border-blue-200">
                           ⏱ {cat.duration}
@@ -1211,9 +1186,9 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                       </p>
 
                       <div className="flex items-center gap-3 text-xs text-[#6b7280] mt-2 font-medium">
-                        <span className="text-amber-500 font-bold">★ {cat.rating} ({cat.reviewCount}+ verified ratings)</span>
+                        <span>Package details before booking</span>
                         <span>&bull;</span>
-                        <span>Diversey Taski R1-R9 SOPs</span>
+                        <span>Check included tasks and exclusions</span>
                       </div>
                     </div>
 
@@ -1253,7 +1228,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                           className="w-full h-full object-cover"
                         />
                         <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-xs text-white text-[10px] px-2 py-0.5 rounded font-mono">
-                          {cat.duration} &bull; German Kärcher tech
+                          {cat.duration} &bull; Check service details
                         </div>
                       </div>
                     </div>
@@ -1460,13 +1435,13 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                   {/* Safety & Cancellation Guarantees */}
                   <div className="bg-[#eaf0ff] rounded-2xl p-4 border border-blue-200 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                      <b className="text-[#0b3ba8] block mb-1">🛡️ Safety &amp; Diversey Chemicals</b>
+                      <b className="text-[#0b3ba8] block mb-1">🛡️ Service and safety notes</b>
                       <p className="text-[#374151] leading-relaxed">
-                        {cat.safety}
+                        Review the selected package details and tell support about any surface or product concerns before booking.
                       </p>
                     </div>
                     <div>
-                      <b className="text-[#0b3ba8] block mb-1">↩️ Cancellation &amp; 100% Refund Policy</b>
+                      <b className="text-[#0b3ba8] block mb-1">↩️ Cancellation policy</b>
                       <p className="text-[#374151] leading-relaxed">
                         {cat.cancellationPolicy}
                       </p>
@@ -1914,7 +1889,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
               })}
             </div>
             <div className="text-[11px] text-[#6b7280]">
-              🔥 Fast filling slots &bull; Cleaning experts arrive with full German Kärcher equipment
+              Availability varies by location and selected service.
             </div>
 
             <button
@@ -1976,8 +1951,8 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">💳</span>
                   <div>
-                    <b className="text-sm text-[#111827] block">100% Secure Online Payment</b>
-                    <span className="text-xs text-[#6b7280]">GPay, PhonePe, Paytm, UPI, Cards &amp; Netbanking</span>
+                    <b className="text-sm text-[#111827] block">Online Payment</b>
+                    <span className="text-xs text-[#6b7280]">Available methods are shown during checkout.</span>
                   </div>
                 </div>
                 <span className="text-[#0b3ba8] font-bold text-xs bg-blue-100 px-2.5 py-1 rounded-md">✓ Razorpay Secure</span>
@@ -2609,7 +2584,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
             {/* Drawer Footer */}
             <div className="p-4 bg-slate-50 border-t border-slate-200 text-center text-[11px] text-[#6b7280]">
               <p className="font-bold text-[#111827]">Bharat Pro Expert &bull; Gurgaon</p>
-              <p>100% Police Verified &bull; Diversey Taski SOPs</p>
+              <p>Service details and booking support</p>
             </div>
           </div>
         </div>

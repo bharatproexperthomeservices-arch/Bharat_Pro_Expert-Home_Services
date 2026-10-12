@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Clock, Plus, Minus, Star, Check } from 'lucide-react';
+import { X, Clock, Plus, Minus, Check } from 'lucide-react';
 import { CatalogCategory, CatalogItem } from '../../data/masterCatalogData';
 import { CartItem } from './ServiceCatalogGrid';
 
@@ -38,7 +38,7 @@ export const CategoryDetailModal: React.FC<CategoryDetailModalProps> = ({
               {category.name}
             </h3>
             <p className="text-xs text-slate-500 font-medium">
-              {category.items.length} Packages Available &bull; Hospital-grade Diversey &amp; Kärcher
+              {category.items.length} packages available &bull; Review details before booking
             </p>
           </div>
           <button 
@@ -65,6 +65,7 @@ export const CategoryDetailModal: React.FC<CategoryDetailModalProps> = ({
                       alt={service.name}
                       className="w-full h-full object-cover"
                       loading="lazy"
+                      decoding="async"
                     />
                     <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-white text-[10px] font-bold flex items-center gap-1">
                       <Clock className="w-3 h-3 text-amber-400" />
