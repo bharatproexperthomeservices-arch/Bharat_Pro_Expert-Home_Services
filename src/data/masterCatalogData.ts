@@ -160,7 +160,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
     subtitle: 'Deep cleaning for independent houses and villas',
     iconName: 'Home',
     heroImage: IMG.homeFurnished,
-    startingPrice: 1999,
+    startingPrice: 2799,
     active: true,
     sortOrder: 1,
     items: [
@@ -181,7 +181,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
     subtitle: 'Apartment deep cleaning based on BHK size',
     iconName: 'Building2',
     heroImage: IMG.apartment,
-    startingPrice: 1999,
+    startingPrice: 2199,
     active: true,
     sortOrder: 2,
     items: [
@@ -199,7 +199,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
     subtitle: 'Deep cleaning for every room type',
     iconName: 'DoorOpen',
     heroImage: IMG.roomBedroom,
-    startingPrice: 499,
+    startingPrice: 599,
     active: true,
     sortOrder: 3,
     items: [
@@ -217,7 +217,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
     subtitle: 'Complete kitchen deep cleaning services',
     iconName: 'Utensils',
     heroImage: IMG.kitchenBasic,
-    startingPrice: 399,
+    startingPrice: 349,
     active: true,
     sortOrder: 4,
     items: [
@@ -258,7 +258,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
     subtitle: 'Deep floor scrubbing and polishing',
     iconName: 'LayoutGrid',
     heroImage: IMG.floorMarble,
-    startingPrice: 399,
+    startingPrice: 899,
     active: true,
     sortOrder: 6,
     items: [
@@ -276,7 +276,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
   subtitle: 'Deep shampoo wash for sofas and furniture',
   iconName: 'Armchair',
   heroImage: IMG.sofa3,
-  startingPrice: 499,
+  startingPrice: 449,
   active: true,
   sortOrder: 7,
   items: [
@@ -296,7 +296,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
   subtitle: 'Deep cleaning for carpets and rugs',
   iconName: 'RectangleHorizontal',
   heroImage: IMG.carpet,
-  startingPrice: 399,
+  startingPrice: 549,
   active: true,
   sortOrder: 8,
   items: [
@@ -313,7 +313,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
   subtitle: 'Deep cleaning for all mattress sizes',
   iconName: 'BedDouble',
   heroImage: IMG.mattress,
-  startingPrice: 499,
+  startingPrice: 599,
   active: true,
   sortOrder: 9,
   items: [
@@ -347,7 +347,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
   subtitle: 'Streak-free glass, windows and doors',
   iconName: 'Maximize2',
   heroImage: IMG.glass,
-  startingPrice: 299,
+  startingPrice: 399,
   active: true,
   sortOrder: 11,
   items: [
@@ -365,7 +365,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
   subtitle: 'Ceiling fans, exhaust fans, wall fans cleaning',
   iconName: 'Fan',
   heroImage: IMG.fanCeiling,
-  startingPrice: 99,
+  startingPrice: 149,
   active: true,
   sortOrder: 12,
   items: [
@@ -385,7 +385,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
   subtitle: 'Curtains, blinds and window treatments',
   iconName: 'Wind',
   heroImage: IMG.curtain,
-  startingPrice: 199,
+  startingPrice: 249,
   active: true,
   sortOrder: 13,
   items: [
@@ -401,7 +401,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
     subtitle: 'Deep cleaning for balconies and terraces',
     iconName: 'Sun',
     heroImage: IMG.balcony,
-    startingPrice: 299,
+    startingPrice: 349,
     active: true,
     sortOrder: 14,
     items: [
@@ -417,7 +417,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
     subtitle: 'Deep cleaning for all doors and windows',
     iconName: 'DoorClosed',
     heroImage: IMG.door,
-    startingPrice: 99,
+    startingPrice: 149,
     active: true,
     sortOrder: 15,
     items: [
@@ -432,7 +432,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
     subtitle: 'Deep cleaning before you move in',
     iconName: 'PackageOpen',
     heroImage: IMG.moveIn,
-    startingPrice: 2999,
+    startingPrice: 3499,
     active: true,
     sortOrder: 16,
     items: [
@@ -448,7 +448,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
     subtitle: 'Deep cleaning before handing over the property',
     iconName: 'PackageCheck',
     heroImage: IMG.moveOut,
-    startingPrice: 2999,
+    startingPrice: 3499,
     active: true,
     sortOrder: 17,
     items: [
@@ -480,7 +480,7 @@ export const MASTER_CATALOG_CATEGORIES: CatalogCategory[] = [
     subtitle: 'Office, shop and clinic cleaning',
     iconName: 'Briefcase',
     heroImage: IMG.office,
-    startingPrice: 1999,
+    startingPrice: 2499,
     active: true,
     sortOrder: 19,
     items: [
