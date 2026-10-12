@@ -5,23 +5,23 @@ export const FeatureStrip: React.FC = () => {
   const features = [
     {
       icon: <ShieldCheck className="w-6 h-6 text-[#08213F]" />,
-      title: 'Verified Professionals',
-      subtitle: 'Background Checked'
+      title: 'Service Details',
+      subtitle: 'Review before booking'
     },
     {
       icon: <ClipboardCheck className="w-6 h-6 text-[#08213F]" />,
-      title: 'Transparent Pricing',
-      subtitle: 'No Hidden Charges'
+      title: 'Upfront Pricing',
+      subtitle: 'Check package details'
     },
     {
       icon: <Headphones className="w-6 h-6 text-[#08213F]" />,
-      title: 'Real-time Tracking',
-      subtitle: 'Live Updates'
+      title: 'Booking Status',
+      subtitle: 'Track your booking'
     },
     {
       icon: <CalendarCheck className="w-6 h-6 text-[#08213F]" />,
-      title: 'Secure Payments',
-      subtitle: 'Multiple Options'
+      title: 'Online Payments',
+      subtitle: 'UPI, cards and more'
     }
   ];
 
