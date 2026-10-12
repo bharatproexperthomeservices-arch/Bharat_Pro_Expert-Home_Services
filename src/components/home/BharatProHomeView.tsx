@@ -20,6 +20,7 @@ import {
   catalogItemToCleaningService 
 } from '../../data/masterCatalogData';
 import { CleaningService, Booking } from '../../types';
+import './DevicePreview.css';
 
 interface BharatProHomeViewProps {
   user: any;
@@ -58,6 +59,10 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
   const [howItWorksModalOpen, setHowItWorksModalOpen] = useState(false);
   const [locationsModalOpen, setLocationsModalOpen] = useState(false);
   const [blogModalOpen, setBlogModalOpen] = useState(false);
+  const [devicePreviewMode, setDevicePreviewMode] = useState<'website' | 'tablet' | 'mobile'>('website');
+  const [devicePreviewEnabled] = useState(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('devicePreview') === '1'
+  );
 
   // Automatically trigger location prompt on website open if not already set
   useEffect(() => {
@@ -184,6 +189,44 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
       setBlogModalOpen(true);
     }
   };
+
+  if (devicePreviewEnabled) {
+    const previewUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : '/';
+    const previewWidth = devicePreviewMode === 'website' ? '100%' : devicePreviewMode === 'tablet' ? '820px' : '390px';
+
+    return (
+      <main className="bpe-device-preview-page">
+        <div className="bpe-device-preview-toolbar">
+          <div className="bpe-device-preview-heading">
+            <strong>Responsive preview</strong>
+            <span>Check the same website in three viewport sizes</span>
+          </div>
+          <div className="bpe-device-preview-options" role="group" aria-label="Preview size">
+            {(['website', 'tablet', 'mobile'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={devicePreviewMode === mode}
+                className={devicePreviewMode === mode ? 'is-active' : ''}
+                onClick={() => setDevicePreviewMode(mode)}
+              >
+                {mode === 'website' ? 'Website' : mode === 'tablet' ? 'Tablet' : 'Mobile'}
+              </button>
+            ))}
+          </div>
+          <a className="bpe-device-preview-exit" href={previewUrl}>Exit preview</a>
+        </div>
+        <div className="bpe-device-preview-stage">
+          <iframe
+            title={`Bharat Pro Expert ${devicePreviewMode} preview`}
+            src={previewUrl}
+            className={`bpe-device-preview-frame bpe-device-preview-frame--${devicePreviewMode}`}
+            style={{ width: previewWidth }}
+          />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <div className="relative min-h-screen bg-[#F8F9FB] flex flex-col font-['Inter',sans-serif] text-slate-800">
