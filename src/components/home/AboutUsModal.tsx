@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ShieldCheck, Award, Users, CheckCircle2, Sparkles } from 'lucide-react';
+import { X, ShieldCheck, CheckCircle2, Sparkles } from 'lucide-react';
 import { BharatProLogo } from '../BharatProLogo';
 
 interface AboutUsModalProps {
@@ -15,9 +15,15 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
+  const highlights = [
+    { title: 'Clear service details', description: 'Review package inclusions and exclusions before choosing a service.' },
+    { title: 'Package-based pricing', description: 'Compare available options and check the displayed price before checkout.' },
+    { title: 'Online booking', description: 'Select a service and follow the booking steps to confirm your request.' }
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
-      <div 
+      <div
         className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[88vh] font-['Inter',sans-serif]"
         onClick={(e) => e.stopPropagation()}
       >
@@ -26,12 +32,14 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
             <BharatProLogo size="sm" />
             <div>
               <h3 className="text-sm font-bold text-slate-900">About Bharat Pro Expert</h3>
-              <p className="text-[11px] text-slate-500">India&apos;s premier hospital-grade cleaning service network</p>
+              <p className="text-[11px] text-slate-500">Home cleaning and service bookings</p>
             </div>
           </div>
-          <button 
+          <button
+            type="button"
+            aria-label="Close about dialog"
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-600 transition-colors"
+            className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-600 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -41,56 +49,52 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
           <div className="bg-blue-50/70 p-4 rounded-2xl border border-blue-100 space-y-2">
             <h4 className="text-base font-bold text-[#0B2A4A] flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-blue-600" />
-              <span>Redefining Home &amp; Commercial Hygiene in India</span>
+              <span>A clearer way to book home cleaning</span>
             </h4>
             <p className="text-slate-600 text-xs">
-              Bharat Pro Expert was founded to eliminate sub-standard, unverified home cleaning and replace it with transparent pricing, German machine standards, and 100% background-verified professionals across Delhi-NCR, Mumbai, Bengaluru and key tier-1/tier-2 hubs.
+              Explore available cleaning packages, compare service details and prices, and book online. Service availability, timings and final price depend on the selected package and location.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center space-y-1">
-              <span className="text-2xl font-black text-[#0B2A4A]">50,000+</span>
-              <span className="text-[11px] text-slate-500 block font-semibold">Homes Sanitized</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center space-y-1">
-              <span className="text-2xl font-black text-emerald-600">4.9 ★</span>
-              <span className="text-[11px] text-slate-500 block font-semibold">Customer Rating</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center space-y-1">
-              <span className="text-2xl font-black text-blue-600">100%</span>
-              <span className="text-[11px] text-slate-500 block font-semibold">Verified Crew</span>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {highlights.map((item) => (
+              <div key={item.title} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+                <ShieldCheck className="w-5 h-5 text-blue-700" />
+                <span className="text-xs font-bold text-[#0B2A4A] block">{item.title}</span>
+                <p className="text-[11px] text-slate-500 leading-relaxed">{item.description}</p>
+              </div>
+            ))}
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-sm font-bold text-slate-900">Why Bharat Pro Expert?</h4>
-            <div className="space-y-2 text-xs">
+            <h4 className="text-sm font-bold text-slate-900">Before you book</h4>
+            <div className="space-y-3 text-xs">
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><strong>Hospital-grade Diversey chemicals:</strong> 100% acid-free, baby-safe, pet-safe formulations that preserve your Italian marble, chrome fixtures, and upholstery colors.</span>
+                <span>Check what is included in the package and note any exclusions that matter for your home.</span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><strong>High-tech German extraction:</strong> Industrial Kärcher pressure washers and single-disc rotary scrubbers for 3x deeper extraction than conventional maid cleaning.</span>
+                <span>Choose a service that matches the surface, room size and cleaning requirement.</span>
               </div>
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><strong>No hidden charges or surprise extras:</strong> Upfront locked prices with live OTP start and completion verification.</span>
+                <span>Review the total shown during checkout and contact support if a service detail is unclear.</span>
               </div>
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">ISO 9001:2015 Quality Certified</span>
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+            <span className="text-xs text-slate-500">Need help? Use the Help &amp; Support option.</span>
             <button
+              type="button"
               onClick={() => {
                 onClose();
                 onOpenBookNow();
               }}
               className="px-5 py-2.5 rounded-full bg-[#0B2A4A] text-white text-xs font-bold hover:bg-[#071E36] transition-all"
             >
-              Book Service Now
+              Explore Services
             </button>
           </div>
         </div>
