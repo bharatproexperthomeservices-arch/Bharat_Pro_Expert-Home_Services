@@ -78,8 +78,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPartner, onOpenHelp, onOpe
                 </div>
                 <div className="flex items-center gap-2">
                   <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                  <a href="mailto:support@bharatproexpert.com" className="hover:text-white text-slate-300">
-                    support@bharatproexpert.com
+                  <a href="mailto:bharatproexpert@gmail.com" className="hover:text-white text-slate-300">
+                    bharatproexpert@gmail.com
                   </a>
                 </div>
                 <button
