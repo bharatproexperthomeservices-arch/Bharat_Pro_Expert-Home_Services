@@ -87,7 +87,7 @@ const normalizeCityName = (value?: string | null) =>
 const findHubByCity = (hubs: HubLocation[], city?: string | null) => {
   const normalizedCity = normalizeCityName(city);
   if (!normalizedCity) return undefined;
-  return hubs.find((hub) => hub?.id !== 'hub-default' && hub?.active !== false && hub?.status !== 'INACTIVE' && normalizeCityName(hub?.city) === normalizedCity);
+  return hubs.find((hub) => hub?.id !== 'hub-default' && hub?.active !== false && normalizeCityName(hub?.city) === normalizedCity);
 };
 
 export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
@@ -197,7 +197,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             let closest = SAFE_HUBS[0] || FALLBACK_HUB;
             let minDist = Number.POSITIVE_INFINITY;
             for (const hub of SAFE_HUBS) {
-              if (hub && hub.id !== 'hub-default' && hub.active !== false && hub.status !== 'INACTIVE' && hub.lat && hub.lng) {
+              if (hub && hub.id !== 'hub-default' && hub.active !== false && hub.lat && hub.lng) {
                 const distance = calculateHaversineKm(parsed.latitude, parsed.longitude, hub.lat, hub.lng);
                 if (typeof distance === 'number' && distance < minDist) {
                   minDist = distance;
@@ -280,7 +280,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [isCouponApplied, setIsCouponApplied] = useState(true);
 
   // Online payment only. COD / pay-after-service is permanently disabled.
-  const paymentMethod = 'UPI / Cards / Netbanking' as const;
+  const [paymentMethod, setPaymentMethod] = useState<'UPI / Cards / Netbanking'>('UPI / Cards / Netbanking');
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{ name?: boolean; phone?: boolean; street?: boolean }>({});
@@ -400,7 +400,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const hasServiceCoverage = Boolean(
     findHubByCity(availableHubs, coverageCity) ||
     (geoCoords && availableHubs.some((hub) => {
-      if (!hub?.id || hub.id === 'hub-default' || hub.active === false || hub.status === 'INACTIVE' || !hub.lat || !hub.lng) return false;
+      if (!hub?.id || hub.id === 'hub-default' || hub.active === false || !hub.lat || !hub.lng) return false;
       const distance = calculateHaversineKm(geoCoords.lat, geoCoords.lng, hub.lat, hub.lng);
       const radiusKm = Number(hub.serviceRadiusKm) || 0;
       return typeof distance === 'number' && radiusKm > 0 && distance <= radiusKm;
