@@ -186,22 +186,25 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       const saved = localStorage.getItem('bpe_customer_location_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const savedCityHub = findHubByCity(SAFE_HUBS, parsed.city);
-        if (savedCityHub) return savedCityHub;
+        const savedMatchesSelectedCity = !selectedCity || Boolean(parsed.city && normalizeCityName(parsed.city) === normalizeCityName(selectedCity));
+        if (savedMatchesSelectedCity) {
+          const savedCityHub = findHubByCity(SAFE_HUBS, parsed.city);
+          if (savedCityHub) return savedCityHub;
 
-        if (parsed.latitude && parsed.longitude) {
-          let closest = SAFE_HUBS[0] || FALLBACK_HUB;
-          let minDist = Number.POSITIVE_INFINITY;
-          for (const hub of SAFE_HUBS) {
-            if (hub && hub.id !== 'hub-default' && hub.active !== false && hub.status !== 'INACTIVE' && hub.lat && hub.lng) {
-              const distance = calculateHaversineKm(parsed.latitude, parsed.longitude, hub.lat, hub.lng);
-              if (typeof distance === 'number' && distance < minDist) {
-                minDist = distance;
-                closest = hub;
+          if (parsed.latitude && parsed.longitude) {
+            let closest = SAFE_HUBS[0] || FALLBACK_HUB;
+            let minDist = Number.POSITIVE_INFINITY;
+            for (const hub of SAFE_HUBS) {
+              if (hub && hub.id !== 'hub-default' && hub.active !== false && hub.status !== 'INACTIVE' && hub.lat && hub.lng) {
+                const distance = calculateHaversineKm(parsed.latitude, parsed.longitude, hub.lat, hub.lng);
+                if (typeof distance === 'number' && distance < minDist) {
+                  minDist = distance;
+                  closest = hub;
+                }
               }
             }
+            if (minDist <= 50) return closest;
           }
-          if (minDist <= 50) return closest;
         }
       }
     } catch {}
@@ -254,6 +257,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
       const saved = localStorage.getItem('bpe_customer_location_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
+        if (selectedCity && (!parsed.city || normalizeCityName(parsed.city) !== normalizeCityName(selectedCity))) return null;
         const lat = Number(parsed.latitude ?? parsed.lat);
         const lng = Number(parsed.longitude ?? parsed.lng);
         if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
