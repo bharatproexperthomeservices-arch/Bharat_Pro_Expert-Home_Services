@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Plus, Minus, ArrowRight, Star } from 'lucide-react';
+import { Clock, Plus, Minus, ArrowRight } from 'lucide-react';
 import { MASTER_CATALOG_CATEGORIES, CatalogCategory, CatalogItem } from '../../data/masterCatalogData';
 
 export interface CartItem {
@@ -76,6 +76,7 @@ export const ServiceCatalogGrid: React.FC<ServiceCatalogGridProps> = ({
                         alt={service.name}
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         loading="lazy"
+                        decoding="async"
                       />
 
                       {/* Duration Badge over Image */}
@@ -84,11 +85,6 @@ export const ServiceCatalogGrid: React.FC<ServiceCatalogGridProps> = ({
                         <span>{service.duration}</span>
                       </div>
 
-                      {/* Rating pill */}
-                      <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-white/90 backdrop-blur-xs text-[10px] font-bold text-slate-800 flex items-center gap-0.5 shadow-2xs">
-                        <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
-                        <span>{service.rating}</span>
-                      </div>
                     </div>
 
                     {/* Middle: Exact Service Name & Description */}
