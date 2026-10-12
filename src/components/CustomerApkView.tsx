@@ -805,7 +805,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 <span>🏷️</span> Affordable Pricing
               </div>
               <div className="flex items-center gap-2">
-                <span>✅</span> Satisfaction Guaranteed
+                <span>✅</span> Package details before booking
               </div>
             </div>
 
@@ -1074,40 +1074,17 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
               </div>
             </div>
 
-            {/* Customer Testimonials */}
+            {/* Booking guidance, not fabricated testimonials */}
             <div>
-              <h2 className="text-lg font-bold text-[#111827] mb-3">
-                What Our Customers Say
-              </h2>
+              <h2 className="text-lg font-bold text-[#111827] mb-3">Before You Book</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb] flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#e11d48] text-white font-bold grid place-items-center shrink-0">
-                    N
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <b className="text-sm">Neha Sharma</b>
-                      <span className="text-[#f5a623] text-xs">★★★★★</span>
-                    </div>
-                    <p className="text-xs text-[#111827] mt-1 mb-1 leading-relaxed">
-                      Very professional service. Diversey chemicals were used and the bathroom was descaled perfectly. Highly recommended!
-                    </p>
-                    <span className="text-[11px] text-[#6b7280]">Sushant Lok, Gurgaon</span>
-                  </div>
+                <div className="bg-white rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-[#e5e7eb]">
+                  <h3 className="text-sm font-bold text-[#111827]">Review the package</h3>
+                  <p className="text-xs text-[#6b7280] mt-2 leading-relaxed">Check included tasks, exclusions and estimated duration for the selected service.</p>
                 </div>
-
-                <div className="bg-[#eaf0ff] rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-blue-200 flex items-center justify-between">
-                  <div>
-                    <div className="text-2xl font-black text-[#111827]">
-                      <span className="text-[#f5a623]">★</span> 4.8 / 5
-                    </div>
-                    <div className="text-xs text-[#6b7280] font-medium mt-0.5">
-                      From 2,350+ verified bookings
-                    </div>
-                  </div>
-                  <div className="text-3xl select-none">
-                    ⭐
-                  </div>
+                <div className="bg-[#eaf0ff] rounded-2xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.07)] border border-blue-200">
+                  <h3 className="text-sm font-bold text-[#111827]">Check your total</h3>
+                  <p className="text-xs text-[#6b7280] mt-2 leading-relaxed">Review the service, add-ons and total at checkout. Contact support if anything is unclear.</p>
                 </div>
               </div>
             </div>
@@ -1150,7 +1127,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 <span>&bull;</span>
                 <span>Privacy</span>
                 <span>&bull;</span>
-                <span>Refund Guarantee</span>
+                <span>Cancellation terms</span>
                 <span>&bull;</span>
                 <button
                   onClick={() => onOpenAdmin()}
