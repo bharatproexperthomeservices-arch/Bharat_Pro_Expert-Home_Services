@@ -26,8 +26,8 @@ export const FeatureStrip: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 sm:mt-6 relative z-20 font-['Inter',sans-serif]">
-      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgba(8,33,63,0.06)] border border-slate-100 p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 sm:-mt-28 relative z-20 font-['Inter',sans-serif]">
+      <div className="bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-[0_12px_38px_rgba(8,33,63,0.12)] border border-white p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {features.map((feat) => (
           <div 
             key={feat.title}
