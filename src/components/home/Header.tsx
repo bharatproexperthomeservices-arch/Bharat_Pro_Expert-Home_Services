@@ -88,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* CENTER & RIGHT: Navigation Links & Actions */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
+          <nav className="hidden xl:flex items-center gap-6 xl:gap-8">
             {navLinks.map((item) => {
               const isActive = activeNav === item.id;
               return (
@@ -148,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* Mobile Hamburger Toggle */}
-          <div className="flex md:hidden items-center gap-2">
+          <div className="flex xl:hidden items-center gap-2">
             <button
               onClick={onOpenTrackBookingModal}
               className="p-2 rounded-xl bg-blue-50 text-blue-800 text-xs font-bold border border-blue-200"
@@ -169,7 +169,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 animate-in slide-in-from-top-4 duration-150 shadow-xl">
+        <div className="xl:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 animate-in slide-in-from-top-4 duration-150 shadow-xl">
           {/* City selector on mobile */}
           <button
             onClick={() => {
