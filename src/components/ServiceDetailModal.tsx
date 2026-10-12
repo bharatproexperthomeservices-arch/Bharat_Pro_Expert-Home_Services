@@ -48,7 +48,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
               {service.categoryName || 'Home Cleaning'}
             </span>
             <span className="text-xs text-gray-400 font-semibold">•</span>
-            <span className="text-xs text-gray-500 font-medium">BharatProExpert Certified</span>
+            <span className="text-xs text-gray-500 font-medium">Service information</span>
           </div>
 
           <button
@@ -188,11 +188,8 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                 </h4>
                 <ul className="space-y-1.5 text-xs text-[#0B2A4A]">
                   {(service.inclusions && service.inclusions.length > 0 ? service.inclusions : [
-                    'Intense tile descaling with rotary scrubbing machine',
-                    'Hard-water stain removal on taps, shower & basins',
-                    'Mirror buffing & glass streak-free squeegee wash',
-                    'Floor cleaning with suitable surface products',
-                    'Cobweb removal and ceiling fixtures dusting'
+                    'Package inclusions are confirmed in the booking flow.',
+                    'Review the selected service details before checkout.'
                   ]).map((inc, i) => (
                     <li key={i} className="flex items-start gap-1.5">
                       <span className="text-[#2FA84F] font-bold">✓</span>
@@ -209,9 +206,8 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                 </h4>
                 <ul className="space-y-1.5 text-xs text-gray-600">
                   {(service.exclusions && service.exclusions.length > 0 ? service.exclusions : [
-                    'Wall paint peeling or seepage touch-ups',
-                    'Exterior facade high-rise window cleaning without balcony',
-                    'Furniture structural carpentry repairs'
+                    'Tasks not listed in the selected package.',
+                    'Repairs or specialist work unless explicitly included.'
                   ]).map((exc, i) => (
                     <li key={i} className="flex items-start gap-1.5">
                       <span className="text-gray-400 font-bold">✕</span>
@@ -227,10 +223,9 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
           {activeTab === 'process' && (
             <div className="space-y-3">
               {(service.steps && service.steps.length > 0 ? service.steps : [
-                { order: 1, title: 'Dry Inspection & Dusting', description: 'Complete dry vacuuming and inspection of hard-water accumulation.', estimatedMinutes: 20 },
-                { order: 2, title: 'Diversey Chemical Application', description: 'Application of Diversey specialized cleaning agents for grease/scale breakdown.', estimatedMinutes: 40 },
-                { order: 3, title: 'Single-Disc Machine Scrubbing', description: 'Mechanical rotary buffing and high-pressure steam/suction extraction.', estimatedMinutes: 40 },
-                { order: 4, title: 'Final Glass Buffing & Customer Inspection', description: 'Crystal shine buffing and joint walkthrough before payment collection.', estimatedMinutes: 20 }
+                { order: 1, title: 'Review the package', description: 'Confirm the selected tasks and any special surface requirements.', estimatedMinutes: 5 },
+                { order: 2, title: 'Complete listed tasks', description: 'Cleaning work follows the selected package details.', estimatedMinutes: 60 },
+                { order: 3, title: 'Final review', description: 'Review completed tasks and contact support if anything needs attention.', estimatedMinutes: 10 }
               ]).map((step) => (
                 <div key={step.order} className="flex items-start gap-3 p-3 rounded-xl bg-white border border-[#E2E8F0]">
                   <div className="w-7 h-7 rounded-full bg-[#0B2A4A] text-white flex items-center justify-center font-bold text-xs shrink-0">
@@ -252,7 +247,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
         {/* Footer Actions */}
         <div className="p-4 px-6 border-t border-[#E2E8F0] bg-[#F8FAFC] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
           <div>
-            <div className="text-xs text-gray-500">Total All-Inclusive Price</div>
+            <div className="text-xs text-gray-500">Listed service price</div>
             <div className="text-xl font-black text-[#0B2A4A]">₹{basePrice.toLocaleString('en-IN')}</div>
           </div>
 
