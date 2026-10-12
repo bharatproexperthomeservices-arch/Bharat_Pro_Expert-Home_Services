@@ -1,0 +1,14 @@
+.bpe-device-preview-page{min-height:100vh;background:#edf1f6;color:#102442;font-family:Inter,system-ui,sans-serif}
+.bpe-device-preview-toolbar{position:sticky;top:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 20px;background:#fff;border-bottom:1px solid #dbe2ea;box-shadow:0 4px 18px rgba(8,33,63,.07)}
+.bpe-device-preview-heading{display:flex;flex-direction:column;gap:2px}
+.bpe-device-preview-heading strong{font-size:14px;font-weight:800}
+.bpe-device-preview-heading span{font-size:11px;color:#64748b}
+.bpe-device-preview-options{display:inline-flex;gap:4px;padding:4px;background:#edf2f7;border:1px solid #dce4ee;border-radius:12px}
+.bpe-device-preview-options button{border:0;border-radius:8px;padding:9px 14px;background:transparent;color:#334155;font-size:12px;font-weight:800;cursor:pointer}
+.bpe-device-preview-options button.is-active{background:#08213f;color:#fff;box-shadow:0 2px 8px rgba(8,33,63,.18)}
+.bpe-device-preview-exit{font-size:12px;font-weight:700;color:#334155;text-decoration:underline;text-underline-offset:3px}
+.bpe-device-preview-stage{display:flex;justify-content:center;align-items:flex-start;overflow:auto;padding:20px;min-height:calc(100vh - 68px)}
+.bpe-device-preview-frame{display:block;height:calc(100vh - 110px);min-height:620px;max-width:100%;border:1px solid #cbd5e1;border-radius:10px;background:#fff;box-shadow:0 18px 48px rgba(8,33,63,.16)}
+.bpe-device-preview-frame--tablet{border-radius:18px}
+.bpe-device-preview-frame--mobile{height:calc(100vh - 110px);min-height:640px;border:7px solid #102442;border-radius:28px;box-shadow:0 18px 48px rgba(8,33,63,.22)}
+@media(max-width:600px){.bpe-device-preview-toolbar{padding:10px;gap:10px}.bpe-device-preview-heading{width:100%}.bpe-device-preview-options{flex:1}.bpe-device-preview-options button{flex:1;padding:9px 8px}.bpe-device-preview-exit{font-size:11px}.bpe-device-preview-stage{padding:10px 4px}.bpe-device-preview-frame--mobile{height:calc(100vh - 150px);min-height:540px}}
