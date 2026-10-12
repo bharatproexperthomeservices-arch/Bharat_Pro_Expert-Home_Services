@@ -687,7 +687,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
                 <div className="absolute bottom-2.5 right-2.5 bg-white/95 backdrop-blur-xs text-[#0b3ba8] text-[10px] font-black px-2.5 py-1 rounded-md shadow-xs">
-                  ✨ 100% Descaled Mirror Finish
+                  Detailed cleaning for a fresher finish
                 </div>
               </div>
             </div>
@@ -697,7 +697,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
               <div className="flex justify-between items-center mb-2.5">
                 <div>
                   <h2 className="text-lg font-extrabold text-[#111827]">Our Cleaning Services</h2>
-                  <p className="text-xs text-[#6b7280]">20 specialized hospital-grade cleaning categories</p>
+                  <p className="text-xs text-[#6b7280]">Browse available cleaning services and packages</p>
                 </div>
                 <span 
                   onClick={() => { setActiveCategoryFilter('all'); setSearchFilter(''); }}
@@ -758,9 +758,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                           </span>
                         )}
                       </div>
-                      <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-xs text-amber-300 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                        ★ {s.detail.rating}
-                      </div>
+                      
 
                       <div className="absolute bottom-1.5 left-2 text-white flex items-center gap-1">
                         <span className="text-base select-none">{s.e}</span>
@@ -867,7 +865,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                   </div>
                   <div className="pt-2 px-1">
                     <b className="text-xs text-[#111827] block">Bathroom Tile Descaling</b>
-                    <span className="text-[10px] text-[#6b7280]">Removed 100% hard water calcium scale</span>
+                    <span className="text-[10px] text-[#6b7280]">Designed to address visible mineral deposits; results vary by surface.</span>
                   </div>
                 </div>
 
@@ -1120,10 +1118,10 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                 <span>🛡️</span> Frequently Asked Questions &amp; Safety Standard
               </h3>
               {[
-                { q: 'How does Bharat Pro Expert ensure quality and safety?', a: 'All cleaning professionals are 100% police verified, background-checked, and trained in German SOPs. We only use authentic Diversey Taski R1-R9 eco-safe hospital-grade chemicals.' },
-                { q: 'What is your cancellation and refund policy?', a: 'Free cancellation up to 2 hours before your scheduled appointment slot. 100% instant refund back to your payment source, no questions asked.' },
+                { q: 'How can I check service quality and safety details?', a: 'Review the selected package inclusions and exclusions. If you have a surface, product or safety concern, contact support before booking.' },
+                { q: 'What is your cancellation and refund policy?', a: 'Cancellation and refund terms depend on the booking and payment status. Review the terms shown during booking or contact support with your booking number.' },
                 { q: 'How does the Start OTP and Completion OTP work?', a: 'When the technician arrives, share the 4-digit Start OTP to begin service. Only provide the Completion OTP after you have thoroughly inspected the work and are completely satisfied.' },
-                { q: 'Are there any hidden visit or travel charges?', a: 'Zero hidden charges. Inspection and visit charges are completely FREE. What you see is what you pay.' }
+                { q: 'How do I check the final price?', a: 'Review the selected service, add-ons and total at checkout. Contact support if any line item is unclear.' }
               ].map((faq, i) => (
                 <div key={i} className="border border-slate-100 rounded-xl overflow-hidden">
                   <button 
@@ -1211,9 +1209,9 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
                       </p>
 
                       <div className="flex items-center gap-3 text-xs text-[#6b7280] mt-2 font-medium">
-                        <span className="text-amber-500 font-bold">★ {cat.rating} ({cat.reviewCount}+ verified ratings)</span>
+                        <span>Package details before booking</span>
                         <span>&bull;</span>
-                        <span>Diversey Taski R1-R9 SOPs</span>
+                        <span>Check included tasks and exclusions</span>
                       </div>
                     </div>
 
