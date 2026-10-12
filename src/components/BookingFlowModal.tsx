@@ -205,7 +205,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 }
               }
             }
-            if (minDist <= 50) return closest;
+            const closestRadiusKm = Number(closest?.serviceRadiusKm) || 0;
+            if (closestRadiusKm > 0 && minDist <= closestRadiusKm) return closest;
           }
         }
       }
@@ -401,7 +402,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     (geoCoords && availableHubs.some((hub) => {
       if (!hub?.id || hub.id === 'hub-default' || hub.active === false || hub.status === 'INACTIVE' || !hub.lat || !hub.lng) return false;
       const distance = calculateHaversineKm(geoCoords.lat, geoCoords.lng, hub.lat, hub.lng);
-      return typeof distance === 'number' && distance <= 50;
+      const radiusKm = Number(hub.serviceRadiusKm) || 0;
+      return typeof distance === 'number' && radiusKm > 0 && distance <= radiusKm;
     }))
   );
   const coverageMessage = 'We do not currently have a verified service hub for this city. Please choose a supported location or contact support before booking.';
