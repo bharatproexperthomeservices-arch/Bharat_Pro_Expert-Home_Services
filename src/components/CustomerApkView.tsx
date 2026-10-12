@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Booking, HubLocation } from '../types';
 import { CLEANING_20_CATEGORIES, CleaningCategoryDetail } from '../cleaningCategoriesData';
 import { createNewBooking, getAllHubs, getAllBookings } from '../services/dbService';
-import { openRazorpayPaymentModal, getRazorpayKeyId } from '../services/razorpayService';
+import { getRazorpayKeyId } from '../services/razorpayService';
 import { useRazorpayBooking, BookingPayload } from '../hooks/useRazorpayBooking';
 import { reverseGeocodeCoordinates } from '../services/indiaLocationHierarchy';
 import confetti from 'canvas-confetti';
@@ -456,7 +456,7 @@ export const CustomerApkView: React.FC<CustomerApkViewProps> = ({
           sector: address.type + ' Area',
           city: address.city || city || matchedHub.city,
           state: matchedHub.state || 'India',
-          pincode: address.pin || matchedHub.pincodes?.[0] || '',
+          pincode: address.pin || (('pincodes' in matchedHub && matchedHub.pincodes?.[0]) || ''),
           lat: address.lat || matchedHub.lat,
           lng: address.lng || matchedHub.lng
         },
