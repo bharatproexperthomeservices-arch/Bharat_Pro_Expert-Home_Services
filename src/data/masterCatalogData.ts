@@ -92,7 +92,7 @@ const IMG = {
   mattress: 'https://images.pexels.com/photos/14675103/pexels-photo-14675103.jpeg?auto=compress&cs=tinysrgb&w=1200',
   mattressLarge: 'https://images.pexels.com/photos/14675103/pexels-photo-14675103.jpeg?auto=compress&cs=tinysrgb&w=1200',
   glass: 'https://images.pexels.com/photos/7641359/pexels-photo-7641359.jpeg?auto=compress&cs=tinysrgb&w=1200',
-  glassLarge: 'https://images.pexels.com/photos/6197117/pexels-photo-6197117.jpeg?auto=compress&cs=tinysrgb&w=1200',
+  glassLarge: 'https://images.pexels.com/photos/7641359/pexels-photo-7641359.jpeg?auto=compress&cs=tinysrgb&w=1200',
   fanCeiling: 'https://images.unsplash.com/photo-1565538810643-b5bdb714032a?w=800&q=85',
   fanExhaust: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800&q=85',
   chandelier: 'https://images.unsplash.com/photo-1524634126442-357e0eac3c14?w=800&q=85',
