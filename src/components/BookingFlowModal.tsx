@@ -31,15 +31,15 @@ import {
 const FALLBACK_HUB: HubLocation = {
   id: 'hub-default',
   code: 'BPE-000',
-  name: 'Default Hub',
+  name: 'Service Area Not Confirmed',
   state: 'India',
-  city: 'Delhi',
-  district: 'Delhi',
-  address: 'Delhi, India',
+  city: 'Unconfirmed',
+  district: 'Unconfirmed',
+  address: 'Choose a supported service location',
   coveredSectors: [],
   pincodes: [],
-  serviceRadiusKm: 30,
-  contactPhone: '+91 92660 23301',
+  serviceRadiusKm: 0,
+  contactPhone: '+91 89202 52647',
   managerName: 'Operations',
   operatingHours: '07:30 - 21:00',
   status: 'ACTIVE',
@@ -393,7 +393,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const hasServiceCoverage = Boolean(
     findHubByCity(availableHubs, coverageCity) ||
     (geoCoords && availableHubs.some((hub) => {
-      if (!hub?.id || hub.id === 'hub-default' || !hub.lat || !hub.lng) return false;
+      if (!hub?.id || hub.id === 'hub-default' || hub.active === false || hub.status === 'INACTIVE' || !hub.lat || !hub.lng) return false;
       const distance = calculateHaversineKm(geoCoords.lat, geoCoords.lng, hub.lat, hub.lng);
       return typeof distance === 'number' && distance <= 50;
     }))
@@ -580,13 +580,13 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
   // Step 2 to Step 3 Validation
   const handleContinueFromStep2 = () => {
+    if (!hasServiceCoverage) {
+      setErrorBanner(coverageMessage);
+      return;
+    }
     if (!user && !profile) {
       setErrorBanner('🔒 Login required: Please sign in or register with your mobile/email to book.');
       onRequireAuth();
-      return;
-    }
-    if (!hasServiceCoverage) {
-      setErrorBanner(coverageMessage);
       return;
     }
     const errs: { name?: boolean; phone?: boolean; street?: boolean } = {};
