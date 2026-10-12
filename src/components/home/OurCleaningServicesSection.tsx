@@ -70,7 +70,7 @@ export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProp
   return (
     <section 
       id="our-cleaning-services" 
-      className="py-16 sm:py-20 bg-gradient-to-b from-[#F8F9FB] to-white font-['Inter',sans-serif] relative overflow-hidden scroll-mt-20"
+      className="pt-8 pb-14 sm:pt-10 sm:pb-16 bg-gradient-to-b from-[#F8F9FB] to-white font-['Inter',sans-serif] relative overflow-hidden scroll-mt-20"
     >
       <div id="services" className="absolute -top-20" />
 
@@ -83,7 +83,7 @@ export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProp
       <div className="relative w-full px-4 sm:px-6 lg:px-10 xl:px-16">
 
         {/* ============ शीर्षक भाग ============ */}
-        <div className="text-center max-w-3xl mx-auto mb-14">
+        <div className="text-left max-w-3xl mb-7">
           <div className="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-1.5 mb-4 shadow-sm">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span className="text-xs font-bold text-[#08213F] tracking-wide uppercase">
@@ -91,14 +91,14 @@ export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProp
             </span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black text-[#08213F] tracking-tight leading-tight">
+          <h2 className="text-3xl sm:text-4xl lg:text-4xl xl:text-5xl font-black text-[#08213F] tracking-tight leading-tight">
             Our Cleaning Services
           </h2>
-          <p className="text-base sm:text-lg text-slate-500 font-medium mt-4 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-slate-500 font-medium mt-2 max-w-2xl">
             आपके घर के हर कोने के लिए पेशेवर और भरोसेमंद सफाई सेवाएँ — विशेषज्ञों द्वारा, उचित मूल्य पर।
           </p>
 
-          <div className="flex items-center justify-center gap-6 mt-6 text-xs sm:text-sm text-slate-600 flex-wrap">
+          <div className="hidden sm:flex items-center justify-start gap-6 mt-4 text-xs sm:text-sm text-slate-600 flex-wrap">
             <div className="flex items-center gap-1.5">
               <Shield className="w-4 h-4 text-green-600" />
               <span className="font-semibold">100% भरोसेमंद</span>
@@ -115,15 +115,15 @@ export const OurCleaningServicesSection: React.FC<OurCleaningServicesSectionProp
         </div>
 
         {/* ============ 4 बड़े कार्ड ============ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-8">
           {cards.map((c) => (
             <div
               key={c.id}
-              className="group bg-white rounded-3xl border border-slate-200/90 shadow-[0_4px_20px_rgba(8,33,63,0.06)] hover:shadow-[0_20px_50px_rgba(8,33,63,0.15)] transition-all duration-500 overflow-hidden flex flex-col cursor-pointer hover:-translate-y-2"
+              className="group bg-white rounded-2xl border border-slate-200/90 shadow-[0_4px_20px_rgba(8,33,63,0.06)] hover:shadow-[0_16px_38px_rgba(8,33,63,0.12)] transition-all duration-300 overflow-hidden flex flex-col cursor-pointer hover:-translate-y-1"
               onClick={() => onSelectCategory(c.id)}
             >
               {/* चित्र भाग */}
-              <div className="relative h-60 sm:h-64 lg:h-72 overflow-hidden bg-slate-100">
+              <div className="relative h-32 sm:h-36 lg:h-32 overflow-hidden bg-slate-100">
                 <img
                   src={c.image}
                   alt={c.title}
