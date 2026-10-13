@@ -3,6 +3,7 @@ import { Header } from './Header';
 import { HeroSection } from './HeroSection';
 import { FeatureStrip } from './FeatureStrip';
 import { OurCleaningServicesSection } from './OurCleaningServicesSection';
+import { PremiumHomeSections } from './PremiumHomeSections';
 import { ServiceCatalogGrid, CartItem } from './ServiceCatalogGrid';
 import { FloatingCartBar } from './FloatingCartBar';
 import { IndiaLocationDetectionModal } from '../location/IndiaLocationDetectionModal';
@@ -274,14 +275,20 @@ export const BharatProHomeView: React.FC<BharatProHomeViewProps> = ({
         onItemClick={handleSelectDirectService}
       />
 
-      {/* 6. Floating Cart Bar (Appears when items are in cart) */}
+      {/* 6. Full-page luxury sections: packages, pricing, benefits, steps, reviews, areas and FAQs */}
+      <PremiumHomeSections
+        onBookNow={handleScrollToCatalogue}
+        onOpenLocations={() => setLocationsModalOpen(true)}
+      />
+
+      {/* 7. Floating Cart Bar (Appears when items are in cart) */}
       <FloatingCartBar
         cart={cart}
         onProceedToCheckout={handleProceedToCheckout}
         onClearCart={handleClearCart}
       />
 
-      {/* 7. Footer */}
+      {/* 8. Footer */}
       <Footer
         onOpenPartner={onOpenPartner}
         onOpenAdmin={onOpenAdmin}
