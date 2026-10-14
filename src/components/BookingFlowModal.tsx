@@ -273,11 +273,11 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [geoStatusMsg, setGeoStatusMsg] = useState<string | null>(null);
   
-  // Coupons: strictly 10% discount with BHARAT10
-  const [couponCode, setCouponCode] = useState('BHARAT10');
+  // No discount is applied by default. A coupon must be explicitly entered and validated.
+  const [couponCode, setCouponCode] = useState('');
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [couponMessage, setCouponMessage] = useState<string | null>('🎉 BHARAT10 applied! 10% discount unlocked.');
-  const [isCouponApplied, setIsCouponApplied] = useState(true);
+  const [couponMessage, setCouponMessage] = useState<string | null>(null);
+  const [isCouponApplied, setIsCouponApplied] = useState(false);
 
   // Online payment only. COD / pay-after-service is permanently disabled.
   const paymentMethod = 'UPI / Cards / Netbanking' as const;
@@ -548,23 +548,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  // Coupon handler (Strictly 10% Discount)
+  // Coupon promotions are not hard-coded here. Until a configured backend coupon validator is connected,
+  // do not promise or apply a discount that an administrator has not configured.
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = (couponCode || '').trim().toUpperCase();
-    const validCodes = ['BHARAT10', 'PRO10', 'FIRST10', 'CLEAN10', 'SAVE10'];
-    if (validCodes.includes(clean)) {
-      setIsCouponApplied(true);
-      const disc = Math.round(rawSubtotal * 0.10);
-      setDiscountAmount(disc);
-      setCouponMessage(`🎉 10% Discount applied! Saved ₹${disc}`);
-      setErrorBanner(null);
-    } else {
-      setIsCouponApplied(false);
-      setDiscountAmount(0);
-      setCouponMessage(null);
-      setErrorBanner('Invalid coupon code. Use "BHARAT10" to get 10% OFF on all bookings.');
-    }
+    setIsCouponApplied(false);
+    setDiscountAmount(0);
+    setCouponMessage(null);
+    setErrorBanner('Coupon validation is temporarily unavailable. No discount has been applied.');
   };
 
   // Step 1 to Step 2 Validation
@@ -1049,11 +1040,10 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
 
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-gray-800">Choose payment method</p>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('UPI / Cards / Netbanking')}
+                <div
+                  role="status"
+                  aria-label="Selected payment method: online payment"
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-50 ring-1 ring-teal-600' : 'border-gray-200 bg-white'}`}
-                  aria-pressed={paymentMethod === 'UPI / Cards / Netbanking'}
                 >
                   <CreditCard className="w-5 h-5 text-teal-700" />
                   <span className="flex-1">
