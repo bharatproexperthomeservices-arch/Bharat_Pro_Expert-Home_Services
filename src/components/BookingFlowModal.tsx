@@ -1051,7 +1051,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 <p className="text-sm font-semibold text-gray-800">Choose payment method</p>
                 <button
                   type="button"
-                  onClick={() => {}}
+                  onClick={() => setPaymentMethod('UPI / Cards / Netbanking')}
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-50 ring-1 ring-teal-600' : 'border-gray-200 bg-white'}`}
                   aria-pressed={paymentMethod === 'UPI / Cards / Netbanking'}
                 >
