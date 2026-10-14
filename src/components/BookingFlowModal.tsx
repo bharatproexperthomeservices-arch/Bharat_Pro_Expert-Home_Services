@@ -20,7 +20,6 @@ import {
   Phone,
   User,
   CheckCircle2,
-  Tag,
   Compass,
   Navigation,
   Loader2,
@@ -87,7 +86,7 @@ const normalizeCityName = (value?: string | null) =>
 const findHubByCity = (hubs: HubLocation[], city?: string | null) => {
   const normalizedCity = normalizeCityName(city);
   if (!normalizedCity) return undefined;
-  return hubs.find((hub) => hub?.id !== 'hub-default' && hub?.active !== false && hub?.status !== 'INACTIVE' && normalizeCityName(hub?.city) === normalizedCity);
+  return hubs.find((hub) => hub?.id !== 'hub-default' && hub?.active !== false && (!hub?.status || hub.status === 'ACTIVE') && normalizeCityName(hub?.city) === normalizedCity);
 };
 
 export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
@@ -197,7 +196,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
             let closest = SAFE_HUBS[0] || FALLBACK_HUB;
             let minDist = Number.POSITIVE_INFINITY;
             for (const hub of SAFE_HUBS) {
-              if (hub && hub.id !== 'hub-default' && hub.active !== false && hub.status !== 'INACTIVE' && hub.lat && hub.lng) {
+              if (hub && hub.id !== 'hub-default' && hub.active !== false && (!hub.status || hub.status === 'ACTIVE') && hub.lat && hub.lng) {
                 const distance = calculateHaversineKm(parsed.latitude, parsed.longitude, hub.lat, hub.lng);
                 if (typeof distance === 'number' && distance < minDist) {
                   minDist = distance;
@@ -273,11 +272,8 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [geoStatusMsg, setGeoStatusMsg] = useState<string | null>(null);
   
-  // Coupons: strictly 10% discount with BHARAT10
-  const [couponCode, setCouponCode] = useState('BHARAT10');
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [couponMessage, setCouponMessage] = useState<string | null>('🎉 BHARAT10 applied! 10% discount unlocked.');
-  const [isCouponApplied, setIsCouponApplied] = useState(true);
+  // Do not apply a coupon or advertise a discount until an administrator-backed validator exists.
+  const discountAmount = 0;
 
   // Online payment only. COD / pay-after-service is permanently disabled.
   const paymentMethod = 'UPI / Cards / Netbanking' as const;
@@ -316,7 +312,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
         const hubsList = await getAllHubs();
         if (cancelled) return;
         if (Array.isArray(hubsList)) {
-          const activeHubsList = hubsList.filter((hub: HubLocation) => hub && hub.id !== 'hub-default' && hub.active !== false && hub.status !== 'INACTIVE');
+          const activeHubsList = hubsList.filter((hub: HubLocation) => hub && hub.id !== 'hub-default' && hub.active !== false && (!hub.status || hub.status === 'ACTIVE'));
           setAvailableHubs(activeHubsList);
           if (activeHubsList.length === 0) return;
           if (selectedCity) {
@@ -385,22 +381,12 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const convenienceFee = 49;
   const grossBeforeDiscount = rawSubtotal + taxesGst + convenienceFee;
 
-  // Auto calculate 10% discount when coupon is applied
-  useEffect(() => {
-    if (isCouponApplied && rawSubtotal > 0) {
-      const disc = Math.round(rawSubtotal * 0.10);
-      setDiscountAmount(disc);
-    } else {
-      setDiscountAmount(0);
-    }
-  }, [rawSubtotal, isCouponApplied]);
-
   const netTotal = Math.max(0, grossBeforeDiscount - discountAmount);
   const coverageCity = customerCity || selectedCity || '';
   const hasServiceCoverage = Boolean(
     findHubByCity(availableHubs, coverageCity) ||
     (geoCoords && availableHubs.some((hub) => {
-      if (!hub?.id || hub.id === 'hub-default' || hub.active === false || hub.status === 'INACTIVE' || !hub.lat || !hub.lng) return false;
+      if (!hub?.id || hub.id === 'hub-default' || hub.active === false || (hub.status && hub.status !== 'ACTIVE') || !hub.lat || !hub.lng) return false;
       const distance = calculateHaversineKm(geoCoords.lat, geoCoords.lng, hub.lat, hub.lng);
       const radiusKm = Number(hub.serviceRadiusKm) || 0;
       return typeof distance === 'number' && radiusKm > 0 && distance <= radiusKm;
@@ -548,25 +534,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  // Coupon handler (Strictly 10% Discount)
-  const handleApplyCoupon = (e: React.FormEvent) => {
-    e.preventDefault();
-    const clean = (couponCode || '').trim().toUpperCase();
-    const validCodes = ['BHARAT10', 'PRO10', 'FIRST10', 'CLEAN10', 'SAVE10'];
-    if (validCodes.includes(clean)) {
-      setIsCouponApplied(true);
-      const disc = Math.round(rawSubtotal * 0.10);
-      setDiscountAmount(disc);
-      setCouponMessage(`🎉 10% Discount applied! Saved ₹${disc}`);
-      setErrorBanner(null);
-    } else {
-      setIsCouponApplied(false);
-      setDiscountAmount(0);
-      setCouponMessage(null);
-      setErrorBanner('Invalid coupon code. Use "BHARAT10" to get 10% OFF on all bookings.');
-    }
-  };
-
   // Step 1 to Step 2 Validation
   const handleContinueFromStep1 = () => {
     if (!user && !profile) {
@@ -658,7 +625,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
           serviceId: service.id,
           serviceName: service.name,
           addons: selectedAddons.map(addon => ({ id: addon.id, name: addon.name })),
-          couponCode: isCouponApplied ? couponCode.trim().toUpperCase() : null,
+          couponCode: null,
           clientTotal: Number(netTotal),
           currency: 'INR',
           bookingId
@@ -1025,7 +992,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 <div className="flex justify-between"><span>Convenience Fee</span><span>₹{convenienceFee}</span></div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-green-700">
-                    <span>Discount ({couponCode})</span><span>-₹{discountAmount}</span>
+                    <span>Discount</span><span>-₹{discountAmount}</span>
                   </div>
                 )}
                 <div className="border-t pt-2 flex justify-between font-bold text-base">
@@ -1033,27 +1000,14 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 </div>
               </div>
 
-              <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Tag className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                  <input
-                    value={couponCode}
-                    onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                    className="w-full border rounded-lg pl-9 pr-3 py-2 uppercase"
-                    placeholder="Coupon"
-                  />
-                </div>
-                <button type="submit" className="px-4 rounded-lg bg-gray-900 text-white font-semibold">Apply</button>
-              </form>
-              {couponMessage && <div className="text-xs text-green-700">{couponMessage}</div>}
+              <p className="text-xs text-gray-500">Any promotional offer will be shown here only when it is enabled and validated by the administrator.</p>
 
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-gray-800">Choose payment method</p>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('UPI / Cards / Netbanking')}
+                <div
+                  role="status"
+                  aria-label="Selected payment method: online payment"
                   className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-50 ring-1 ring-teal-600' : 'border-gray-200 bg-white'}`}
-                  aria-pressed={paymentMethod === 'UPI / Cards / Netbanking'}
                 >
                   <CreditCard className="w-5 h-5 text-teal-700" />
                   <span className="flex-1">
@@ -1061,7 +1015,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     <span className="block text-xs text-gray-500">UPI, debit/credit cards and netbanking</span>
                   </span>
                   <span className={`w-4 h-4 rounded-full border-2 ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-600' : 'border-gray-300'}`} />
-                </button>
+                </div>
               </div>
 
               {(

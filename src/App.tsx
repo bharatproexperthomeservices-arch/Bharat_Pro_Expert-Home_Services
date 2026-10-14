@@ -9,7 +9,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLoginGate } from './components/AdminLoginGate';
 import { PartnerDashboard } from './components/PartnerDashboard';
 import { CustomerApkView } from './components/CustomerApkView';
-import { BharatProHomeView } from './components/home/BharatProHomeView';
+import BharatProHomeView from './components/home/PremiumCleaningHomeView';
 import { CustomerDashboardModal } from './components/CustomerDashboardModal';
 import { HelpSupportModal } from './components/HelpSupportModal';
 import { INITIAL_SERVICES } from './data';
@@ -274,6 +274,7 @@ function AppContent() {
         user={user}
         profile={profile}
         myBookings={myBookings}
+        services={liveServices}
         selectedCity={selectedCity}
         onSelectCity={(city) => setSelectedCity(city)}
         onProceedToBooking={handleProceedToBooking}

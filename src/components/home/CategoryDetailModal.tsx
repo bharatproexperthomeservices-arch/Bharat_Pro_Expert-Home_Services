@@ -85,16 +85,11 @@ export const CategoryDetailModal: React.FC<CategoryDetailModalProps> = ({
 
                     <div className="pt-2 border-t border-slate-100 flex items-end justify-between">
                       <div>
-                        {service.originalPrice > service.offerPrice && (
-                          <span className="text-xs text-slate-400 line-through block font-medium">
-                            ₹{service.originalPrice}
-                          </span>
-                        )}
                         <span className="text-base font-black text-[#0B2A4A]">
                           ₹{service.offerPrice}
                         </span>
                         <span className="text-[10px] font-bold text-emerald-600 block">
-                          Offer price
+                          Configured price
                         </span>
                       </div>
 
