@@ -1051,7 +1051,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                     <span className="block text-xs text-gray-500">UPI, debit/credit cards and netbanking</span>
                   </span>
                   <span className={`w-4 h-4 rounded-full border-2 ${paymentMethod === 'UPI / Cards / Netbanking' ? 'border-teal-600 bg-teal-600' : 'border-gray-300'}`} />
-                </button>
+                </div>
               </div>
 
               {(
