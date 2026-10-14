@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   ArrowRight, Bath, CheckCircle2, ChevronRight, Clock3, MapPin, Menu,
   Search, Sparkles, Sofa, Utensils, Home, BedDouble, Layers3, X, UserRound,
-  CalendarCheck, ShieldCheck, MessageCircle, Star
+  CalendarCheck, ShieldCheck, MessageCircle
 } from 'lucide-react';
 import { BharatProLogo } from '../BharatProLogo';
 import { IndiaLocationDetectionModal } from '../location/IndiaLocationDetectionModal';
@@ -40,7 +40,7 @@ const defaultVisual = { image: 'https://images.pexels.com/photos/6197116/pexels-
 const waUrl = 'https://wa.me/918920252647?text=' + encodeURIComponent('Hello Bharat Pro Expert, I need help with a cleaning service booking.');
 
 export const PremiumCleaningHomeView: React.FC<Props> = ({
-  user, profile, myBookings, selectedCity, onSelectCity, onProceedToBooking,
+  user, profile, selectedCity, onSelectCity, onProceedToBooking,
   onTrackBooking, onOpenAuth, onOpenCustomerDashboard, onOpenAdmin, onOpenPartner, onOpenHelp
 }) => {
   const [query, setQuery] = useState('');
