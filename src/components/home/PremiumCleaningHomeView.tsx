@@ -9,7 +9,6 @@ import { BharatProLogo } from '../BharatProLogo';
 import { IndiaLocationDetectionModal } from '../location/IndiaLocationDetectionModal';
 import { TrackBookingModal } from './TrackBookingModal';
 import { CategoryDetailModal } from './CategoryDetailModal';
-import { Footer } from '../Footer';
 import { MASTER_CATALOG_CATEGORIES, CatalogCategory, CatalogItem, catalogItemToCleaningService } from '../../data/masterCatalogData';
 import { CleaningService, Booking } from '../../types';
 
@@ -229,7 +228,18 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
         </div>
       </section>
 
-      <Footer onOpenPartner={onOpenPartner} onOpenAdmin={onOpenAdmin} onOpenHelp={onOpenHelp}/>
+      <footer className="border-t border-[#eee9df] bg-[#fffdf9] py-10">
+        <div className="bpe-container grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <div className="flex items-center gap-2"><BharatProLogo size="md"/><div><strong className="block text-sm font-extrabold">BHARAT PRO EXPERT</strong><span className="text-[10px] font-bold uppercase tracking-[.18em] text-[#a8792c]">Home Services</span></div></div>
+            <p className="mt-3 max-w-xs text-xs leading-5 text-[#77736b]">Professional cleaning services with clear package details and convenient online booking.</p>
+          </div>
+          <div><h3 className="mb-3 text-xs font-extrabold uppercase tracking-[.16em]">Cleaning categories</h3><div className="flex flex-col gap-2 text-xs text-[#6B7280]">{categories.slice(0,6).map(c=><button key={c.id} onClick={()=>scrollTo('category-'+c.id)} className="text-left hover:text-[#9b6c20]">{c.name}</button>)}</div></div>
+          <div><h3 className="mb-3 text-xs font-extrabold uppercase tracking-[.16em]">Working hubs</h3><p className="text-xs leading-6 text-[#6B7280]">Delhi NCR · Gurugram · Haryana · Jharkhand · Patna · Faridabad · Mumbai · Noida</p><button onClick={()=>setLocationModalOpen(true)} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#9b6c20]"><MapPin size={13}/> Check your area</button></div>
+          <div><h3 className="mb-3 text-xs font-extrabold uppercase tracking-[.16em]">Connect with us</h3><a href="mailto:bharatproexperthomeservices@gmail.com" className="block break-all text-xs text-[#6B7280] hover:text-[#9b6c20]">bharatproexperthomeservices@gmail.com</a><a href="mailto:bharatproexpert@gmail.com" className="mt-2 block text-xs text-[#6B7280] hover:text-[#9b6c20]">bharatproexpert@gmail.com</a><a href={waUrl} target="_blank" rel="noreferrer" className="bpe-gold-button mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-extrabold"><MessageCircle size={15}/> WhatsApp support</a><div className="mt-4 flex flex-wrap gap-2"><button onClick={onOpenHelp} className="text-xs font-semibold text-[#6B7280] underline">Help & FAQs</button><button onClick={onOpenPartner} className="text-xs font-semibold text-[#6B7280] underline">Partner portal</button><button onClick={onOpenAdmin} className="text-xs font-semibold text-[#6B7280] underline">Admin portal</button></div></div>
+        </div>
+        <div className="bpe-container mt-8 border-t border-[#eee9df] pt-5 text-[10px] text-[#8a857c]">© {new Date().getFullYear()} Bharat Pro Expert Home Services. All rights reserved.</div>
+      </footer>
 
       <IndiaLocationDetectionModal isOpen={locationModalOpen} onClose={()=>setLocationModalOpen(false)} currentLocationName={selectedCity} onLocationResolved={loc=>onSelectCity(loc.city+', '+loc.state)}/>
       <TrackBookingModal isOpen={trackModalOpen} onClose={()=>setTrackModalOpen(false)} onOpenLiveTrackingModal={booking=>onTrackBooking(booking)}/>
