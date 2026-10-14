@@ -382,16 +382,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const convenienceFee = 49;
   const grossBeforeDiscount = rawSubtotal + taxesGst + convenienceFee;
 
-  // Auto calculate 10% discount when coupon is applied
-  useEffect(() => {
-    if (isCouponApplied && rawSubtotal > 0) {
-      const disc = Math.round(rawSubtotal * 0.10);
-      setDiscountAmount(disc);
-    } else {
-      setDiscountAmount(0);
-    }
-  }, [rawSubtotal, isCouponApplied]);
-
   const netTotal = Math.max(0, grossBeforeDiscount - discountAmount);
   const coverageCity = customerCity || selectedCity || '';
   const hasServiceCoverage = Boolean(
