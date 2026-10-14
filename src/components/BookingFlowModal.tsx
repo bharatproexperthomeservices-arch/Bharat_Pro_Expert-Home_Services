@@ -274,7 +274,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   
   // Do not apply a coupon or advertise a discount until an administrator-backed validator exists.
   const discountAmount = 0;
-  const isCouponApplied = false;
 
   // Online payment only. COD / pay-after-service is permanently disabled.
   const paymentMethod = 'UPI / Cards / Netbanking' as const;
