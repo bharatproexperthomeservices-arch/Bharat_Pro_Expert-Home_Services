@@ -9,13 +9,14 @@ import { BharatProLogo } from '../BharatProLogo';
 import { IndiaLocationDetectionModal } from '../location/IndiaLocationDetectionModal';
 import { TrackBookingModal } from './TrackBookingModal';
 import { CategoryDetailModal } from './CategoryDetailModal';
-import { MASTER_CATALOG_CATEGORIES, CatalogCategory, CatalogItem, catalogItemToCleaningService } from '../../data/masterCatalogData';
+import { CatalogCategory, CatalogItem, catalogItemToCleaningService } from '../../data/masterCatalogData';
 import { CleaningService, Booking } from '../../types';
 
 interface Props {
   user: any;
   profile: any;
   myBookings: Booking[];
+  services: CleaningService[];
   selectedCity: string;
   onSelectCity: (city: string) => void;
   onProceedToBooking: (service: CleaningService) => void;
@@ -40,7 +41,7 @@ const defaultVisual = { image: 'https://images.pexels.com/photos/6197116/pexels-
 const waUrl = 'https://wa.me/918920252647?text=' + encodeURIComponent('Hello Bharat Pro Expert, I need help with a cleaning service booking.');
 
 export const PremiumCleaningHomeView: React.FC<Props> = ({
-  user, profile, selectedCity, onSelectCity, onProceedToBooking,
+  user, profile, services, selectedCity, onSelectCity, onProceedToBooking,
   onTrackBooking, onOpenAuth, onOpenCustomerDashboard, onOpenAdmin, onOpenPartner, onOpenHelp
 }) => {
   const [query, setQuery] = useState('');
@@ -60,9 +61,51 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
     } catch {}
   }, []);
 
-  const categories = useMemo(() => MASTER_CATALOG_CATEGORIES
-    .filter(category => category.active && category.items.some(item => item.active))
-    .sort((a, b) => a.sortOrder - b.sortOrder), []);
+  // Build the visible catalogue from administrator-managed, active backend services.
+  // The local master catalogue is used only for UI types/fallbacks, never as the price source.
+  const categories = useMemo(() => {
+    const grouped = new Map<string, CleaningService[]>();
+    services.filter(service => service.active).forEach(service => {
+      const key = service.categoryId || 'cleaning-services';
+      grouped.set(key, [...(grouped.get(key) || []), service]);
+    });
+    return Array.from(grouped.entries()).map(([id, group], categoryIndex): CatalogCategory => {
+      const visual = categoryVisuals[id] || defaultVisual;
+      const items: CatalogItem[] = group.map((service, itemIndex) => ({
+        id: service.id,
+        categoryId: service.categoryId,
+        categoryName: service.categoryName || 'Cleaning Services',
+        name: service.name,
+        duration: service.estimatedMinutes > 0 ? (service.estimatedMinutes >= 60
+          ? `${Math.floor(service.estimatedMinutes / 60)} hr${service.estimatedMinutes >= 120 ? 's' : ''}${service.estimatedMinutes % 60 ? ` ${service.estimatedMinutes % 60} min` : ''}`
+          : `${service.estimatedMinutes} min`) : '',
+        originalPrice: service.referencePrice || service.basePrice,
+        offerPrice: service.basePrice,
+        imageUrl: service.imageUrl || visual.image,
+        description: service.shortDesc || service.detailedDesc || service.name,
+        rating: service.rating,
+        reviewCount: service.reviewCount,
+        inclusions: service.inclusions || [],
+        exclusions: service.exclusions || [],
+        tools: service.equipmentRequired || [],
+        processSteps: service.steps || [],
+        cancellationPolicy: undefined,
+        active: service.active,
+        sortOrder: itemIndex
+      }));
+      return {
+        id,
+        name: group[0]?.categoryName || 'Cleaning Services',
+        subtitle: group[0]?.shortDesc || 'Professional cleaning packages',
+        iconName: visual.eyebrow,
+        heroImage: group.find(service => service.imageUrl)?.imageUrl || visual.image,
+        startingPrice: Math.min(...group.map(service => service.basePrice)),
+        active: true,
+        sortOrder: categoryIndex,
+        items
+      };
+    }).sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [services]);
 
   const matchingCategories = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -79,7 +122,11 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
     setMobileMenuOpen(false);
   };
 
-  const bookItem = (item: CatalogItem) => onProceedToBooking(catalogItemToCleaningService(item));
+  const bookItem = (item: CatalogItem) => {
+    const configuredService = services.find(service => service.id === item.id && service.active);
+    if (configuredService) onProceedToBooking(configuredService);
+    else onProceedToBooking(catalogItemToCleaningService(item));
+  };
   const money = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
 
   return (
