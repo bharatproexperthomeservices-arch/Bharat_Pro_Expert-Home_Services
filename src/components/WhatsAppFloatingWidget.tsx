@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { WHATSAPP_NUMBER } from '../data';
-import { MessageCircle, X, Send, Sparkles, PhoneCall } from 'lucide-react';
+import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
 
 export const WhatsAppFloatingWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -34,7 +34,7 @@ export const WhatsAppFloatingWidget: React.FC = () => {
                   <span className="w-2 h-2 rounded-full bg-emerald-300 animate-ping" />
                 </h4>
                 <p className="text-[11px] text-white/80">
-                  Instant Booking &bull; 24/7 WhatsApp Dispatch
+                  Cleaning service booking support
                 </p>
               </div>
             </div>
