@@ -20,7 +20,6 @@ import {
   Phone,
   User,
   CheckCircle2,
-  Tag,
   Compass,
   Navigation,
   Loader2,
@@ -273,11 +272,9 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [geoStatusMsg, setGeoStatusMsg] = useState<string | null>(null);
   
-  // No discount is applied by default. A coupon must be explicitly entered and validated.
-  const [couponCode, setCouponCode] = useState('');
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [couponMessage, setCouponMessage] = useState<string | null>(null);
-  const [isCouponApplied, setIsCouponApplied] = useState(false);
+  // Do not apply a coupon or advertise a discount until an administrator-backed validator exists.
+  const discountAmount = 0;
+  const isCouponApplied = false;
 
   // Online payment only. COD / pay-after-service is permanently disabled.
   const paymentMethod = 'UPI / Cards / Netbanking' as const;
@@ -547,16 +544,6 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
-
-  // Coupon promotions are not hard-coded here. Until a configured backend coupon validator is connected,
-  // do not promise or apply a discount that an administrator has not configured.
-  const handleApplyCoupon = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsCouponApplied(false);
-    setDiscountAmount(0);
-    setCouponMessage(null);
-    setErrorBanner('Coupon validation is temporarily unavailable. No discount has been applied.');
-  };
 
   // Step 1 to Step 2 Validation
   const handleContinueFromStep1 = () => {
@@ -1016,7 +1003,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 <div className="flex justify-between"><span>Convenience Fee</span><span>₹{convenienceFee}</span></div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-green-700">
-                    <span>Discount ({couponCode})</span><span>-₹{discountAmount}</span>
+                    <span>Discount</span><span>-₹{discountAmount}</span>
                   </div>
                 )}
                 <div className="border-t pt-2 flex justify-between font-bold text-base">
@@ -1024,19 +1011,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
                 </div>
               </div>
 
-              <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Tag className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                  <input
-                    value={couponCode}
-                    onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                    className="w-full border rounded-lg pl-9 pr-3 py-2 uppercase"
-                    placeholder="Coupon"
-                  />
-                </div>
-                <button type="submit" className="px-4 rounded-lg bg-gray-900 text-white font-semibold">Apply</button>
-              </form>
-              {couponMessage && <div className="text-xs text-green-700">{couponMessage}</div>}
+              <p className="text-xs text-gray-500">Any promotional offer will be shown here only when it is enabled and validated by the administrator.</p>
 
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-gray-800">Choose payment method</p>
