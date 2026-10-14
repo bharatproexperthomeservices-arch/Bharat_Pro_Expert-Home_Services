@@ -274,6 +274,7 @@ function AppContent() {
         user={user}
         profile={profile}
         myBookings={myBookings}
+        services={liveServices}
         selectedCity={selectedCity}
         onSelectCity={(city) => setSelectedCity(city)}
         onProceedToBooking={handleProceedToBooking}
