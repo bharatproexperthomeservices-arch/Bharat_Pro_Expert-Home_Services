@@ -151,7 +151,7 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
       <section className="bpe-container py-7 sm:py-10">
         <motion.div initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{duration:.55}} className="relative isolate overflow-hidden rounded-[26px] sm:rounded-[34px] bg-[#f6f0e5]">
           <div className="absolute inset-0 -z-10">
-            <img src="https://images.pexels.com/photos/6197116/pexels-photo-6197116.jpeg?auto=compress&cs=tinysrgb&w=1800" alt="Bright, professionally cleaned modern home interior" className="bpe-photo opacity-35"/>
+            <img src="https://images.pexels.com/photos/6197116/pexels-photo-6197116.jpeg?auto=compress&cs=tinysrgb&w=1800" alt="Bright, professionally cleaned modern home interior" className="bpe-photo opacity-35" onError={e=>{e.currentTarget.style.opacity="0"}}/>
             <div className="absolute inset-0 bg-gradient-to-r from-[#fffaf0] via-[#fffaf0]/95 to-[#fffaf0]/25"/>
           </div>
           <div className="grid min-h-[360px] items-center gap-8 p-6 sm:p-10 lg:grid-cols-[1.1fr_.9fr] lg:p-14">
@@ -169,7 +169,7 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
               </div>
             </div>
             <div className="hidden lg:grid grid-cols-2 gap-3">
-              {[{t:'Bathroom Cleaning',i:'https://images.pexels.com/photos/4239114/pexels-photo-4239114.jpeg?auto=compress&cs=tinysrgb&w=700'},{t:'Sofa Cleaning',i:'https://images.pexels.com/photos/4401538/pexels-photo-4401538.jpeg?auto=compress&cs=tinysrgb&w=700'},{t:'Kitchen Cleaning',i:'https://images.pexels.com/photos/10568269/pexels-photo-10568269.jpeg?auto=compress&cs=tinysrgb&w=700'},{t:'Home Deep Cleaning',i:'https://images.pexels.com/photos/6195949/pexels-photo-6195949.jpeg?auto=compress&cs=tinysrgb&w=700'}].map((item,i)=><motion.div key={item.t} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:.12+i*.08}} className={'relative h-36 overflow-hidden rounded-2xl shadow-lg '+(i%2?'mt-7':'')}><img src={item.i} alt={item.t} className="bpe-photo"/><div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"/><span className="absolute bottom-3 left-3 text-sm font-bold text-white">{item.t}</span></motion.div>)}
+              {[{t:'Bathroom Cleaning',i:'https://images.pexels.com/photos/4239114/pexels-photo-4239114.jpeg?auto=compress&cs=tinysrgb&w=700'},{t:'Sofa Cleaning',i:'https://images.pexels.com/photos/4401538/pexels-photo-4401538.jpeg?auto=compress&cs=tinysrgb&w=700'},{t:'Kitchen Cleaning',i:'https://images.pexels.com/photos/10568269/pexels-photo-10568269.jpeg?auto=compress&cs=tinysrgb&w=700'},{t:'Home Deep Cleaning',i:'https://images.pexels.com/photos/6195949/pexels-photo-6195949.jpeg?auto=compress&cs=tinysrgb&w=700'}].map((item,i)=><motion.div key={item.t} initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:.12+i*.08}} className={'relative h-36 overflow-hidden rounded-2xl shadow-lg '+(i%2?'mt-7':'')}><img src={item.i} alt={item.t} loading="lazy" decoding="async" className="bpe-photo" onError={e=>{e.currentTarget.style.opacity="0"}}/><div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"/><span className="absolute bottom-3 left-3 text-sm font-bold text-white">{item.t}</span></motion.div>)}
             </div>
           </div>
         </motion.div>
@@ -243,7 +243,7 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
 
       <IndiaLocationDetectionModal isOpen={locationModalOpen} onClose={()=>setLocationModalOpen(false)} currentLocationName={selectedCity} onLocationResolved={loc=>onSelectCity(loc.city+', '+loc.state)}/>
       <TrackBookingModal isOpen={trackModalOpen} onClose={()=>setTrackModalOpen(false)} onOpenLiveTrackingModal={booking=>onTrackBooking(booking)}/>
-      <CategoryDetailModal category={selectedCategory} onClose={()=>setSelectedCategory(null)} onAddItem={item=>bookItem(item)} onRemoveItem={()=>{}} cart={[]}/>
+      <CategoryDetailModal category={selectedCategory} onClose={()=>setSelectedCategory(null)} onAddItem={item=>{setSelectedCategory(null);bookItem(item)}} onRemoveItem={()=>{}} cart={[]}/>
     </main>
   );
 };
