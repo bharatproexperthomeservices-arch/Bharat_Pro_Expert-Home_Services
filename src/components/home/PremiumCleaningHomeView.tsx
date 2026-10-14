@@ -256,7 +256,7 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
                     <h4 className="bpe-line-clamp min-h-[34px] text-xs font-extrabold leading-4 sm:text-sm">{item.name}</h4>
                     <p className="bpe-line-clamp mt-1.5 min-h-[32px] text-[10px] leading-4 text-[#77736b] sm:text-xs">{item.description}</p>
                     <div className="mt-3 flex items-center justify-between gap-1">
-                      <div><span className="block text-[9px] text-[#8b857a]">Starting at</span><strong className="text-sm font-black sm:text-base">{money(item.offerPrice)}</strong>{item.originalPrice>item.offerPrice && <span className="ml-1 text-[9px] text-gray-400 line-through">{money(item.originalPrice)}</span>}</div>
+                      <div><span className="block text-[9px] text-[#8b857a]">Starting at</span><strong className="text-sm font-black sm:text-base">{money(item.offerPrice)}</strong></div>
                       {item.duration && <span className="flex items-center gap-1 text-[9px] text-[#77736b]"><Clock3 size={11}/>{item.duration}</span>}
                     </div>
                     <button onClick={()=>bookItem(item)} className="bpe-gold-button mt-3 flex w-full items-center justify-center gap-1.5 rounded-full px-2 py-2.5 text-[10px] font-extrabold sm:text-xs">Book service <ArrowRight size={13}/></button>
