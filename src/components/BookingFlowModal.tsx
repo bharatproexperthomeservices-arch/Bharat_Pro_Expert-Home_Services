@@ -636,7 +636,7 @@ export const BookingFlowModal: React.FC<BookingFlowModalProps> = ({
           serviceId: service.id,
           serviceName: service.name,
           addons: selectedAddons.map(addon => ({ id: addon.id, name: addon.name })),
-          couponCode: isCouponApplied ? couponCode.trim().toUpperCase() : null,
+          couponCode: null,
           clientTotal: Number(netTotal),
           currency: 'INR',
           bookingId
