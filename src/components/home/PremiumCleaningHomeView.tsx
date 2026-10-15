@@ -9,7 +9,7 @@ import { BharatProLogo } from '../BharatProLogo';
 import { IndiaLocationDetectionModal } from '../location/IndiaLocationDetectionModal';
 import { TrackBookingModal } from './TrackBookingModal';
 import { CategoryDetailModal } from './CategoryDetailModal';
-import { CatalogCategory, CatalogItem, catalogItemToCleaningService } from '../../data/masterCatalogData';
+import { CatalogCategory, CatalogItem } from '../../data/masterCatalogData';
 import { CleaningService, Booking } from '../../types';
 
 interface Props {
@@ -45,6 +45,11 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
   onTrackBooking, onOpenAuth, onOpenCustomerDashboard, onOpenAdmin, onOpenPartner, onOpenHelp
 }) => {
   const [query, setQuery] = useState('');
+  const [layoutMode, setLayoutMode] = useState<'auto' | 'mobile' | 'tablet' | 'website'>(() => {
+    try { const saved = localStorage.getItem('bpe_layout_mode_v1'); if (saved === 'mobile' || saved === 'tablet' || saved === 'website') return saved; } catch {}
+    return 'auto';
+  });
+  useEffect(() => { try { localStorage.setItem('bpe_layout_mode_v1', layoutMode); } catch {} }, [layoutMode]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [trackModalOpen, setTrackModalOpen] = useState(false);
@@ -61,47 +66,81 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
     } catch {}
   }, []);
 
-  // Build the visible catalogue from administrator-managed, active backend services.
-  // The local master catalogue is used only for UI types/fallbacks, never as the price source.
+  // Split the enabled, administrator-managed cleaning services into a full, easy-to-scan catalogue.
+  // Older saved records without an "active" field remain visible; an explicit active=false always hides them.
+  // Every card price and booking ID still comes from the real service record.
   const categories = useMemo(() => {
-    const grouped = new Map<string, CleaningService[]>();
-    services.filter(service => service.active).forEach(service => {
-      const key = service.categoryId || 'cleaning-services';
-      grouped.set(key, [...(grouped.get(key) || []), service]);
+    const sectionFor = (service: CleaningService) => {
+      const text = `${service.name || ''} ${service.subCategory || ''}`.toLowerCase();
+      const categoryText = (service.categoryName || '').toLowerCase();
+      const has = (...words: string[]) => words.some(word => text.includes(word));
+      if (has('bathroom', 'toilet', 'wash basin', 'shower', 'descaling', 'bath tile')) return ['bathroom-cleaning', 'Bathroom Cleaning Services', 'Bathroom care'];
+      if (has('sofa', 'upholstery', 'cushion', 'armchair')) return ['sofa-cleaning', 'Sofa Cleaning Services', 'Fabric & upholstery'];
+      if (has('kitchen', 'chimney', 'hob', 'backsplash', 'sink', 'cabinet')) return ['kitchen-cleaning', 'Kitchen Cleaning Services', 'Kitchen care'];
+      if (has('mattress', 'bed mattress')) return ['mattress-cleaning', 'Mattress Cleaning Services', 'Mattress care'];
+      if (has('carpet', 'rug')) return ['carpet-cleaning', 'Carpet Cleaning Services', 'Carpet care'];
+      if (has('window', 'glass', 'grill')) return ['window-cleaning', 'Window Cleaning Services', 'Glass & window care'];
+      if (has('balcony', 'terrace')) return ['balcony-cleaning', 'Balcony Cleaning Services', 'Balcony care'];
+      if (has('floor', 'tile', 'marble', 'polish')) return ['floor-cleaning', 'Floor Deep Cleaning', 'Floor care'];
+      if (has('move-in', 'move in', 'move-in')) return ['move-in-cleaning', 'Move-In Cleaning Services', 'Move-in care'];
+      if (has('move-out', 'move out', 'tenancy', 'handover')) return ['move-out-cleaning', 'Move-Out Cleaning Services', 'Move-out care'];
+      if (has('unfurnished', 'empty apartment', 'empty home')) return ['unfurnished-home-cleaning', 'Unfurnished Home Cleaning', 'Empty-home care'];
+      if (has('furnished')) return ['furnished-home-cleaning', 'Furnished Home Cleaning', 'Furnished-home care'];
+      if (has('bedroom', 'bed room')) return ['bedroom-cleaning', 'Bedroom Cleaning Services', 'Bedroom care'];
+      if (has('living room', 'living-room', 'lounge')) return ['living-room-cleaning', 'Living Room Cleaning', 'Living-area care'];
+      if (has('dining')) return ['dining-cleaning', 'Dining Area Cleaning', 'Dining-area care'];
+      if (has('renovation', 'post-construction', 'after construction')) return ['post-renovation-cleaning', 'Post-Renovation Cleaning', 'After-work cleanup'];
+      if (has('appliance', 'refrigerator exterior', 'oven exterior', 'microwave exterior')) return ['appliance-exterior-cleaning', 'Kitchen Appliance Exterior Cleaning', 'Appliance exterior care'];
+      if (has('deep cleaning package', 'complete home', 'full home', 'home deep cleaning', 'bhk', 'apartment')) return ['full-home-cleaning', 'Full Home Cleaning Services', 'Whole-home care'];
+      if (has('surface', 'switchboard', 'door', 'cabinet')) return ['surface-cleaning', 'Cabinet & Surface Cleaning', 'Surface care'];
+      if (categoryText.includes('bathroom')) return ['bathroom-cleaning', 'Bathroom Cleaning Services', 'Bathroom care'];
+      if (categoryText.includes('kitchen')) return ['kitchen-cleaning', 'Kitchen Cleaning Services', 'Kitchen care'];
+      if (categoryText.includes('sofa') || categoryText.includes('carpet') || categoryText.includes('furniture')) return ['sofa-cleaning', 'Sofa & Upholstery Cleaning', 'Fabric & upholstery'];
+      if (categoryText.includes('home') || categoryText.includes('apartment')) return ['full-home-cleaning', 'Full Home Cleaning Services', 'Whole-home care'];
+      return ['other-cleaning', service.categoryName || 'Other Cleaning Services', 'Cleaning experts'];
+    };
+    const groups = new Map<string, { title: string; eyebrow: string; services: CleaningService[] }>();
+    services.filter(service => service.active !== false && Number.isFinite(Number(service.basePrice)) && Number(service.basePrice) >= 0).forEach(service => {
+      const [id, title, eyebrow] = sectionFor(service);
+      const group = groups.get(id) || { title, eyebrow, services: [] };
+      group.services.push(service);
+      groups.set(id, group);
     });
-    return Array.from(grouped.entries()).map(([id, group], categoryIndex): CatalogCategory => {
+    const priority = ['bathroom-cleaning','sofa-cleaning','kitchen-cleaning','full-home-cleaning','furnished-home-cleaning','unfurnished-home-cleaning','move-in-cleaning','move-out-cleaning','mattress-cleaning','carpet-cleaning','floor-cleaning','window-cleaning','balcony-cleaning','bedroom-cleaning','living-room-cleaning','dining-cleaning','surface-cleaning','appliance-exterior-cleaning','post-renovation-cleaning','other-cleaning'];
+    return Array.from(groups.entries()).map(([id, group]): CatalogCategory => {
       const visual = categoryVisuals[id] || defaultVisual;
-      const items: CatalogItem[] = group.map((service, itemIndex) => ({
+      const items: CatalogItem[] = group.services.map((service, itemIndex) => ({
         id: service.id,
-        categoryId: service.categoryId,
-        categoryName: service.categoryName || 'Cleaning Services',
+        categoryId: id,
+        categoryName: group.title,
         name: service.name,
         duration: service.estimatedMinutes > 0 ? (service.estimatedMinutes >= 60
           ? `${Math.floor(service.estimatedMinutes / 60)} hr${service.estimatedMinutes >= 120 ? 's' : ''}${service.estimatedMinutes % 60 ? ` ${service.estimatedMinutes % 60} min` : ''}`
           : `${service.estimatedMinutes} min`) : '',
         originalPrice: service.referencePrice || service.basePrice,
-        offerPrice: service.basePrice,
+        offerPrice: Number(service.basePrice),
         imageUrl: service.imageUrl || visual.image,
         description: service.shortDesc || service.detailedDesc || service.name,
-        rating: service.rating,
-        reviewCount: service.reviewCount,
+        // Do not present seeded placeholder ratings/review counts as genuine customer feedback.
+        rating: undefined,
+        reviewCount: undefined,
         inclusions: service.inclusions || [],
         exclusions: service.exclusions || [],
         tools: service.equipmentRequired || [],
         processSteps: service.steps || [],
         cancellationPolicy: undefined,
-        active: service.active,
+        active: service.active !== false,
         sortOrder: itemIndex
       }));
       return {
         id,
-        name: group[0]?.categoryName || 'Cleaning Services',
-        subtitle: group[0]?.shortDesc || 'Professional cleaning packages',
-        iconName: visual.eyebrow,
-        heroImage: group.find(service => service.imageUrl)?.imageUrl || visual.image,
-        startingPrice: Math.min(...group.map(service => service.basePrice)),
+        name: group.title,
+        subtitle: group.services[0]?.shortDesc || 'Professional cleaning packages',
+        iconName: group.eyebrow,
+        heroImage: group.services.find(service => service.imageUrl)?.imageUrl || visual.image,
+        startingPrice: Math.min(...group.services.map(service => Number(service.basePrice))),
         active: true,
-        sortOrder: categoryIndex,
+        sortOrder: priority.indexOf(id) === -1 ? 999 : priority.indexOf(id),
         items
       };
     }).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -123,14 +162,14 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
   };
 
   const bookItem = (item: CatalogItem) => {
-    const configuredService = services.find(service => service.id === item.id && service.active);
+    const configuredService = services.find(service => service.id === item.id && service.active !== false);
+    // Never create a booking from a display-only fallback or an unconfigured catalogue item.
     if (configuredService) onProceedToBooking(configuredService);
-    else onProceedToBooking(catalogItemToCleaningService(item));
   };
   const money = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
 
   return (
-    <main className="bpe-premium min-h-screen bg-white text-[#202124]">
+    <main className={"bpe-premium bpe-mode-" + layoutMode + " min-h-screen bg-white text-[#202124]"}>
       <style>{`
         .bpe-premium { --bpe-gold:#D4A24E; --bpe-ink:#202124; --bpe-muted:#6B7280; font-family:Inter,'Plus Jakarta Sans',sans-serif; }
         .bpe-premium * { box-sizing:border-box; }
@@ -146,6 +185,17 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
         .bpe-premium .bpe-category-link { white-space:nowrap; border:1px solid #ece9e2; border-radius:999px; padding:10px 15px; font-size:12px; font-weight:700; background:white; transition:all .2s ease; }
         .bpe-premium .bpe-category-link:hover { background:#fff8e9; border-color:#D4A24E; }
         .bpe-premium .bpe-line-clamp { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .bpe-premium .bpe-service-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .bpe-premium.bpe-mode-mobile { width:min(430px,100%); margin-inline:auto; box-shadow:0 0 36px rgba(0,0,0,.08); }
+        .bpe-premium.bpe-mode-tablet { width:min(820px,100%); margin-inline:auto; box-shadow:0 0 36px rgba(0,0,0,.06); }
+        .bpe-premium.bpe-mode-website { width:100%; }
+        .bpe-premium.bpe-mode-tablet .bpe-service-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        .bpe-premium.bpe-mode-website .bpe-service-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        .bpe-premium .bpe-mode-control { border:1px solid #e8e0d1; border-radius:999px; padding:6px 10px; font-size:11px; font-weight:700; white-space:nowrap; }
+        .bpe-premium .bpe-mode-control[aria-pressed="true"] { background:#D4A24E; border-color:#D4A24E; color:#241a0b; }
+        @media(max-width:640px) { .bpe-premium.bpe-mode-auto .bpe-service-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media(min-width:641px) and (max-width:1023px) { .bpe-premium.bpe-mode-auto .bpe-service-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+        @media(min-width:1024px) { .bpe-premium.bpe-mode-auto .bpe-service-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
         @media(max-width:640px) { .bpe-premium .bpe-container { width:calc(100% - 28px); } .bpe-premium .bpe-section { padding:34px 0; } .bpe-premium .bpe-card { border-radius:16px; } }
         @media(prefers-reduced-motion:reduce) { .bpe-premium *, .bpe-premium *:before, .bpe-premium *:after { animation-duration:.01ms!important; transition-duration:.01ms!important; scroll-behavior:auto!important; } }
       `}</style>
@@ -195,6 +245,10 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
         </div>
       </nav>
 
+      <div className="bpe-container flex flex-wrap items-center justify-end gap-2 pt-3" aria-label="Responsive preview mode">
+        <span className="mr-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#77736b]">View mode</span>
+        {([{id:'auto',label:'Automatic'},{id:'mobile',label:'Mobile'},{id:'tablet',label:'Tablet'},{id:'website',label:'Website'}] as const).map(mode => <button key={mode.id} type="button" aria-pressed={layoutMode===mode.id} onClick={()=>setLayoutMode(mode.id)} className="bpe-mode-control">{mode.label}</button>)}
+      </div>
       <section className="bpe-container py-7 sm:py-10">
         <motion.div initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{duration:.55}} className="relative isolate overflow-hidden rounded-[26px] sm:rounded-[34px] bg-[#f6f0e5]">
           <div className="absolute inset-0 -z-10">
@@ -246,7 +300,7 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
                 </div>
                 <button onClick={()=>setSelectedCategory(category)} className="flex shrink-0 items-center gap-1 text-xs font-extrabold text-[#9b6c20]">View all <ChevronRight size={15}/></button>
               </div>
-              <motion.div layout className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+              <motion.div layout className="bpe-service-grid gap-3 sm:gap-4">
                 {items.map((item, itemIndex) => <motion.article key={item.id} layout initial={{opacity:0,y:16}} whileInView={{opacity:1,y:0}} viewport={{once:true,amount:.08}} transition={{duration:.32,delay:Math.min(itemIndex*.035,.18)}} className="bpe-card flex min-w-0 flex-col">
                   <button onClick={()=>setSelectedCategory(category)} className="relative block aspect-[1.35/1] overflow-hidden bg-[#f1eee7] text-left">
                     <img src={item.imageUrl || visual.image} alt={item.name+' service'} loading={index > 0 || itemIndex > 2 ? 'lazy' : 'eager'} className="bpe-photo transition-transform duration-500 hover:scale-105" onError={e=>{(e.currentTarget as HTMLImageElement).src=visual.image}}/>
@@ -282,8 +336,8 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
             <p className="mt-3 max-w-xs text-xs leading-5 text-[#77736b]">Professional cleaning services with clear package details and convenient online booking.</p>
           </div>
           <div><h3 className="mb-3 text-xs font-extrabold uppercase tracking-[.16em]">Cleaning categories</h3><div className="flex flex-col gap-2 text-xs text-[#6B7280]">{categories.slice(0,6).map(c=><button key={c.id} onClick={()=>scrollTo('category-'+c.id)} className="text-left hover:text-[#9b6c20]">{c.name}</button>)}</div></div>
-          <div><h3 className="mb-3 text-xs font-extrabold uppercase tracking-[.16em]">Working hubs</h3><p className="text-xs leading-6 text-[#6B7280]">Delhi NCR · Gurugram · Haryana · Jharkhand · Patna · Faridabad · Mumbai · Noida</p><button onClick={()=>setLocationModalOpen(true)} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#9b6c20]"><MapPin size={13}/> Check your area</button></div>
-          <div><h3 className="mb-3 text-xs font-extrabold uppercase tracking-[.16em]">Connect with us</h3><a href="mailto:bharatproexperthomeservices@gmail.com" className="block break-all text-xs text-[#6B7280] hover:text-[#9b6c20]">bharatproexperthomeservices@gmail.com</a><a href="mailto:bharatproexpert@gmail.com" className="mt-2 block text-xs text-[#6B7280] hover:text-[#9b6c20]">bharatproexpert@gmail.com</a><a href={waUrl} target="_blank" rel="noreferrer" className="bpe-gold-button mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-extrabold"><MessageCircle size={15}/> WhatsApp support</a><div className="mt-4 flex flex-wrap gap-2"><button onClick={onOpenHelp} className="text-xs font-semibold text-[#6B7280] underline">Help & FAQs</button><button onClick={onOpenPartner} className="text-xs font-semibold text-[#6B7280] underline">Partner portal</button><button onClick={onOpenAdmin} className="text-xs font-semibold text-[#6B7280] underline">Admin portal</button></div></div>
+          <div><h3 className="mb-3 text-xs font-extrabold uppercase tracking-[.16em]">Working hubs</h3><p className="text-xs leading-6 text-[#6B7280]">Delhi NCR · Gurugram, Haryana · Jharkhand · Patna, Bihar</p><button onClick={()=>setLocationModalOpen(true)} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#9b6c20]"><MapPin size={13}/> Check your area</button></div>
+          <div><h3 className="mb-3 text-xs font-extrabold uppercase tracking-[.16em]">Connect with us</h3><a href="mailto:bharatproexperthomeservices@gmail.com" className="block break-all text-xs text-[#6B7280] hover:text-[#9b6c20]">bharatproexperthomeservices@gmail.com</a><a href="tel:+918920252647" className="mt-2 block text-xs text-[#6B7280] hover:text-[#9b6c20]">+91 8920252647</a><a href={waUrl} target="_blank" rel="noreferrer" className="bpe-gold-button mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-extrabold"><MessageCircle size={15}/> WhatsApp support</a><div className="mt-4 flex flex-wrap gap-2"><button onClick={onOpenHelp} className="text-xs font-semibold text-[#6B7280] underline">Help & FAQs</button><button onClick={onOpenPartner} className="text-xs font-semibold text-[#6B7280] underline">Partner portal</button><button onClick={onOpenAdmin} className="text-xs font-semibold text-[#6B7280] underline">Admin portal</button></div></div>
         </div>
         <div className="bpe-container mt-8 border-t border-[#eee9df] pt-5 text-[10px] text-[#8a857c]">© {new Date().getFullYear()} Bharat Pro Expert Home Services. All rights reserved.</div>
       </footer>
