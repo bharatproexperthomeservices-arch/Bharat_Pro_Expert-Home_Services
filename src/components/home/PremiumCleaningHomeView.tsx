@@ -71,7 +71,8 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
   // Every card price and booking ID still comes from the real service record.
   const categories = useMemo(() => {
     const sectionFor = (service: CleaningService) => {
-      const text = `${service.name || ''} ${service.categoryName || ''} ${service.subCategory || ''}`.toLowerCase();
+      const text = `${service.name || ''} ${service.subCategory || ''}`.toLowerCase();
+      const categoryText = (service.categoryName || '').toLowerCase();
       const has = (...words: string[]) => words.some(word => text.includes(word));
       if (has('bathroom', 'toilet', 'wash basin', 'shower', 'descaling', 'bath tile')) return ['bathroom-cleaning', 'Bathroom Cleaning Services', 'Bathroom care'];
       if (has('sofa', 'upholstery', 'cushion', 'armchair')) return ['sofa-cleaning', 'Sofa Cleaning Services', 'Fabric & upholstery'];
@@ -92,6 +93,10 @@ export const PremiumCleaningHomeView: React.FC<Props> = ({
       if (has('appliance', 'refrigerator exterior', 'oven exterior', 'microwave exterior')) return ['appliance-exterior-cleaning', 'Kitchen Appliance Exterior Cleaning', 'Appliance exterior care'];
       if (has('deep cleaning package', 'complete home', 'full home', 'home deep cleaning', 'bhk', 'apartment')) return ['full-home-cleaning', 'Full Home Cleaning Services', 'Whole-home care'];
       if (has('surface', 'switchboard', 'door', 'cabinet')) return ['surface-cleaning', 'Cabinet & Surface Cleaning', 'Surface care'];
+      if (categoryText.includes('bathroom')) return ['bathroom-cleaning', 'Bathroom Cleaning Services', 'Bathroom care'];
+      if (categoryText.includes('kitchen')) return ['kitchen-cleaning', 'Kitchen Cleaning Services', 'Kitchen care'];
+      if (categoryText.includes('sofa') || categoryText.includes('carpet') || categoryText.includes('furniture')) return ['sofa-cleaning', 'Sofa & Upholstery Cleaning', 'Fabric & upholstery'];
+      if (categoryText.includes('home') || categoryText.includes('apartment')) return ['full-home-cleaning', 'Full Home Cleaning Services', 'Whole-home care'];
       return ['other-cleaning', service.categoryName || 'Other Cleaning Services', 'Cleaning experts'];
     };
     const groups = new Map<string, { title: string; eyebrow: string; services: CleaningService[] }>();
