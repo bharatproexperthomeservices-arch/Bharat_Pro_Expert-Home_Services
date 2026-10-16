@@ -7,21 +7,39 @@ function json(res, status, body) {
 }
 
 function calculateQuote(body) {
-  const requestedServiceId = typeof body?.serviceId === "string" ? body.serviceId : "";
-  const requestedServiceName = typeof body?.serviceName === "string"
-    ? body.serviceName.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN")
-    : "";
-  // Firestore/admin catalogue records can carry legacy IDs. Resolve by exact approved
-  // service name as a fallback, while ALWAYS taking the price from this server catalogue.
-  const matchedEntry = Object.entries(SERVICE_PRICES).find(([, item]) =>
-    item.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN") === requestedServiceName
-  );
-  const serviceId = Object.prototype.hasOwnProperty.call(SERVICE_PRICES, requestedServiceId)
-    ? requestedServiceId
-    : (matchedEntry ? matchedEntry[0] : "");
-  const service = serviceId ? SERVICE_PRICES[serviceId] : null;
-  if (!service) {
-    return { error: "Selected cleaning service is not in the approved catalogue. Please contact support so the service can be added safely.", code: "UNKNOWN_SERVICE" };
+  let subtotal = 0;
+  let primaryServiceId = "";
+
+  const items = Array.isArray(body?.items) && body.items.length > 0 ? body.items : null;
+
+  if (items) {
+    for (const item of items) {
+      const id = typeof item === "string" ? item : (typeof item?.id === "string" ? item.id : "");
+      const qty = typeof item === "object" && Number.isInteger(item.qty) && item.qty > 0 ? item.qty : 1;
+      const service = SERVICE_PRICES[id];
+      if (!service) {
+        return { error: `Selected cleaning service (${id}) is not in the approved catalogue.`, code: "UNKNOWN_SERVICE" };
+      }
+      subtotal += service.price * qty;
+      if (!primaryServiceId) primaryServiceId = id;
+    }
+  } else {
+    const requestedServiceId = typeof body?.serviceId === "string" ? body.serviceId : "";
+    const requestedServiceName = typeof body?.serviceName === "string"
+      ? body.serviceName.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN")
+      : "";
+    const matchedEntry = Object.entries(SERVICE_PRICES).find(([, item]) =>
+      item.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN") === requestedServiceName
+    );
+    const serviceId = Object.prototype.hasOwnProperty.call(SERVICE_PRICES, requestedServiceId)
+      ? requestedServiceId
+      : (matchedEntry ? matchedEntry[0] : "");
+    const service = serviceId ? SERVICE_PRICES[serviceId] : null;
+    if (!service) {
+      return { error: "Selected cleaning service is not in the approved catalogue. Please contact support so the service can be added safely.", code: "UNKNOWN_SERVICE" };
+    }
+    subtotal = service.price;
+    primaryServiceId = serviceId;
   }
 
   const requestedAddons = body?.addons === undefined ? [] : body.addons;
@@ -29,8 +47,6 @@ function calculateQuote(body) {
     return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
   }
 
-  // Support legacy/admin catalogue IDs by resolving their exact approved name to a
-  // server-owned add-on ID. Prices always come from ADDON_PRICES, never the browser.
   const normalizedAddonIds = [];
   for (const candidate of requestedAddons) {
     let requestedId = "";
@@ -63,7 +79,7 @@ function calculateQuote(body) {
     return { error: "Duplicate add-ons are not allowed. Refresh the booking and try again.", code: "INVALID_ADDONS" };
   }
   const addonsPrice = normalizedAddonIds.reduce((sum, id) => sum + ADDON_PRICES[id].price, 0);
-  const subtotal = service.price + addonsPrice;
+  subtotal += addonsPrice;
   const gst = Math.round(subtotal * GST_RATE);
   const convenienceFee = CONVENIENCE_FEE_INR;
   const couponCode = typeof body?.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
@@ -73,7 +89,7 @@ function calculateQuote(body) {
   if (!Number.isSafeInteger(total) || total <= 0 || total > 500000) {
     return { error: "Calculated checkout total is invalid. Please contact support.", code: "INVALID_SERVER_TOTAL" };
   }
-  return { quote: { serviceId, basePrice: service.price, addonsPrice, subtotal, gst, convenienceFee, discount, couponCode: discount ? couponCode : null, total } };
+  return { quote: { serviceId: primaryServiceId, basePrice: subtotal - addonsPrice, addonsPrice, subtotal, gst, convenienceFee, discount, couponCode: discount ? couponCode : null, total } };
 }
 
 export default async function handler(req, res) {
@@ -92,7 +108,6 @@ export default async function handler(req, res) {
     return json(res, 400, { error: "Only INR checkout is supported.", code: "INVALID_CURRENCY" });
   }
 
-  // Quote-only requests support checkout price calculation; every actual booking must use online payment.
   const calculated = calculateQuote(req.body);
   if (calculated.error) return json(res, 400, { error: calculated.error, code: calculated.code });
   const quote = calculated.quote;
@@ -100,7 +115,6 @@ export default async function handler(req, res) {
     return json(res, 200, { quote, currency: "INR", paymentMethod: "ONLINE" });
   }
 
-  // Server functions must use server-side variables only. Never rely on VITE_ values here.
   const key_id = typeof process.env.RAZORPAY_KEY_ID === "string"
     ? process.env.RAZORPAY_KEY_ID.trim()
     : "";
@@ -111,7 +125,6 @@ export default async function handler(req, res) {
   if (!key_id) missingVariables.push("RAZORPAY_KEY_ID");
   if (!key_secret) missingVariables.push("RAZORPAY_KEY_SECRET");
   if (missingVariables.length > 0) {
-    // Log only variable names, never credential values.
     console.error("Razorpay order endpoint missing environment variables:", missingVariables.join(", "));
     return json(res, 503, {
       error: "Payment gateway is not configured on this deployment. Check the listed Vercel Environment Variables and redeploy.",
@@ -124,7 +137,6 @@ export default async function handler(req, res) {
     return json(res, 400, { error: "Invalid booking reference. Refresh the booking and retry.", code: "INVALID_BOOKING_REFERENCE" });
   }
 
-  // Reject stale/tampered client totals; the server's catalogue is authoritative.
   const clientTotal = Number(req.body?.clientTotal);
   if (!Number.isSafeInteger(clientTotal) || clientTotal !== quote.total) {
     return json(res, 409, {
@@ -156,7 +168,7 @@ export default async function handler(req, res) {
       console.error("Razorpay returned an order that did not match the server-calculated amount/currency.");
       return json(res, 502, { error: "Razorpay returned an invalid order. Please retry.", code: "INVALID_GATEWAY_ORDER" });
     }
-    return json(res, 201, { id: order.id, amount: order.amount, currency: order.currency, quote });
+    return json(res, 201, { id: order.id, amount: order.amount, currency: order.currency, keyId: key_id, quote });
   } catch (error) {
     const providerStatus = error?.statusCode || error?.status;
     const providerMessage = error?.error?.description || error?.description || error?.message || "";

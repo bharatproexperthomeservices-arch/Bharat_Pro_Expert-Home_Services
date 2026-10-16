@@ -1,10 +1,15 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import createOrderHandler from "./api/create-order.js";
 import verifyPaymentHandler from "./api/verify-payment.js";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.disable("x-powered-by");
@@ -24,5 +29,15 @@ app.get("/api/health", (_req, res) => res.status(200).json({ ok: true }));
 app.post("/api/create-order", (req, res) => createOrderHandler(req, res));
 app.post("/api/verify-payment", (req, res) => verifyPaymentHandler(req, res));
 
+// Serve static frontend files
+app.use(express.static(__dirname));
+
+// Fallback to index.html for single-page routing
+app.get("*", (req, res) => {
+  if (!req.path.startsWith("/api/")) {
+    res.sendFile(path.join(__dirname, "index.html"));
+  }
+});
+
 const port = Number(process.env.PORT || 5000);
-app.listen(port, () => console.log(`Bharat Pro Expert API listening on port ${port}`));
+app.listen(port, () => console.log(`Bharat Pro Expert server listening on port ${port}`));
