@@ -1,0 +1,916 @@
+/* Bharat Pro Expert — hash-router SPA (vanilla JS, no dependencies, no network).
+ * Structure: helpers -> state/storage -> i18n -> pricing -> view fns -> sheets -> actions -> router/boot.
+ * All dynamic strings pass through esc() before hitting innerHTML. */
+(function () {
+  'use strict';
+
+  var D = window.BPE_DATA;
+  var root = document.getElementById('app');
+  if (!D) {
+    root.innerHTML = '<p style="padding:24px;font-family:sans-serif">Data failed to load. Please refresh.</p>';
+    return;
+  }
+
+  /* ---------- tiny helpers ---------- */
+  var ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' };
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"'`]/g, function (c) { return ESC[c]; }); }
+  function inr(n) { return '₹' + Math.round(n || 0).toLocaleString('en-IN'); }
+  function $(sel, ctx) { return (ctx || document).querySelector(sel); }
+  function $$(sel, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); }
+  function load(k, def) {
+    try { var v = localStorage.getItem(k); return v == null ? def : JSON.parse(v); } catch (e) { return def; }
+  }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } }
+  function enc(s) { return encodeURIComponent(s); }
+  function safeDecode(s) { try { return decodeURIComponent(s); } catch (e) { return s; } }
+
+  /* ---------- state ---------- */
+  var S = {
+    cart: load('bpe_cart', []),            // [{id, qty}]
+    bookings: load('bpe_bookings', []),
+    user: load('bpe_user', null),          // {phone, name}
+    city: load('bpe_city', D.brand.city),
+    lang: load('bpe_lang', 'en'),
+    theme: load('bpe_theme', null),        // 'dark' | 'light' | null (system)
+    coupon: load('bpe_coupon', null),      // code string
+    sort: 'popular',
+    sheet: null                            // {kind, data}
+  };
+  if (!Array.isArray(S.cart)) S.cart = [];
+  if (!Array.isArray(S.bookings)) S.bookings = [];
+  // Form drafts live outside the DOM so re-renders never lose typed values.
+  var drafts = { co: {}, login: {}, partner: {}, errs: {} };
+  var heroIdx = 0, heroTimer = null, tickTimer = null, tickSig, searchTimer = null, suppressGate = false;
+
+  /* ---------- lookups ---------- */
+  var svcMap = {}, catMap = {};
+  D.services.forEach(function (s) { svcMap[s.id] = s; });
+  D.categories.forEach(function (c) { catMap[c.id] = c; });
+  function svc(id) { return svcMap[id]; }
+  function cat(id) { return catMap[id] || { id: id, name: id, nameHi: id, emoji: '✨', g1: '#007AFF', g2: '#5AC8FA' }; }
+
+  /* ---------- i18n ---------- */
+  var TR = {
+    en: {
+      home: 'Home', services: 'Services', bookings: 'Bookings', cart: 'Cart', account: 'Account', login: 'Login', logout: 'Logout',
+      search: 'Search services', seeAll: 'See all', add: 'Add', added: 'Added to cart', viewCart: 'View cart', items: 'items', item: 'item',
+      howItWorks: 'How it works', whyUs: 'Why Bharat Pro Expert', loved: 'Loved by customers', allServices: 'All services',
+      subtotal: 'Subtotal', discount: 'Coupon discount', fee: 'Visit & convenience fee', free: 'FREE', total: 'Total to pay',
+      feeNote: 'Visit fee of ₹49 is waived on orders above ₹499. No GST.', checkout: 'Proceed to checkout',
+      emptyCart: 'Your cart is empty', emptyCartSub: 'Add a service to get started.', browse: 'Browse services',
+      coupon: 'Coupon code', apply: 'Apply', remove: 'Remove', couponOn: 'Coupon applied', couponBad: 'Invalid coupon code',
+      couponMin: 'Add more services to use this coupon', lang: 'Language', dark: 'Dark mode', city: 'City', chooseCity: 'Choose your city',
+      placeOrder: 'Confirm booking', address: 'Service address', name: 'Full name', phone: 'Mobile number', house: 'House / flat no.',
+      area: 'Area / locality', pincode: 'Pincode', landmark: 'Landmark (optional)', pickDate: 'Pick a date', pickSlot: 'Pick a time slot',
+      payment: 'Payment', cod: 'Pay after service', upi: 'UPI (pay on confirmation)', today: 'Today', tomorrow: 'Tomorrow',
+      status: ['Confirmed', 'Expert assigned', 'On the way', 'Done'], cancelled: 'Cancelled', cancel: 'Cancel booking',
+      reschedule: 'Reschedule', save: 'Save', close: 'Close', details: 'View details', noBookings: 'No bookings yet',
+      noBookingsSub: 'Your booked services will appear here.', sendOtp: 'Send OTP', verify: 'Verify & login', otp: 'Enter 4-digit OTP',
+      otpHint: 'Demo mode: enter any 4 digits.', loginTitle: 'Login to continue', loginSub: 'Enter your mobile number to book services.',
+      loginReq: 'Please login to complete your booking.', welcome: 'Welcome', help: 'Help & FAQs', partner: 'Become a partner',
+      contact: 'Contact us', call: 'Call support', email: 'Email us', includes: 'What’s included', excludes: 'Not included',
+      faqs: 'Frequently asked questions', goCart: 'Go to cart', sort: 'Sort', popular: 'Popular', priceLow: 'Price: low to high',
+      topRated: 'Top rated', noResults: 'No services found', noResultsSub: 'Try another word, like "sofa", "bathroom" or "fan".',
+      notFound: 'Page not found', notFoundSub: 'The page you are looking for does not exist.', goHome: 'Go home', min: 'min',
+      bookingId: 'Booking ID', thanks: 'Booking confirmed!', thanksSub: 'Our expert will reach you at the chosen slot.',
+      partnerTitle: 'Become a Bharat Pro Expert partner', partnerSub: 'Earn more with steady local jobs. Tell us about yourself.',
+      experience: 'Experience (years)', skill: 'Your skill', submit: 'Submit application', partnerDone: 'Application received!',
+      partnerDoneSub: 'Our team will call you within 2 working days.', confirmCancel: 'Cancel this booking?',
+      keep: 'Keep booking', yesCancel: 'Yes, cancel', cancelledToast: 'Booking cancelled', reschedToast: 'Booking rescheduled',
+      orderPlaced: 'Booking placed', fixErrors: 'Please fix the highlighted fields', menu: 'Menu', for: 'for', reviews: 'reviews',
+      contactUs: 'Contact', quickLinks: 'Quick links', copied: 'Code applied. Use it in your cart.', rights: 'All rights reserved.',
+      errName: 'Enter your name', errPhone: 'Enter a valid 10-digit mobile number', errHouse: 'Enter house / flat number',
+      errArea: 'Enter your area', errPin: 'Enter a valid 6-digit pincode', errSlot: 'Pick a date and time slot', errOtp: 'Enter 4 digits',
+      loggedOut: 'Logged out', loggedIn: 'Logged in', suggestions: 'Suggestions', searchFor: 'Search for', results: 'Results for',
+      hello: 'Hello', guest: 'Guest', myBookings: 'My bookings', pastSlot: 'Slot passed'
+    },
+    hi: {
+      home: 'होम', services: 'सेवाएँ', bookings: 'बुकिंग', cart: 'कार्ट', account: 'खाता', login: 'लॉगिन', logout: 'लॉगआउट',
+      search: 'सेवा खोजें', seeAll: 'सभी देखें', add: 'जोड़ें', added: 'कार्ट में जोड़ा गया', viewCart: 'कार्ट देखें', items: 'आइटम', item: 'आइटम',
+      howItWorks: 'यह कैसे काम करता है', whyUs: 'भारत प्रो एक्सपर्ट क्यों', loved: 'ग्राहकों की पसंद', allServices: 'सभी सेवाएँ',
+      subtotal: 'उप-योग', discount: 'कूपन छूट', fee: 'विज़िट और कन्वीनियंस शुल्क', free: 'मुफ्त', total: 'कुल देय',
+      feeNote: '₹499 से अधिक के ऑर्डर पर ₹49 शुल्क माफ़। कोई GST नहीं।', checkout: 'चेकआउट करें',
+      emptyCart: 'आपका कार्ट खाली है', emptyCartSub: 'शुरू करने के लिए कोई सेवा जोड़ें।', browse: 'सेवाएँ देखें',
+      coupon: 'कूपन कोड', apply: 'लागू करें', remove: 'हटाएँ', couponOn: 'कूपन लग गया', couponBad: 'गलत कूपन कोड',
+      couponMin: 'इस कूपन के लिए और सेवाएँ जोड़ें', lang: 'भाषा', dark: 'डार्क मोड', city: 'शहर', chooseCity: 'अपना शहर चुनें',
+      placeOrder: 'बुकिंग पक्की करें', address: 'सेवा का पता', name: 'पूरा नाम', phone: 'मोबाइल नंबर', house: 'मकान / फ्लैट नंबर',
+      area: 'इलाका / मोहल्ला', pincode: 'पिनकोड', landmark: 'लैंडमार्क (वैकल्पिक)', pickDate: 'तारीख चुनें', pickSlot: 'समय चुनें',
+      payment: 'भुगतान', cod: 'सेवा के बाद भुगतान', upi: 'UPI (पुष्टि पर भुगतान)', today: 'आज', tomorrow: 'कल',
+      status: ['पक्की', 'एक्सपर्ट तय', 'रास्ते में', 'पूरा'], cancelled: 'रद्द', cancel: 'बुकिंग रद्द करें',
+      reschedule: 'समय बदलें', save: 'सेव करें', close: 'बंद करें', details: 'विवरण देखें', noBookings: 'अभी कोई बुकिंग नहीं',
+      noBookingsSub: 'आपकी बुक की गई सेवाएँ यहाँ दिखेंगी।', sendOtp: 'OTP भेजें', verify: 'सत्यापित करें', otp: '4 अंकों का OTP डालें',
+      otpHint: 'डेमो: कोई भी 4 अंक डालें।', loginTitle: 'जारी रखने के लिए लॉगिन करें', loginSub: 'सेवा बुक करने के लिए मोबाइल नंबर डालें।',
+      loginReq: 'बुकिंग पूरी करने के लिए लॉगिन करें।', welcome: 'स्वागत', help: 'मदद और सवाल', partner: 'पार्टनर बनें',
+      contact: 'संपर्क करें', call: 'सपोर्ट को कॉल करें', email: 'ईमेल करें', includes: 'क्या शामिल है', excludes: 'शामिल नहीं',
+      faqs: 'अक्सर पूछे जाने वाले सवाल', goCart: 'कार्ट पर जाएँ', sort: 'क्रम', popular: 'लोकप्रिय', priceLow: 'कीमत: कम से ज़्यादा',
+      topRated: 'सर्वश्रेष्ठ रेटिंग', noResults: 'कोई सेवा नहीं मिली', noResultsSub: 'दूसरा शब्द आज़माएँ, जैसे "AC", "सफाई" या "सैलून"।',
+      notFound: 'पेज नहीं मिला', notFoundSub: 'आप जिस पेज को ढूँढ रहे हैं वह मौजूद नहीं है।', goHome: 'होम पर जाएँ', min: 'मिनट',
+      bookingId: 'बुकिंग आईडी', thanks: 'बुकिंग पक्की!', thanksSub: 'हमारा एक्सपर्ट चुने गए समय पर पहुँचेगा।',
+      partnerTitle: 'भारत प्रो एक्सपर्ट पार्टनर बनें', partnerSub: 'अपने इलाके में नियमित काम से ज़्यादा कमाएँ। अपने बारे में बताएँ।',
+      experience: 'अनुभव (वर्ष)', skill: 'आपका हुनर', submit: 'आवेदन भेजें', partnerDone: 'आवेदन मिल गया!',
+      partnerDoneSub: 'हमारी टीम 2 कार्यदिवस में कॉल करेगी।', confirmCancel: 'क्या यह बुकिंग रद्द करें?',
+      keep: 'बुकिंग रखें', yesCancel: 'हाँ, रद्द करें', cancelledToast: 'बुकिंग रद्द हो गई', reschedToast: 'समय बदल दिया गया',
+      orderPlaced: 'बुकिंग हो गई', fixErrors: 'कृपया लाल फील्ड ठीक करें', menu: 'मेनू', 'for': 'के लिए', reviews: 'रिव्यू',
+      contactUs: 'संपर्क', quickLinks: 'त्वरित लिंक', copied: 'कोड लग गया। कार्ट में इस्तेमाल करें।', rights: 'सर्वाधिकार सुरक्षित।',
+      errName: 'अपना नाम लिखें', errPhone: 'सही 10 अंकों का मोबाइल नंबर लिखें', errHouse: 'मकान / फ्लैट नंबर लिखें',
+      errArea: 'अपना इलाका लिखें', errPin: 'सही 6 अंकों का पिनकोड लिखें', errSlot: 'तारीख और समय चुनें', errOtp: '4 अंक डालें',
+      loggedOut: 'लॉगआउट हो गए', loggedIn: 'लॉगिन सफल', suggestions: 'सुझाव', searchFor: 'खोजें', results: 'इनके नतीजे',
+      hello: 'नमस्ते', guest: 'अतिथि', myBookings: 'मेरी बुकिंग', pastSlot: 'समय निकल गया'
+    }
+  };
+  function t(k) { var v = (TR[S.lang] || {})[k]; return v != null ? v : (TR.en[k] != null ? TR.en[k] : k); }
+  function isHi() { return S.lang === 'hi'; }
+  function nm(o) { return isHi() && o.nameHi ? o.nameHi : o.name; }
+  function ttl(o) { return isHi() && o.titleHi ? o.titleHi : o.title; }
+
+  /* ---------- pricing ---------- */
+  function qtyOf(id) { for (var i = 0; i < S.cart.length; i++) if (S.cart[i].id === id) return S.cart[i].qty; return 0; }
+  function cartCount() { return S.cart.reduce(function (n, l) { return n + l.qty; }, 0); }
+  function findCoupon(code) {
+    code = String(code || '').trim().toUpperCase();
+    var list = D.coupons || [];
+    for (var i = 0; i < list.length; i++) if (list[i].code === code) return list[i];
+    return null;
+  }
+  // Returns {subtotal, discount, fee, total, couponErr}
+  function calc() {
+    var subtotal = S.cart.reduce(function (n, l) { var s = svc(l.id); return n + (s ? s.price * l.qty : 0); }, 0);
+    var discount = 0, couponErr = '';
+    var c = S.coupon ? findCoupon(S.coupon) : null;
+    if (c) {
+      if (subtotal < (c.min || 0)) couponErr = 'couponMin';
+      else if (c.type === 'flat') discount = Math.min(c.value, subtotal);
+      else discount = Math.min(Math.round(subtotal * c.value / 100), 150); // BPE10 cap
+    }
+    var fee = subtotal > 0 && subtotal <= 499 ? 49 : 0; // waived above 499
+    return { subtotal: subtotal, discount: discount, fee: fee, total: Math.max(0, subtotal - discount + fee), couponErr: couponErr };
+  }
+  function persistCart() { save('bpe_cart', S.cart); }
+  function setQty(id, q) {
+    var line = null;
+    S.cart.forEach(function (l) { if (l.id === id) line = l; });
+    if (q <= 0) S.cart = S.cart.filter(function (l) { return l.id !== id; });
+    else if (line) line.qty = Math.min(q, 10);
+    else S.cart.push({ id: id, qty: q });
+    if (!S.cart.length) { S.coupon = null; save('bpe_coupon', null); }
+    persistCart();
+  }
+
+  /* ---------- dates & slots ---------- */
+  function iso(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function dateChips() {
+    var out = [], base = new Date();
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+      var loc = isHi() ? 'hi-IN' : 'en-IN';
+      var lbl = i === 0 ? t('today') : i === 1 ? t('tomorrow') : d.toLocaleDateString(loc, { weekday: 'short' });
+      out.push({ iso: iso(d), label: lbl, sub: d.toLocaleDateString(loc, { day: 'numeric', month: 'short' }) });
+    }
+    return out;
+  }
+  function fmtDate(isoStr) {
+    var p = String(isoStr).split('-'); if (p.length !== 3) return esc(isoStr);
+    return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(isHi() ? 'hi-IN' : 'en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+  function slotPast(slot, dateIso) {
+    if (dateIso !== iso(new Date())) return false;
+    var m = /(\d+):(\d+)\s*(AM|PM)/i.exec(slot); if (!m) return false;
+    var h = +m[1] % 12 + (m[3].toUpperCase() === 'PM' ? 12 : 0);
+    return h <= new Date().getHours();
+  }
+  function chipsHtml(selDate, selSlot, actDate, actSlot) {
+    return '<div class="chips" role="group" aria-label="' + esc(t('pickDate')) + '">' + dateChips().map(function (d) {
+      return '<button type="button" class="chip' + (d.iso === selDate ? ' is-active' : '') + '" data-act="' + actDate + '" data-v="' + d.iso + '" aria-pressed="' + (d.iso === selDate) + '">' + esc(d.label) + ' <small>' + esc(d.sub) + '</small></button>';
+    }).join('') + '</div>' +
+    '<div class="chips" role="group" aria-label="' + esc(t('pickSlot')) + '">' + D.slots.map(function (s) {
+      var past = slotPast(s, selDate);
+      return '<button type="button" class="chip' + (s === selSlot ? ' is-active' : '') + '" data-act="' + actSlot + '" data-v="' + esc(s) + '"' + (past ? ' disabled title="' + esc(t('pastSlot')) + '"' : '') + ' aria-pressed="' + (s === selSlot) + '">' + esc(s) + '</button>';
+    }).join('') + '</div>';
+  }
+
+  /* ---------- bookings ---------- */
+  var STEP_MS = 15000; // simulated: each status step takes 15s
+  function stageOf(b) {
+    if (b.cancelled) return -1;
+    return Math.min(3, Math.floor((Date.now() - b.created) / STEP_MS));
+  }
+  function persistBookings() { save('bpe_bookings', S.bookings); }
+  function getBooking(id) { for (var i = 0; i < S.bookings.length; i++) if (S.bookings[i].id === id) return S.bookings[i]; return null; }
+
+  /* ---------- UI atoms ---------- */
+  function stars(r) {
+    return '<span class="stars" aria-label="' + esc(r) + ' out of 5">★ ' + esc(Number(r).toFixed(1)) + '</span>';
+  }
+  function gradient(c) { return 'background:linear-gradient(135deg,' + esc(c.g1) + ',' + esc(c.g2) + ')'; }
+  function addControl(s) {
+    var q = qtyOf(s.id);
+    if (!q) return '<button type="button" class="card__add btn btn--sm" data-act="add" data-id="' + esc(s.id) + '" aria-label="' + esc(t('add') + ' ' + s.name) + '">' + esc(t('add')) + '</button>';
+    return stepper(s.id, q, 'card__qty');
+  }
+  function stepper(id, q, cls) {
+    return '<div class="' + (cls || 'card__qty') + '" role="group" aria-label="Quantity"><button type="button" data-act="dec" data-id="' + esc(id) + '" aria-label="Decrease quantity">−</button><span aria-live="polite">' + q + '</span><button type="button" data-act="inc" data-id="' + esc(id) + '" aria-label="Increase quantity">+</button></div>';
+  }
+  function card(s) {
+    var c = cat(s.cat);
+    return '<article class="card" data-go="#/s/' + esc(s.id) + '" tabindex="0" role="link" aria-label="' + esc(nm(s)) + '">' +
+      '<div class="card__img" style="' + gradient(c) + '"><span aria-hidden="true" style="font-size:44px">' + esc(s.emoji || c.emoji) + '</span>' + (s.tag ? '<span class="card__tag">' + esc(s.tag) + '</span>' : '') + '</div>' +
+      '<h3 class="card__name">' + esc(nm(s)) + '</h3>' +
+      '<div class="card__meta"><span class="card__rating">★ ' + esc(Number(s.rating).toFixed(1)) + '</span> (' + esc(s.reviews) + ') · ' + esc(s.duration) + ' ' + esc(t('min')) + '</div>' +
+      '<div class="card__meta"><span class="card__price">' + inr(s.price) + '</span> ' + (s.mrp > s.price ? '<s class="card__mrp">' + inr(s.mrp) + '</s>' : '') + addControl(s) + '</div>' +
+      '</article>';
+  }
+  function sectionHead(title, more) {
+    return '<div class="section__head"><h2 class="section__title">' + esc(title) + '</h2>' + (more ? '<a class="section__more" href="' + more + '">' + esc(t('seeAll')) + ' ›</a>' : '') + '</div>';
+  }
+  function emptyState(emoji, title, sub, ctaHref, ctaLabel) {
+    return '<div class="empty"><div aria-hidden="true" style="font-size:48px">' + emoji + '</div><h2>' + esc(title) + '</h2><p>' + esc(sub) + '</p>' +
+      (ctaHref ? '<a class="btn btn--primary" href="' + ctaHref + '">' + esc(ctaLabel) + '</a>' : '') + '</div>';
+  }
+  function backBar(title, href) {
+    return '<div class="section__head"><a class="btn btn--ghost btn--sm" href="' + (href || '#/') + '" aria-label="Back">‹ ' + esc(t('home')) + '</a><h1 class="section__title">' + esc(title) + '</h1></div>';
+  }
+  function toast(msg) {
+    var box = $('#toast-root'); if (!box) return;
+    var el = document.createElement('div');
+    el.className = 'toast'; el.setAttribute('role', 'status'); el.textContent = msg;
+    box.innerHTML = ''; box.appendChild(el);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 2400);
+  }
+
+  /* ---------- shell: topbar, tabbar, cart bar ---------- */
+  function topbar(route) {
+    var q = route.name === 'search' ? route.q : '';
+    var u = S.user;
+    return '<header class="topbar">' +
+      '<a class="topnav__brand" href="#/" style="font-weight:800;text-decoration:none;color:inherit" aria-label="Bharat Pro Expert home">' + esc(D.brand.name) + '</a>' +
+      '<button type="button" class="topbar__loc" data-act="city" aria-label="' + esc(t('chooseCity')) + '">📍 ' + esc(S.city) + ' ▾</button>' +
+      '<form class="topbar__search" data-form="search" role="search" style="position:relative" autocomplete="off">' +
+        '<input class="input" type="search" name="q" id="q" value="' + esc(q) + '" placeholder="' + esc(t('search')) + '" aria-label="' + esc(t('search')) + '" autocomplete="off">' +
+        '<div id="sugg" hidden></div>' +
+      '</form>' +
+      '<nav class="topnav" aria-label="Main">' +
+        [['#/', 'home'], ['#/services', 'services'], ['#/bookings', 'bookings'], ['#/cart', 'cart'], ['#/help', 'help']].map(function (l) {
+          return '<a href="' + l[0] + '"' + (route.nav === l[1] || (l[1] === 'help' && route.name === 'help') ? ' aria-current="page"' : '') + '>' + esc(t(l[1])) + (l[1] === 'cart' && cartCount() ? ' (' + cartCount() + ')' : '') + '</a>';
+        }).join('') +
+      '</nav>' +
+      '<button type="button" class="btn btn--ghost btn--sm" data-act="lang" aria-label="' + esc(t('lang')) + '">' + (isHi() ? 'EN' : 'हिं') + '</button>' +
+      '<button type="button" class="btn btn--ghost btn--sm" data-act="theme" aria-label="' + esc(t('dark')) + '">' + (isDark() ? '☀️' : '🌙') + '</button>' +
+      (u ? '<a class="topbar__login btn btn--sm" href="#/account" aria-label="' + esc(t('account')) + '">👤 ' + esc((u.name || u.phone || '').split(' ')[0]) + '</a>'
+         : '<button type="button" class="topbar__login btn btn--primary btn--sm" data-act="login">' + esc(t('login')) + '</button>') +
+    '</header>';
+  }
+  function tabbar(route) {
+    var n = cartCount();
+    var items = [['#/', 'home', '🏠'], ['#/services', 'services', '🛠️'], ['#/bookings', 'bookings', '📋'], ['#/cart', 'cart', '🛒'], ['#/account', 'account', '👤']];
+    return '<nav class="tabbar" aria-label="Primary">' + items.map(function (it) {
+      var on = route.nav === it[1];
+      return '<a class="tabbar__item' + (on ? ' is-active' : '') + '" href="' + it[0] + '"' + (on ? ' aria-current="page"' : '') + ' aria-label="' + esc(t(it[1])) + '"><span aria-hidden="true">' + it[2] + '</span><span>' + esc(t(it[1])) + '</span>' +
+        (it[1] === 'cart' && n ? '<span class="tabbar__badge">' + n + '</span>' : '') + '</a>';
+    }).join('') + '</nav>';
+  }
+  function cartBar(route) {
+    var n = cartCount();
+    if (!n || ['cart', 'checkout', 'detail', 'booking'].indexOf(route.name) >= 0) return '';
+    return '<div class="detail__bar cartbar"><div><strong>' + n + ' ' + esc(t(n === 1 ? 'item' : 'items')) + '</strong> · ' + inr(calc().total) + '</div><a class="btn btn--primary btn--sm" href="#/cart">' + esc(t('viewCart')) + '</a></div>';
+  }
+
+  /* ---------- pages ---------- */
+  function viewHome() {
+    var slides = D.heroSlides || [];
+    var h = '<section class="hero" aria-roledescription="carousel" aria-label="Offers" style="overflow:hidden;position:relative">' +
+      '<div class="hero__track" style="display:flex;transition:transform .5s cubic-bezier(.2,.8,.2,1);transform:translateX(-' + (heroIdx * 100) + '%)">' + slides.map(function (s, i) {
+        return '<div class="hero__slide" style="flex:0 0 100%;' + gradient(s) + '" role="group" aria-label="' + (i + 1) + ' / ' + slides.length + '">' +
+          '<div><h2>' + esc(s.title) + '</h2><p>' + esc(s.sub) + '</p><a class="btn btn--sm" href="#/c/' + esc(s.cat) + '">' + esc(s.cta) + '</a></div>' +
+          '<span aria-hidden="true" style="font-size:64px">' + esc(s.emoji) + '</span></div>';
+      }).join('') + '</div>' +
+      '<div class="hero__dots">' + slides.map(function (s, i) {
+        return '<button type="button" class="hero__dot' + (i === heroIdx ? ' is-active' : '') + '" data-act="slide" data-i="' + i + '" aria-label="Slide ' + (i + 1) + '"></button>';
+      }).join('') + '</div></section>';
+
+    h += '<nav class="catrow" aria-label="Categories">' + D.categories.map(function (c) {
+      return '<a class="catrow__item" href="#/c/' + esc(c.id) + '"><span class="catrow__icon" style="' + gradient(c) + '" aria-hidden="true">' + esc(c.emoji) + '</span><span class="catrow__label">' + esc(nm(c)) + '</span></a>';
+    }).join('') + '</nav>';
+
+    var p = D.promo || {};
+    h += '<section class="promo"><div><h2 class="promo__title">' + esc(p.title) + '</h2><p class="promo__sub">' + esc(p.sub) + '</p></div>' +
+      '<button type="button" class="promo__btn" data-act="promo" data-code="' + esc(p.code) + '">' + esc(p.cta) + '</button></section>';
+
+    D.sections.forEach(function (sec) {
+      var list = D.services.filter(function (s) { return s.cat === sec.cat; }).slice(0, 6);
+      if (!list.length) return;
+      h += '<section class="section">' + sectionHead(ttl(sec), '#/c/' + sec.cat) + '<div class="grid">' + list.map(card).join('') + '</div></section>';
+    });
+
+    function rows(arr) {
+      return '<div class="list">' + arr.map(function (x) {
+        return '<div class="list__row"><span aria-hidden="true" style="font-size:28px">' + esc(x.emoji) + '</span><div><strong>' + esc(x.title) + '</strong><div class="card__meta">' + esc(x.sub) + '</div></div></div>';
+      }).join('') + '</div>';
+    }
+    h += '<section class="section">' + sectionHead(t('howItWorks')) + rows(D.howItWorks || []) + '</section>';
+    h += '<section class="section">' + sectionHead(t('whyUs')) + rows(D.trust || []) + '</section>';
+    h += '<section class="section">' + sectionHead(t('loved')) + '<div class="list">' + (D.testimonials || []).map(function (x) {
+      return '<div class="list__row"><div>' + stars(x.rating) + '<p>“' + esc(x.text) + '”</p><div class="card__meta"><strong>' + esc(x.name) + '</strong> · ' + esc(x.city) + '</div></div></div>';
+    }).join('') + '</div></section>';
+    return h + footer();
+  }
+
+  function footer() {
+    var b = D.brand, tel = String(b.phone).replace(/[^\d+]/g, '');
+    return '<footer class="footer"><strong>' + esc(b.name) + '</strong><p>' + esc(b.tagline) + '</p>' +
+      '<p>📞 <a href="tel:' + esc(tel) + '">' + esc(b.phone) + '</a><br>✉️ <a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a><br>🏢 <a href="mailto:' + esc(b.companyEmail) + '">' + esc(b.companyEmail) + '</a></p>' +
+      '<p><a href="#/services">' + esc(t('services')) + '</a> · <a href="#/help">' + esc(t('help')) + '</a> · <a href="#/partner">' + esc(t('partner')) + '</a></p>' +
+      '<small>© ' + new Date().getFullYear() + ' ' + esc(b.name) + '. ' + esc(t('rights')) + '</small></footer>';
+  }
+
+  function viewServices() {
+    return backBar(t('allServices')) + '<div class="grid">' + D.categories.map(function (c) {
+      var n = D.services.filter(function (s) { return s.cat === c.id; }).length;
+      return '<article class="card" data-go="#/c/' + esc(c.id) + '" tabindex="0" role="link" aria-label="' + esc(nm(c)) + '"><div class="card__img" style="' + gradient(c) + '"><span aria-hidden="true" style="font-size:44px">' + esc(c.emoji) + '</span></div><h3 class="card__name">' + esc(nm(c)) + '</h3><div class="card__meta">' + esc(c.blurb) + ' · ' + n + '</div></article>';
+    }).join('') + '</div>';
+  }
+
+  function viewCategory(id) {
+    var c = catMap[id]; if (!c) return viewNotFound();
+    var list = D.services.filter(function (s) { return s.cat === id; });
+    if (S.sort === 'price') list.sort(function (a, b) { return a.price - b.price; });
+    else if (S.sort === 'rating') list.sort(function (a, b) { return b.rating - a.rating; });
+    var sorts = [['popular', 'popular'], ['price', 'priceLow'], ['rating', 'topRated']];
+    return backBar(nm(c), '#/services') +
+      '<div class="detail__hero" style="' + gradient(c) + '"><span aria-hidden="true" style="font-size:56px">' + esc(c.emoji) + '</span><p>' + esc(c.blurb) + '</p></div>' +
+      '<div class="chips" role="group" aria-label="' + esc(t('sort')) + '">' + sorts.map(function (s) {
+        return '<button type="button" class="chip' + (S.sort === s[0] ? ' is-active' : '') + '" data-act="sort" data-v="' + s[0] + '" aria-pressed="' + (S.sort === s[0]) + '">' + esc(t(s[1])) + '</button>';
+      }).join('') + '</div><div class="grid">' + list.map(card).join('') + '</div>';
+  }
+
+  function viewDetail(id) {
+    var s = svc(id); if (!s) return viewNotFound();
+    var c = cat(s.cat), q = qtyOf(id);
+    var off = s.mrp > s.price ? Math.round((1 - s.price / s.mrp) * 100) : 0;
+    return backBar(nm(c), '#/c/' + s.cat) +
+      '<div class="detail__hero" style="' + gradient(c) + '"><span aria-hidden="true" style="font-size:72px">' + esc(s.emoji) + '</span>' + (s.tag ? '<span class="card__tag">' + esc(s.tag) + '</span>' : '') + '</div>' +
+      '<h1 class="detail__title">' + esc(nm(s)) + '</h1>' +
+      '<div class="card__meta">' + stars(s.rating) + ' (' + esc(s.reviews) + ' ' + esc(t('reviews')) + ') · ' + esc(s.duration) + ' ' + esc(t('min')) + '</div>' +
+      '<div class="detail__price"><span class="card__price">' + inr(s.price) + '</span> ' + (off ? '<s class="card__mrp">' + inr(s.mrp) + '</s> <span class="badge">' + off + '% OFF</span>' : '') + '</div>' +
+      '<div class="detail__block"><p>' + esc(s.desc) + '</p></div>' +
+      ((s.includes || []).length ? '<div class="detail__block"><h2>' + esc(t('includes')) + '</h2><ul class="checklist">' + s.includes.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>' : '') +
+      ((s.excludes || []).length ? '<div class="detail__block"><h2>' + esc(t('excludes')) + '</h2><ul class="checklist checklist--no">' + s.excludes.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>' : '') +
+      ((s.faqs || []).length ? '<div class="detail__block"><h2>' + esc(t('faqs')) + '</h2>' + faqList(s.faqs, 'sf') + '</div>' : '') +
+      '<div class="detail__bar"><div><strong>' + inr(s.price) + '</strong></div>' +
+      (q ? stepper(id, q, 'card__qty') + '<a class="btn btn--primary" href="#/cart">' + esc(t('goCart')) + '</a>'
+         : '<button type="button" class="btn btn--primary" data-act="add" data-id="' + esc(id) + '">' + esc(t('add')) + '</button>') + '</div>';
+  }
+
+  function faqList(list, pfx) {
+    return list.map(function (f, i) {
+      var id = pfx + i;
+      return '<div class="faq"><button type="button" class="faq__q" data-act="faq" aria-expanded="false" aria-controls="' + id + '">' + esc(f.q) + '</button><div class="faq__a" id="' + id + '" hidden>' + esc(f.a) + '</div></div>';
+    }).join('');
+  }
+
+  function viewSearch(q) {
+    var res = searchServices(q, 60), n = String(q || '').trim();
+    return backBar(n ? t('results') + ' “' + n + '”' : t('search')) +
+      (res.length ? '<div class="grid">' + res.map(card).join('') + '</div>'
+        : emptyState('🔍', t('noResults'), t('noResultsSub'), '#/services', t('browse')));
+  }
+  // Match on name, Hindi name and category (en/hi), plus description as a weak signal.
+  function searchServices(q, limit) {
+    q = String(q || '').trim().toLowerCase(); if (!q) return [];
+    var out = D.services.filter(function (s) {
+      var c = cat(s.cat);
+      return [s.name, s.nameHi, c.name, c.nameHi].some(function (x) { return x && String(x).toLowerCase().indexOf(q) >= 0; });
+    });
+    return out.slice(0, limit || 8);
+  }
+  function renderSuggestions(q) {
+    var box = $('#sugg'); if (!box) return;
+    q = String(q || '').trim();
+    if (!q) { box.hidden = true; box.innerHTML = ''; return; }
+    var svcs = searchServices(q, 5);
+    var cats = D.categories.filter(function (c) { return (c.name + ' ' + (c.nameHi || '')).toLowerCase().indexOf(q.toLowerCase()) >= 0; }).slice(0, 2);
+    var h = cats.map(function (c) {
+      return '<button type="button" class="list__row" data-go="#/c/' + esc(c.id) + '" role="option">' + esc(c.emoji) + ' ' + esc(nm(c)) + ' <small>' + esc(t('services')) + '</small></button>';
+    }).join('') + svcs.map(function (s) {
+      return '<button type="button" class="list__row" data-go="#/s/' + esc(s.id) + '" role="option">' + esc(s.emoji) + ' ' + esc(nm(s)) + ' <small>' + inr(s.price) + '</small></button>';
+    }).join('') + '<button type="button" class="list__row" data-go="#/search?q=' + enc(q) + '" role="option">🔍 ' + esc(t('searchFor')) + ' “' + esc(q) + '”</button>';
+    box.className = 'list';
+    box.setAttribute('role', 'listbox');
+    box.style.cssText = 'position:absolute;left:0;right:0;top:100%;z-index:80;max-height:60vh;overflow:auto;background:var(--card);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.2);margin-top:6px';
+    box.innerHTML = h; box.hidden = false;
+  }
+
+  function viewCart() {
+    if (!S.cart.length) return backBar(t('cart')) + emptyState('🛒', t('emptyCart'), t('emptyCartSub'), '#/services', t('browse'));
+    var c = calc();
+    var h = backBar(t('cart')) + '<div class="list">' + S.cart.map(function (l) {
+      var s = svc(l.id); if (!s) return '';
+      return '<div class="list__row"><span aria-hidden="true" style="font-size:28px">' + esc(s.emoji) + '</span><div><a href="#/s/' + esc(s.id) + '"><strong>' + esc(nm(s)) + '</strong></a><div class="card__meta">' + inr(s.price) + ' × ' + l.qty + ' = ' + inr(s.price * l.qty) + '</div></div>' + stepper(s.id, l.qty, 'card__qty') + '</div>';
+    }).join('') + '</div>';
+    // coupon block
+    h += '<div class="detail__block"><h2>' + esc(t('coupon')) + '</h2>';
+    if (S.coupon) {
+      h += '<div class="list__row"><span class="badge">' + esc(S.coupon) + '</span><span>' + esc(c.couponErr ? t(c.couponErr) : t('couponOn') + ' −' + inr(c.discount)) + '</span><button type="button" class="btn btn--ghost btn--sm" data-act="coupon-remove">' + esc(t('remove')) + '</button></div>';
+    } else {
+      h += '<form class="field" data-form="coupon"><label class="field__label" for="cpn">' + esc(t('coupon')) + '</label><div style="display:flex;gap:8px"><input class="input" id="cpn" name="code" autocapitalize="characters" placeholder="FIRST100" autocomplete="off"><button class="btn btn--primary" type="submit">' + esc(t('apply')) + '</button></div></form>' +
+        '<div class="chips">' + (D.coupons || []).map(function (cp) {
+          return '<button type="button" class="chip" data-act="coupon-pick" data-code="' + esc(cp.code) + '">' + esc(cp.code) + (cp.label ? ' · ' + esc(cp.label) : '') + '</button>';
+        }).join('') + '</div>';
+    }
+    h += '</div>' + summary(c) +
+      '<div class="detail__bar"><div><strong>' + inr(c.total) + '</strong></div><a class="btn btn--primary" href="#/checkout">' + esc(t('checkout')) + '</a></div>';
+    return h;
+  }
+  function summary(c) {
+    return '<div class="summary"><div class="summary__row"><span>' + esc(t('subtotal')) + '</span><span>' + inr(c.subtotal) + '</span></div>' +
+      (c.discount ? '<div class="summary__row"><span>' + esc(t('discount')) + '</span><span>−' + inr(c.discount) + '</span></div>' : '') +
+      '<div class="summary__row"><span>' + esc(t('fee')) + '</span><span>' + (c.fee ? inr(c.fee) : '<strong>' + esc(t('free')) + '</strong>') + '</span></div>' +
+      '<div class="summary__row summary__total"><span>' + esc(t('total')) + '</span><span>' + inr(c.total) + '</span></div>' +
+      '<small>' + esc(t('feeNote')) + '</small></div>';
+  }
+
+  /* form field builder bound to a draft model path like "co.name" */
+  function getModel(path) { var p = path.split('.'); return (drafts[p[0]] || {})[p[1]] || ''; }
+  function field(label, model, o) {
+    o = o || {};
+    var id = 'f-' + model.replace('.', '-'), err = drafts.errs[model];
+    var ctrl;
+    if (o.options) {
+      ctrl = '<select class="input" id="' + id + '" data-model="' + model + '"' + (err ? ' aria-invalid="true"' : '') + '>' + o.options.map(function (op) {
+        return '<option value="' + esc(op.v) + '"' + (getModel(model) === op.v ? ' selected' : '') + '>' + esc(op.l) + '</option>';
+      }).join('') + '</select>';
+    } else {
+      ctrl = '<input class="input" id="' + id + '" data-model="' + model + '" type="' + (o.type || 'text') + '" value="' + esc(getModel(model)) + '"' +
+        (o.inputmode ? ' inputmode="' + o.inputmode + '"' : '') + (o.max ? ' maxlength="' + o.max + '"' : '') + (o.ac ? ' autocomplete="' + o.ac + '"' : '') +
+        (o.ph ? ' placeholder="' + esc(o.ph) + '"' : '') + (err ? ' aria-invalid="true" aria-describedby="' + id + '-err"' : '') + (o.auto ? ' data-autofocus' : '') + '>';
+    }
+    return '<div class="field"><label class="field__label" for="' + id + '">' + esc(label) + '</label>' + ctrl +
+      (err ? '<div class="field__err" id="' + id + '-err" role="alert">' + esc(err) + '</div>' : '') + '</div>';
+  }
+
+  function viewCheckout() {
+    if (!S.cart.length) return backBar(t('checkout'), '#/cart') + emptyState('🛒', t('emptyCart'), t('emptyCartSub'), '#/services', t('browse'));
+    // Login gating happens here only.
+    if (!S.user) {
+      return backBar(t('checkout'), '#/cart') + '<div class="empty"><div aria-hidden="true" style="font-size:48px">🔒</div><h2>' + esc(t('loginTitle')) + '</h2><p>' + esc(t('loginReq')) + '</p><button type="button" class="btn btn--primary" data-act="login">' + esc(t('login')) + '</button></div>';
+    }
+    var co = drafts.co;
+    if (co.name == null) co.name = S.user.name || '';
+    if (co.phone == null) co.phone = S.user.phone || '';
+    if (!co.date) co.date = dateChips()[0].iso;
+    if (!co.pay) co.pay = 'cod';
+    var c = calc();
+    return backBar(t('checkout'), '#/cart') +
+      '<form class="detail__block" data-form="checkout" novalidate><h2>' + esc(t('address')) + '</h2>' +
+      field(t('name'), 'co.name', { ac: 'name' }) + field(t('phone'), 'co.phone', { type: 'tel', inputmode: 'numeric', max: 10, ac: 'tel-national' }) +
+      field(t('house'), 'co.house', { ac: 'address-line1' }) + field(t('area'), 'co.area', { ac: 'address-line2' }) +
+      field(t('pincode'), 'co.pincode', { inputmode: 'numeric', max: 6, ac: 'postal-code' }) + field(t('landmark'), 'co.landmark') +
+      '<h2>' + esc(t('pickDate')) + ' / ' + esc(t('pickSlot')) + '</h2>' + chipsHtml(co.date, co.slot, 'co-date', 'co-slot') +
+      (drafts.errs['co.slot'] ? '<div class="field__err" role="alert">' + esc(drafts.errs['co.slot']) + '</div>' : '') +
+      '<h2>' + esc(t('payment')) + '</h2><div class="chips" role="radiogroup" aria-label="' + esc(t('payment')) + '">' +
+      [['cod', t('cod')], ['upi', t('upi')]].map(function (p) {
+        return '<button type="button" class="chip' + (co.pay === p[0] ? ' is-active' : '') + '" role="radio" aria-checked="' + (co.pay === p[0]) + '" data-act="co-pay" data-v="' + p[0] + '">' + esc(p[1]) + '</button>';
+      }).join('') + '</div>' + summary(c) +
+      '<button type="submit" class="btn btn--primary btn--block">' + esc(t('placeOrder')) + ' · ' + inr(c.total) + '</button></form>';
+  }
+
+  function validateCheckout() {
+    var co = drafts.co, e = {};
+    if (!String(co.name || '').trim()) e['co.name'] = t('errName');
+    if (!/^[6-9]\d{9}$/.test(String(co.phone || '').trim())) e['co.phone'] = t('errPhone');
+    if (!String(co.house || '').trim()) e['co.house'] = t('errHouse');
+    if (!String(co.area || '').trim()) e['co.area'] = t('errArea');
+    if (!/^\d{6}$/.test(String(co.pincode || '').trim())) e['co.pincode'] = t('errPin');
+    if (!co.date || !co.slot || slotPast(co.slot, co.date)) e['co.slot'] = t('errSlot');
+    drafts.errs = e;
+    return Object.keys(e).length === 0;
+  }
+  function placeOrder() {
+    var co = drafts.co, c = calc();
+    var id;
+    do { id = 'BPE' + ('' + Math.floor(Math.random() * 1000000)).padStart(6, '0'); } while (getBooking(id));
+    var bookingRef = 'bpe_' + id.toLowerCase() + '_' + Date.now();
+    var primaryItem = S.cart[0] ? (svc(S.cart[0].id) || {}) : {};
+
+    var b = {
+      id: id, created: Date.now(), cancelled: false, date: co.date, slot: co.slot, pay: co.pay,
+      items: S.cart.map(function (l) { var s = svc(l.id) || {}; return { id: l.id, name: s.name || l.id, nameHi: s.nameHi, emoji: s.emoji, price: s.price || 0, qty: l.qty }; }),
+      pricing: c, coupon: S.coupon && !c.couponErr ? S.coupon : null,
+      address: { name: co.name.trim(), phone: co.phone.trim(), house: co.house.trim(), area: co.area.trim(), pincode: co.pincode.trim(), landmark: (co.landmark || '').trim(), city: S.city },
+      paymentStatus: co.pay === 'upi' ? 'PENDING' : 'COD'
+    };
+
+    function saveAndRedirect(bookingObj) {
+      S.bookings.unshift(bookingObj); persistBookings();
+      S.cart = []; S.coupon = null; persistCart(); save('bpe_coupon', null);
+      if (S.user && !S.user.name) { S.user.name = bookingObj.address.name; save('bpe_user', S.user); }
+      drafts.co = {}; drafts.errs = {};
+      toast(t('orderPlaced'));
+      location.hash = '#/booking/' + id;
+    }
+
+    if (co.pay === 'upi' && window.Razorpay) {
+      toast('Connecting payment gateway...');
+      fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serviceId: primaryItem.id || 'deep-1bhk',
+          serviceName: primaryItem.name || '1 BHK Full Home Deep Cleaning',
+          bookingId: bookingRef,
+          clientTotal: c.total,
+          couponCode: S.coupon && !c.couponErr ? S.coupon : null,
+          paymentMethod: 'ONLINE'
+        })
+      })
+      .then(function (res) { return res.json(); })
+      .then(function (orderData) {
+        if (!orderData.id) {
+          alert('Payment gateway error: ' + (orderData.error || 'Failed to create order'));
+          return;
+        }
+        var options = {
+          key: window.RAZORPAY_KEY_ID || 'rzp_test_dummy',
+          amount: orderData.amount,
+          currency: orderData.currency || 'INR',
+          name: 'Bharat Pro Expert',
+          description: 'Payment for ' + (primaryItem.name || 'Cleaning Service'),
+          order_id: orderData.id,
+          prefill: {
+            name: b.address.name,
+            contact: b.address.phone
+          },
+          handler: function (paymentResp) {
+            fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                bookingId: bookingRef,
+                razorpay_order_id: paymentResp.razorpay_order_id,
+                razorpay_payment_id: paymentResp.razorpay_payment_id,
+                razorpay_signature: paymentResp.razorpay_signature
+              })
+            })
+            .then(function (vRes) { return vRes.json(); })
+            .then(function (vData) {
+              if (vData.verified) {
+                b.paymentStatus = 'PAID';
+                b.paymentId = paymentResp.razorpay_payment_id;
+                saveAndRedirect(b);
+              } else {
+                alert('Payment verification failed: ' + (vData.error || 'Invalid signature'));
+              }
+            })
+            .catch(function (err) {
+              alert('Payment verification request failed. Please contact support.');
+            });
+          },
+          theme: { color: '#007AFF' }
+        };
+        var rzp = new window.Razorpay(options);
+        rzp.open();
+      })
+      .catch(function (err) {
+        alert('Could not initiate online payment: ' + err.message);
+      });
+    } else {
+      saveAndRedirect(b);
+    }
+  }
+
+  function timeline(b) {
+    var st = stageOf(b);
+    if (st < 0) return '<div class="badge" role="status">' + esc(t('cancelled')) + '</div>';
+    return '<ol class="timeline" aria-label="Status">' + t('status').map(function (lbl, i) {
+      return '<li class="timeline__step' + (i <= st ? ' is-done' : '') + '"' + (i === st ? ' aria-current="step"' : '') + '>' + esc(lbl) + '</li>';
+    }).join('') + '</ol>';
+  }
+  function bookingItems(b) {
+    return '<div class="list">' + b.items.map(function (i) {
+      return '<div class="list__row"><span aria-hidden="true">' + esc(i.emoji || '') + '</span><div>' + esc(isHi() && i.nameHi ? i.nameHi : i.name) + ' × ' + esc(i.qty) + '</div><strong>' + inr(i.price * i.qty) + '</strong></div>';
+    }).join('') + '</div>';
+  }
+  function bookingActions(b) {
+    var st = stageOf(b); if (st < 0 || st >= 3) return '';
+    return '<div class="chips"><button type="button" class="btn btn--sm" data-act="resched" data-id="' + esc(b.id) + '">' + esc(t('reschedule')) + '</button>' +
+      (st < 2 ? '<button type="button" class="btn btn--ghost btn--sm" data-act="cancel" data-id="' + esc(b.id) + '">' + esc(t('cancel')) + '</button>' : '') + '</div>';
+  }
+  function viewBookingPage(id) {
+    var b = getBooking(id); if (!b) return viewNotFound();
+    var a = b.address;
+    return '<div class="empty"><div aria-hidden="true" style="font-size:48px">' + (b.cancelled ? '❌' : '🎉') + '</div><h1>' + esc(b.cancelled ? t('cancelled') : t('thanks')) + '</h1><p>' + esc(t('thanksSub')) + '</p></div>' +
+      '<div class="detail__block"><p>' + esc(t('bookingId')) + ': <strong>' + esc(b.id) + '</strong></p><p>📅 ' + fmtDate(b.date) + ', ' + esc(b.slot) + '</p>' +
+      '<p>📍 ' + esc(a.house + ', ' + a.area + (a.landmark ? ' (' + a.landmark + ')' : '') + ', ' + a.city + ' ' + a.pincode) + '</p><p>📞 ' + esc(a.name) + ', ' + esc(a.phone) + '</p></div>' +
+      timeline(b) + bookingItems(b) + summary(b.pricing) + bookingActions(b) +
+      '<a class="btn btn--ghost btn--block" href="#/bookings">' + esc(t('myBookings')) + '</a>';
+  }
+  function viewBookings() {
+    if (!S.bookings.length) return backBar(t('bookings')) + emptyState('📋', t('noBookings'), t('noBookingsSub'), '#/services', t('browse'));
+    return backBar(t('bookings')) + S.bookings.map(function (b) {
+      var st = stageOf(b);
+      return '<article class="detail__block"><div class="section__head"><strong>' + esc(b.id) + '</strong><span class="badge">' + esc(st < 0 ? t('cancelled') : t('status')[st]) + '</span></div>' +
+        '<p>📅 ' + fmtDate(b.date) + ', ' + esc(b.slot) + ' · ' + inr(b.pricing.total) + '</p>' + bookingItems(b) +
+        '<div class="chips"><a class="btn btn--ghost btn--sm" href="#/booking/' + esc(b.id) + '">' + esc(t('details')) + '</a></div>' + bookingActions(b) + '</article>';
+    }).join('');
+  }
+
+  function viewAccount() {
+    var u = S.user;
+    var h = backBar(t('account')) + '<div class="list"><div class="list__row"><span aria-hidden="true" style="font-size:32px">👤</span><div><strong>' + esc(u ? (u.name || t('welcome')) : t('guest')) + '</strong><div class="card__meta">' + esc(u ? '+91 ' + u.phone : t('loginSub')) + '</div></div>' +
+      (u ? '<button type="button" class="btn btn--ghost btn--sm" data-act="logout">' + esc(t('logout')) + '</button>' : '<button type="button" class="btn btn--primary btn--sm" data-act="login">' + esc(t('login')) + '</button>') + '</div>' +
+      '<div class="list__row"><span>' + esc(t('lang')) + '</span><div class="chips"><button type="button" class="chip' + (!isHi() ? ' is-active' : '') + '" data-act="setlang" data-v="en" aria-pressed="' + (!isHi()) + '">English</button><button type="button" class="chip' + (isHi() ? ' is-active' : '') + '" data-act="setlang" data-v="hi" aria-pressed="' + isHi() + '">हिन्दी</button></div></div>' +
+      '<div class="list__row"><span>' + esc(t('dark')) + '</span><button type="button" class="chip' + (isDark() ? ' is-active' : '') + '" role="switch" aria-checked="' + isDark() + '" data-act="theme">' + (isDark() ? 'ON' : 'OFF') + '</button></div>' +
+      '<div class="list__row"><span>' + esc(t('city')) + ': ' + esc(S.city) + '</span><button type="button" class="btn btn--ghost btn--sm" data-act="city">' + esc(t('chooseCity')) + '</button></div>' +
+      '<a class="list__row" href="#/bookings">📋 ' + esc(t('myBookings')) + '</a><a class="list__row" href="#/help">❓ ' + esc(t('help')) + '</a><a class="list__row" href="#/partner">🤝 ' + esc(t('partner')) + '</a></div>';
+    return h + footer();
+  }
+
+  function viewHelp() {
+    var tel = String(D.brand.phone).replace(/[^\d+]/g, '');
+    return backBar(t('help')) + '<div class="detail__block"><h2>' + esc(t('contact')) + '</h2><div class="chips">' +
+      '<a class="btn btn--primary" href="tel:' + esc(tel) + '">📞 ' + esc(t('call')) + '</a>' +
+      '<a class="btn" href="mailto:' + esc(D.brand.email) + '">✉️ ' + esc(t('email')) + '</a></div></div>' +
+      '<div class="detail__block"><h2>' + esc(t('faqs')) + '</h2>' + faqList(D.faqs || [], 'hf') + '</div>' + footer();
+  }
+
+  function viewPartner() {
+    var done = load('bpe_partner_done', null);
+    if (drafts.partner.sent) {
+      return backBar(t('partner'), '#/account') + emptyState('🤝', t('partnerDone'), t('partnerDoneSub'), '#/', t('goHome'));
+    }
+    if (done == null) done = null;
+    return backBar(t('partner'), '#/account') + '<form class="detail__block" data-form="partner" novalidate><h2>' + esc(t('partnerTitle')) + '</h2><p>' + esc(t('partnerSub')) + '</p>' +
+      field(t('name'), 'partner.name', { ac: 'name' }) + field(t('phone'), 'partner.phone', { type: 'tel', inputmode: 'numeric', max: 10, ac: 'tel-national' }) +
+      field(t('city'), 'partner.city', { options: D.cities.map(function (c) { return { v: c, l: c }; }) }) +
+      field(t('skill'), 'partner.skill', { options: D.categories.map(function (c) { return { v: c.id, l: nm(c) }; }) }) +
+      field(t('experience'), 'partner.exp', { type: 'number', inputmode: 'numeric', max: 2 }) +
+      '<button type="submit" class="btn btn--primary btn--block">' + esc(t('submit')) + '</button></form>';
+  }
+
+  function viewNotFound() {
+    return emptyState('🧭', t('notFound'), t('notFoundSub'), '#/', t('goHome'));
+  }
+
+  /* ---------- sheets ---------- */
+  function openSheet(kind, data) { S.sheet = { kind: kind, data: data || {} }; renderSheet(); }
+  function closeSheet() { S.sheet = null; renderSheet(); }
+  function renderSheet() {
+    var box = $('#sheet-root'), sh = S.sheet;
+    if (!sh) { box.innerHTML = ''; return; }
+    var d = sh.data, body = '', label = '';
+    if (sh.kind === 'city') {
+      label = t('chooseCity');
+      body = '<h2>' + esc(label) + '</h2><div class="list">' + D.cities.map(function (c) {
+        return '<button type="button" class="list__row" data-act="setcity" data-v="' + esc(c) + '">' + (c === S.city ? '✅ ' : '📍 ') + esc(c) + '</button>';
+      }).join('') + '</div>';
+    } else if (sh.kind === 'login') {
+      label = t('loginTitle');
+      var L = drafts.login;
+      body = '<h2>' + esc(label) + '</h2><p>' + esc(t('loginSub')) + '</p>' +
+        (d.step === 'otp'
+          ? '<form data-form="login-otp" novalidate><p>+91 ' + esc(L.phone) + '</p>' + field(t('otp'), 'login.otp', { inputmode: 'numeric', max: 4, ac: 'one-time-code', auto: true }) + '<p class="card__meta">' + esc(t('otpHint')) + '</p><button type="submit" class="btn btn--primary btn--block">' + esc(t('verify')) + '</button></form>'
+          : '<form data-form="login-phone" novalidate>' + field(t('phone'), 'login.phone', { type: 'tel', inputmode: 'numeric', max: 10, ac: 'tel-national', auto: true }) + '<button type="submit" class="btn btn--primary btn--block">' + esc(t('sendOtp')) + '</button></form>');
+    } else if (sh.kind === 'resched') {
+      label = t('reschedule');
+      body = '<h2>' + esc(label) + '</h2>' + chipsHtml(d.date, d.slot, 'rs-date', 'rs-slot') + '<button type="button" class="btn btn--primary btn--block" data-act="rs-save">' + esc(t('save')) + '</button>';
+    } else if (sh.kind === 'cancel') {
+      label = t('confirmCancel');
+      body = '<h2>' + esc(label) + '</h2><div class="chips"><button type="button" class="btn btn--ghost" data-act="close">' + esc(t('keep')) + '</button><button type="button" class="btn btn--primary" data-act="cancel-yes">' + esc(t('yesCancel')) + '</button></div>';
+    }
+    box.innerHTML = '<div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(label) + '"><div class="sheet__backdrop" data-act="close"></div><div class="sheet__panel"><div class="sheet__grab"></div>' + body +
+      '<button type="button" class="btn btn--ghost btn--block" data-act="close">' + esc(t('close')) + '</button></div></div>';
+    var af = $('[data-autofocus]', box) || $('.sheet__panel button', box);
+    if (af) af.focus();
+  }
+
+  /* ---------- theme ---------- */
+  function isDark() {
+    if (S.theme) return S.theme === 'dark';
+    try { return window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; }
+  }
+  function applyTheme() {
+    var el = document.documentElement;
+    if (S.theme) el.setAttribute('data-theme', S.theme); else el.removeAttribute('data-theme');
+    var m = $('meta[name="theme-color"]'); if (m) m.setAttribute('content', isDark() ? '#000000' : '#007AFF');
+    el.lang = S.lang === 'hi' ? 'hi' : 'en';
+  }
+
+  /* ---------- router + render ---------- */
+  function parseRoute() {
+    var raw = (location.hash || '#/').slice(1) || '/';
+    var qi = raw.indexOf('?'), path = qi >= 0 ? raw.slice(0, qi) : raw;
+    var qs = new URLSearchParams(qi >= 0 ? raw.slice(qi + 1) : '');
+    var p = path.split('/').filter(Boolean).map(safeDecode), a = p[0] || '';
+    switch (a) {
+      case '': return { name: 'home', nav: 'home', title: D.brand.name + ' — Home Services at your doorstep', view: viewHome };
+      case 'services': return { name: 'services', nav: 'services', title: t('allServices'), view: viewServices };
+      case 'c': return { name: 'category', nav: 'services', title: cat(p[1]).name, view: function () { return viewCategory(p[1]); } };
+      case 's': return { name: 'detail', nav: 'services', title: svc(p[1]) ? svc(p[1]).name : '', view: function () { return viewDetail(p[1]); } };
+      case 'search': return { name: 'search', nav: 'services', q: qs.get('q') || '', title: t('search'), view: function () { return viewSearch(qs.get('q') || ''); } };
+      case 'cart': return { name: 'cart', nav: 'cart', title: t('cart'), view: viewCart };
+      case 'checkout': return { name: 'checkout', nav: 'cart', title: t('checkout'), view: viewCheckout };
+      case 'bookings': return { name: 'bookings', nav: 'bookings', title: t('bookings'), view: viewBookings };
+      case 'booking': return { name: 'booking', nav: 'bookings', title: t('bookingId'), view: function () { return viewBookingPage(p[1]); } };
+      case 'account': return { name: 'account', nav: 'account', title: t('account'), view: viewAccount };
+      case 'help': return { name: 'help', nav: 'account', title: t('help'), view: viewHelp };
+      case 'partner': return { name: 'partner', nav: 'account', title: t('partner'), view: viewPartner };
+      default: return { name: '404', nav: '', title: t('notFound'), view: viewNotFound };
+    }
+  }
+
+  var current = null;
+  function render(keepScroll) {
+    var y = window.scrollY, active = document.activeElement, activeModel = active && active.dataset ? active.dataset.model : null;
+    current = parseRoute();
+    var bodyHtml;
+    try { bodyHtml = current.view(); } catch (err) { bodyHtml = viewNotFound(); }
+    root.innerHTML = '<div class="app">' + topbar(current) + '<main class="page" id="main"><div class="container">' + bodyHtml + '</div></main>' + cartBar(current) + tabbar(current) + '</div>';
+    document.title = (current.name === 'home' ? '' : (current.title ? current.title + ' — ' : '')) + (current.name === 'home' ? current.title : D.brand.name);
+    applyTheme();
+    window.scrollTo(0, keepScroll ? y : 0);
+    if (keepScroll && activeModel) { var again = $('[data-model="' + activeModel + '"]'); if (again) again.focus(); }
+    startHero(); startTicker();
+    if (current.name === 'checkout' && !S.user && !S.sheet && !suppressGate) { suppressGate = true; openSheet('login', { step: 'phone' }); }
+    if (current.name !== 'checkout') suppressGate = false;
+  }
+  function refresh() { render(true); }
+
+  /* hero carousel: 4s auto-slide, paused while touching */
+  function goSlide(i) {
+    var n = (D.heroSlides || []).length; if (!n) return;
+    heroIdx = (i + n) % n;
+    var tr = $('.hero__track'); if (tr) tr.style.transform = 'translateX(-' + heroIdx * 100 + '%)';
+    $$('.hero__dot').forEach(function (d, k) { d.classList.toggle('is-active', k === heroIdx); });
+  }
+  function stopHero() { if (heroTimer) { clearInterval(heroTimer); heroTimer = null; } }
+  function startHero() {
+    stopHero();
+    var tr = $('.hero__track'); if (!tr) return;
+    var reduce = false; try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* ignore */ }
+    if (!reduce) heroTimer = setInterval(function () { goSlide(heroIdx + 1); }, 4000);
+    var x0 = null;
+    tr.addEventListener('touchstart', function (e) { stopHero(); x0 = e.touches[0].clientX; }, { passive: true });
+    tr.addEventListener('touchend', function (e) {
+      var dx = e.changedTouches[0].clientX - x0;
+      if (Math.abs(dx) > 40) goSlide(heroIdx + (dx < 0 ? 1 : -1));
+      startHero();
+    }, { passive: true });
+  }
+  /* simulated status progress: re-render the booking views while a booking is in progress */
+  function startTicker() {
+    if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+    if (current.name !== 'booking' && current.name !== 'bookings') return;
+    tickTimer = setInterval(function () {
+      var live = S.bookings.some(function (b) { var s = stageOf(b); return s >= 0 && s < 3; });
+      if (!live || S.sheet) return;
+      var sig = S.bookings.map(stageOf).join();
+      if (sig !== tickSig) { if (tickSig !== undefined) refresh(); tickSig = sig; }
+    }, 3000);
+    tickSig = undefined;
+  }
+
+  /* ---------- actions (click delegation) ---------- */
+  var ACTIONS = {
+    add: function (el) { setQty(el.dataset.id, qtyOf(el.dataset.id) + 1); toast(t('added')); refresh(); },
+    inc: function (el) { setQty(el.dataset.id, qtyOf(el.dataset.id) + 1); refresh(); },
+    dec: function (el) { setQty(el.dataset.id, qtyOf(el.dataset.id) - 1); refresh(); },
+    slide: function (el) { stopHero(); goSlide(+el.dataset.i); startHero(); },
+    promo: function (el) {
+      var c = findCoupon(el.dataset.code);
+      if (c) { S.coupon = c.code; save('bpe_coupon', S.coupon); toast(t('copied')); }
+      location.hash = '#/services';
+    },
+    sort: function (el) { S.sort = el.dataset.v; refresh(); },
+    faq: function (el) {
+      var open = el.getAttribute('aria-expanded') === 'true', a = document.getElementById(el.getAttribute('aria-controls'));
+      el.setAttribute('aria-expanded', String(!open)); if (a) a.hidden = open;
+      el.parentNode.classList.toggle('is-open', !open);
+    },
+    'coupon-pick': function (el) { applyCoupon(el.dataset.code); },
+    'coupon-remove': function () { S.coupon = null; save('bpe_coupon', null); refresh(); },
+    city: function () { openSheet('city'); },
+    setcity: function (el) { S.city = el.dataset.v; save('bpe_city', S.city); closeSheet(); refresh(); },
+    lang: function () { setLang(isHi() ? 'en' : 'hi'); },
+    setlang: function (el) { setLang(el.dataset.v); },
+    theme: function () { S.theme = isDark() ? 'light' : 'dark'; save('bpe_theme', S.theme); applyTheme(); refresh(); },
+    login: function () { drafts.login = {}; drafts.errs = {}; openSheet('login', { step: 'phone' }); },
+    logout: function () { S.user = null; save('bpe_user', null); toast(t('loggedOut')); refresh(); },
+    close: function () { closeSheet(); },
+    'co-date': function (el) { drafts.co.date = el.dataset.v; if (slotPast(drafts.co.slot, drafts.co.date)) drafts.co.slot = ''; refresh(); },
+    'co-slot': function (el) { drafts.co.slot = el.dataset.v; delete drafts.errs['co.slot']; refresh(); },
+    'co-pay': function (el) { drafts.co.pay = el.dataset.v; refresh(); },
+    resched: function (el) {
+      var b = getBooking(el.dataset.id); if (!b) return;
+      openSheet('resched', { id: b.id, date: b.date, slot: b.slot });
+    },
+    'rs-date': function (el) { var d = S.sheet.data; d.date = el.dataset.v; if (slotPast(d.slot, d.date)) d.slot = ''; renderSheet(); },
+    'rs-slot': function (el) { S.sheet.data.slot = el.dataset.v; renderSheet(); },
+    'rs-save': function () {
+      var d = S.sheet.data, b = getBooking(d.id);
+      if (!d.date || !d.slot) { toast(t('errSlot')); return; }
+      if (b) { b.date = d.date; b.slot = d.slot; persistBookings(); }
+      closeSheet(); toast(t('reschedToast')); refresh();
+    },
+    cancel: function (el) { openSheet('cancel', { id: el.dataset.id }); },
+    'cancel-yes': function () {
+      var b = getBooking(S.sheet.data.id);
+      if (b) { b.cancelled = true; persistBookings(); }
+      closeSheet(); toast(t('cancelledToast')); refresh();
+    }
+  };
+  function setLang(l) { S.lang = l; save('bpe_lang', l); applyTheme(); renderSheet(); refresh(); }
+  function applyCoupon(code) {
+    var c = findCoupon(code);
+    if (!c) { toast(t('couponBad')); return; }
+    S.coupon = c.code; save('bpe_coupon', S.coupon);
+    if (calc().couponErr) toast(t('couponMin')); else toast(t('couponOn'));
+    refresh();
+  }
+
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('[data-act]');
+    if (a && ACTIONS[a.dataset.act]) { e.preventDefault(); e.stopPropagation(); ACTIONS[a.dataset.act](a); return; }
+    var g = e.target.closest('[data-go]');
+    if (g) {
+      e.preventDefault();
+      var sg = $('#sugg'); if (sg) sg.hidden = true;
+      if (location.hash === g.dataset.go) refresh(); else location.hash = g.dataset.go;
+      return;
+    }
+    if (!e.target.closest('.topbar__search')) { var s2 = $('#sugg'); if (s2) s2.hidden = true; }
+  });
+  // Cards are role=link with tabindex: make Enter/Space activate them.
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('article[data-go]')) {
+      e.preventDefault(); location.hash = e.target.dataset.go;
+    } else if (e.key === 'Escape') {
+      if (S.sheet) closeSheet(); else { var sg = $('#sugg'); if (sg) sg.hidden = true; }
+    }
+  });
+  // Draft binding: typed values are stored without re-rendering (keeps focus).
+  document.addEventListener('input', function (e) {
+    var el = e.target;
+    if (el.dataset && el.dataset.model) {
+      var p = el.dataset.model.split('.');
+      var v = el.value;
+      if (/phone|pincode|otp|exp/.test(p[1])) { v = v.replace(/\D/g, ''); if (v !== el.value) el.value = v; }
+      drafts[p[0]][p[1]] = v;
+      if (drafts.errs[el.dataset.model]) { delete drafts.errs[el.dataset.model]; var er = el.parentNode.querySelector('.field__err'); if (er) er.remove(); el.removeAttribute('aria-invalid'); }
+    } else if (el.id === 'q') {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () { renderSuggestions(el.value); }, 180); // debounce
+    }
+  });
+  document.addEventListener('focusin', function (e) {
+    if (e.target.id === 'q' && e.target.value) renderSuggestions(e.target.value);
+  });
+
+  document.addEventListener('submit', function (e) {
+    var f = e.target.closest('form[data-form]'); if (!f) return;
+    e.preventDefault();
+    var kind = f.dataset.form;
+    if (kind === 'search') {
+      var q = f.elements.q.value.trim(); if (!q) return;
+      var sg = $('#sugg'); if (sg) sg.hidden = true;
+      location.hash = '#/search?q=' + enc(q);
+    } else if (kind === 'coupon') {
+      applyCoupon(f.elements.code.value);
+    } else if (kind === 'login-phone') {
+      if (!/^[6-9]\d{9}$/.test(drafts.login.phone || '')) { drafts.errs['login.phone'] = t('errPhone'); renderSheet(); return; }
+      delete drafts.errs['login.phone']; drafts.login.otp = ''; openSheet('login', { step: 'otp' });
+    } else if (kind === 'login-otp') {
+      if (!/^\d{4}$/.test(drafts.login.otp || '')) { drafts.errs['login.otp'] = t('errOtp'); renderSheet(); return; }
+      var prev = S.user && S.user.phone === drafts.login.phone ? S.user.name : '';
+      S.user = { phone: drafts.login.phone, name: prev || '' }; save('bpe_user', S.user);
+      drafts.login = {}; drafts.errs = {}; drafts.co = {}; closeSheet(); toast(t('loggedIn')); refresh();
+    } else if (kind === 'checkout') {
+      if (!S.user) { openSheet('login', { step: 'phone' }); return; }
+      if (validateCheckout()) { placeOrder(); return; }
+      toast(t('fixErrors')); refresh();
+      var bad = $('[aria-invalid="true"]'); if (bad) bad.focus();
+    } else if (kind === 'partner') {
+      var p = drafts.partner, er = {};
+      if (!String(p.name || '').trim()) er['partner.name'] = t('errName');
+      if (!/^[6-9]\d{9}$/.test(p.phone || '')) er['partner.phone'] = t('errPhone');
+      drafts.errs = er;
+      if (Object.keys(er).length) { toast(t('fixErrors')); refresh(); var b2 = $('[aria-invalid="true"]'); if (b2) b2.focus(); return; }
+      var all = load('bpe_partners', []); if (!Array.isArray(all)) all = [];
+      all.push({ name: p.name.trim(), phone: p.phone, city: p.city || D.cities[0], skill: p.skill || D.categories[0].id, exp: p.exp || '0', at: Date.now() });
+      save('bpe_partners', all);
+      drafts.partner = { sent: true }; drafts.errs = {}; refresh();
+    }
+  });
+
+  window.addEventListener('hashchange', function () {
+    if (S.sheet && S.sheet.kind !== 'login') S.sheet = null;
+    if (S.sheet && current && parseRoute().name !== 'checkout') S.sheet = null;
+    renderSheet(); render(false);
+    var m = $('#main'); if (m) m.setAttribute('tabindex', '-1');
+  });
+  // Keep follow-up state (system theme change) consistent.
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (!S.theme) { applyTheme(); refresh(); } }); } catch (e) { /* old browsers */ }
+  // Drop a stale partner "sent" flag when the user leaves the page.
+  window.addEventListener('hashchange', function () { if (parseRoute().name !== 'partner') drafts.partner = {}; });
+
+  applyTheme();
+  render(false);
+})();
