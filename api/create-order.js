@@ -156,7 +156,7 @@ export default async function handler(req, res) {
       console.error("Razorpay returned an order that did not match the server-calculated amount/currency.");
       return json(res, 502, { error: "Razorpay returned an invalid order. Please retry.", code: "INVALID_GATEWAY_ORDER" });
     }
-    return json(res, 201, { id: order.id, amount: order.amount, currency: order.currency, quote });
+    return json(res, 201, { id: order.id, amount: order.amount, currency: order.currency, keyId: key_id, quote });
   } catch (error) {
     const providerStatus = error?.statusCode || error?.status;
     const providerMessage = error?.error?.description || error?.description || error?.message || "";

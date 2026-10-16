@@ -529,7 +529,7 @@
           return;
         }
         var options = {
-          key: window.RAZORPAY_KEY_ID || 'rzp_test_dummy',
+          key: orderData.keyId || orderData.key || window.RAZORPAY_KEY_ID || 'rzp_test_dummy',
           amount: orderData.amount,
           currency: orderData.currency || 'INR',
           name: 'Bharat Pro Expert',
