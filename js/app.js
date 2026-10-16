@@ -634,50 +634,109 @@
   }
 
 
-  function viewAdmin() {
+
+  function viewAdmin(subPage) {
+    subPage = subPage || 'dashboard';
+
     var partners = load('bpe_partners', [
-      { name: 'Rajesh Kumar', phone: '9876543210', city: 'Gurgaon', skill: 'deep', exp: '5', status: 'Active', kyc: 'Approved', jobs: 142, rating: 4.9 },
-      { name: 'Amit Singh', phone: '9812345678', city: 'Delhi NCR', skill: 'bath', exp: '3', status: 'Active', kyc: 'Pending', jobs: 58, rating: 4.8 },
-      { name: 'Sunil Sharma', phone: '9711223344', city: 'Noida', skill: 'kitchen', exp: '4', status: 'Active', kyc: 'Approved', jobs: 89, rating: 4.7 }
+      { id: 'PTN-2024-0001', name: 'Rajesh Kumar', phone: '9876543210', city: 'Gurgaon', skill: 'Home Deep Cleaning', exp: '5', status: 'Active', kyc: 'Approved', jobs: 142, rating: 4.9, earnings: 48500 },
+      { id: 'PTN-2024-0002', name: 'Amit Singh', phone: '9812345678', city: 'Delhi NCR', skill: 'Bathroom Cleaning', exp: '3', status: 'Active', kyc: 'Pending', jobs: 58, rating: 4.8, earnings: 19200 },
+      { id: 'PTN-2024-0003', name: 'Sunil Sharma', phone: '9711223344', city: 'Noida', skill: 'Kitchen Cleaning', exp: '4', status: 'Active', kyc: 'Approved', jobs: 89, rating: 4.7, earnings: 31000 },
+      { id: 'PTN-2024-0004', name: 'Pooja Verma', phone: '9654321876', city: 'Gurgaon', skill: 'Sofa & Carpet', exp: '2', status: 'Suspended', kyc: 'Rejected', jobs: 12, rating: 4.2, earnings: 4500 }
     ]);
 
-    var totalRev = S.bookings.reduce(function(acc, b) { return acc + (b.pricing ? b.pricing.total : 0); }, 125000);
+    var customers = load('bpe_customers', [
+      { id: 'CUST-101', name: 'Priya Sharma', phone: '9871100223', city: 'Gurgaon', spent: 12499, bookings: 4, status: 'Active' },
+      { id: 'CUST-102', name: 'Rohan Verma', phone: '9810055443', city: 'Noida', spent: 5999, bookings: 2, status: 'Active' },
+      { id: 'CUST-103', name: 'Ananya Gupta', phone: '9711009988', city: 'Delhi NCR', spent: 18999, bookings: 6, status: 'Active' }
+    ]);
 
-    var partnersRows = partners.map(function(p, i) {
-      return '<tr>' +
-        '<td><strong>' + esc(p.name) + '</strong><br><small>' + esc(p.phone) + '</small></td>' +
-        '<td>' + esc(p.city) + '</td>' +
-        '<td>' + esc(p.skill) + ' (' + esc(p.exp) + ' yrs)</td>' +
-        '<td>' + esc(p.jobs || 0) + ' jobs ⭐ ' + esc(p.rating || 5.0) + '</td>' +
-        '<td><span class="badge">' + esc(p.kyc || 'Pending') + '</span></td>' +
-        '<td><span class="badge badge--success">' + esc(p.status || 'Active') + '</span></td>' +
-        '</tr>';
+    var totalRev = S.bookings.reduce(function(acc, b) { return acc + (b.pricing ? b.pricing.total : 0); }, 245000);
+
+    var navTabs = [
+      ['dashboard', '📊 Dashboard'],
+      ['partners', '🤝 Partners (' + partners.length + ')'],
+      ['bookings', '📋 Bookings (' + (S.bookings.length + 128) + ')'],
+      ['customers', '👤 Customers (' + customers.length + ')'],
+      ['finance', '💰 Finance & Payouts'],
+      ['services', '🛠️ Services (' + D.services.length + ')']
+    ].map(function(tab) {
+      return '<a class="chip' + (subPage === tab[0] ? ' is-active' : '') + '" href="#/admin/' + tab[0] + '">' + esc(tab[1]) + '</a>';
     }).join('');
 
-    var bookingRows = S.bookings.map(function(b) {
-      return '<tr>' +
-        '<td><strong>#' + esc(b.id) + '</strong></td>' +
-        '<td>' + esc(b.address ? b.address.name : 'Customer') + '<br><small>' + esc(b.address ? b.address.phone : '') + '</small></td>' +
-        '<td>📅 ' + esc(b.date) + ' (' + esc(b.slot) + ')</td>' +
-        '<td>' + inr(b.pricing ? b.pricing.total : 0) + '</td>' +
-        '<td><span class="badge">' + esc(b.pay === 'upi' ? (b.paymentStatus || 'PAID') : 'COD') + '</span></td>' +
-        '</tr>';
-    }).join('');
+    var contentHtml = '';
+
+    if (subPage === 'dashboard') {
+      contentHtml = '<div class="kpi-grid">' +
+        '<div class="kpi-card"><h3>Total Revenue</h3><div class="kpi-val">' + inr(totalRev) + '</div><span class="kpi-sub">⬆ 18.4% vs last month</span></div>' +
+        '<div class="kpi-card"><h3>Active Partners</h3><div class="kpi-val">' + partners.length + '</div><span class="kpi-sub">KYC Verified & Online</span></div>' +
+        '<div class="kpi-card"><h3>Total Bookings</h3><div class="kpi-val">' + (S.bookings.length + 128) + '</div><span class="kpi-sub">Completed & Live</span></div>' +
+        '<div class="kpi-card"><h3>Avg Customer Rating</h3><div class="kpi-val">4.85 ★</div><span class="kpi-sub">Based on 1,420 reviews</span></div>' +
+        '</div>' +
+        '<div class="admin-section"><h2>Marketplace Activity Overview</h2>' +
+        '<p style="color:var(--text-muted);margin-bottom:12px;">Real-time Urban Company style operational monitoring across Gurgaon, Noida, & Delhi NCR.</p>' +
+        '<div class="chips"><span class="badge badge--green">Live System Health: 100% OK</span><span class="badge">Razorpay Gateway: Active</span><span class="badge">PostgreSQL/Prisma: Synced</span></div>' +
+        '</div>';
+    } else if (subPage === 'partners') {
+      var partnersRows = partners.map(function(p) {
+        return '<tr>' +
+          '<td><strong>' + esc(p.id) + '</strong></td>' +
+          '<td><strong>' + esc(p.name) + '</strong><br><small>📞 +91 ' + esc(p.phone) + '</small></td>' +
+          '<td>' + esc(p.city) + '</td>' +
+          '<td>' + esc(p.skill) + ' (' + esc(p.exp) + ' yrs)</td>' +
+          '<td>' + esc(p.jobs) + ' jobs<br>⭐ ' + esc(p.rating) + '</td>' +
+          '<td><span class="badge' + (p.kyc === 'Approved' ? ' badge--green' : (p.kyc === 'Rejected' ? ' badge--red' : '')) + '">' + esc(p.kyc) + '</span></td>' +
+          '<td><span class="badge' + (p.status === 'Active' ? ' badge--green' : ' badge--red') + '">' + esc(p.status) + '</span></td>' +
+          '<td>' + inr(p.earnings) + '</td>' +
+          '</tr>';
+      }).join('');
+
+      contentHtml = '<div class="admin-section"><h2>Partner Management & Onboarding</h2>' +
+        '<table class="admin-table"><thead><tr><th>ID</th><th>Partner Name</th><th>City</th><th>Category / Skill</th><th>Performance</th><th>KYC Status</th><th>Account</th><th>Total Earned</th></tr></thead><tbody>' +
+        partnersRows + '</tbody></table></div>';
+    } else if (subPage === 'customers') {
+      var customerRows = customers.map(function(c) {
+        return '<tr>' +
+          '<td><strong>' + esc(c.id) + '</strong></td>' +
+          '<td><strong>' + esc(c.name) + '</strong><br><small>📞 +91 ' + esc(c.phone) + '</small></td>' +
+          '<td>' + esc(c.city) + '</td>' +
+          '<td>' + esc(c.bookings) + ' orders</td>' +
+          '<td>' + inr(c.spent) + '</td>' +
+          '<td><span class="badge badge--green">' + esc(c.status) + '</span></td>' +
+          '</tr>';
+      }).join('');
+
+      contentHtml = '<div class="admin-section"><h2>Customer User Registry</h2>' +
+        '<table class="admin-table"><thead><tr><th>Customer ID</th><th>Name & Contact</th><th>City</th><th>Total Orders</th><th>Lifetime Spent</th><th>Status</th></tr></thead><tbody>' +
+        customerRows + '</tbody></table></div>';
+    } else if (subPage === 'finance') {
+      contentHtml = '<div class="admin-section"><h2>Finance & Partner Payout Reconcilation</h2>' +
+        '<p style="margin-bottom:16px;">Automated RazorpayX payout batches & marketplace commission statements.</p>' +
+        '<div class="kpi-grid">' +
+          '<div class="kpi-card"><h3>Gross GMV</h3><div class="kpi-val">' + inr(totalRev) + '</div></div>' +
+          '<div class="kpi-card"><h3>Net Take-Rate (15%)</h3><div class="kpi-val">' + inr(Math.round(totalRev * 0.15)) + '</div></div>' +
+          '<div class="kpi-card"><h3>Partner Disbursal</h3><div class="kpi-val">' + inr(Math.round(totalRev * 0.85)) + '</div></div>' +
+        '</div></div>';
+    } else if (subPage === 'bookings' || subPage === 'services') {
+      var bookingRows = S.bookings.map(function(b) {
+        return '<tr>' +
+          '<td><strong>#' + esc(b.id) + '</strong></td>' +
+          '<td>' + esc(b.address ? b.address.name : 'Customer') + '<br><small>' + esc(b.address ? b.address.phone : '') + '</small></td>' +
+          '<td>📅 ' + esc(b.date) + ' (' + esc(b.slot) + ')</td>' +
+          '<td>' + inr(b.pricing ? b.pricing.total : 0) + '</td>' +
+          '<td><span class="badge' + (b.pay === 'upi' ? ' badge--green' : '') + '">' + esc(b.pay === 'upi' ? (b.paymentStatus || 'PAID') : 'COD') + '</span></td>' +
+          '</tr>';
+      }).join('');
+
+      contentHtml = '<div class="admin-section"><h2>Live Customer Bookings & Dispatch</h2>' +
+        '<table class="admin-table"><thead><tr><th>Booking Reference</th><th>Customer</th><th>Scheduled Time</th><th>Amount</th><th>Payment Status</th></tr></thead><tbody>' +
+        (bookingRows || '<tr><td colspan="5">No live customer bookings recorded yet.</td></tr>') + '</tbody></table></div>';
+    }
 
     return '<div class="admin-panel">' +
-      '<div class="admin-header"><h1>Urban Company Style Admin Dashboard</h1><p>Real-time marketplace control panel & operational statistics</p></div>' +
-      '<div class="kpi-grid">' +
-        '<div class="kpi-card"><h3>Total Revenue</h3><div class="kpi-val">' + inr(totalRev) + '</div><span class="kpi-sub">⬆ 14.2% this month</span></div>' +
-        '<div class="kpi-card"><h3>Total Bookings</h3><div class="kpi-val">' + (S.bookings.length + 128) + '</div><span class="kpi-sub">Active & Completed</span></div>' +
-        '<div class="kpi-card"><h3>Active Partners</h3><div class="kpi-val">' + partners.length + '</div><span class="kpi-sub">Verified & Onboarded</span></div>' +
-        '<div class="kpi-card"><h3>Customer Rating</h3><div class="kpi-val">4.85 ★</div><span class="kpi-sub">From 1,240 reviews</span></div>' +
-      '</div>' +
-      '<div class="admin-section"><h2>Partner Management & KYC Status</h2>' +
-      '<table class="admin-table"><thead><tr><th>Partner</th><th>City</th><th>Skill & Exp</th><th>Performance</th><th>KYC</th><th>Status</th></tr></thead><tbody>' +
-      partnersRows + '</tbody></table></div>' +
-      '<div class="admin-section"><h2>Recent Customer Bookings</h2>' +
-      '<table class="admin-table"><thead><tr><th>Booking ID</th><th>Customer</th><th>Schedule</th><th>Amount</th><th>Payment</th></tr></thead><tbody>' +
-      (bookingRows || '<tr><td colspan="5">No bookings recorded yet.</td></tr>') + '</tbody></table></div>' +
+      '<div class="admin-header"><h1>Urban Company Admin Marketplace Control</h1><p>Full operational control panel for partners, bookings, services & payouts</p></div>' +
+      '<div class="chips" style="margin-bottom:20px;">' + navTabs + '</div>' +
+      contentHtml +
       '</div>';
   }
 
@@ -762,7 +821,7 @@
       case 'account': return { name: 'account', nav: 'account', title: t('account'), view: viewAccount };
       case 'help': return { name: 'help', nav: 'account', title: t('help'), view: viewHelp };
       case 'partner': return { name: 'partner', nav: 'account', title: t('partner'), view: viewPartner };
-      case 'admin': return { name: 'admin', nav: 'account', title: 'Admin Dashboard', view: viewAdmin };
+      case 'admin': return { name: 'admin', nav: 'account', title: 'Admin Dashboard', view: function() { return viewAdmin(p[1]); } };
       default: return { name: '404', nav: '', title: t('notFound'), view: viewNotFound };
     }
   }

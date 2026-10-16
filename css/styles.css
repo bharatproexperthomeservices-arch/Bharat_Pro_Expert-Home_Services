@@ -587,19 +587,19 @@ textarea.input { min-height: 88px; resize: vertical; }
 .admin-panel { padding: 12px 0; }
 .admin-header { margin-bottom: 24px; }
 .admin-header h1 { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
-.admin-header p { color: var(--text-muted); font-size: 14px; }
+.admin-header p { color: var(--label2); font-size: 14px; }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-.kpi-card h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; }
-.kpi-val { font-size: 26px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
-.kpi-sub { font-size: 12px; font-weight: 600; color: #34C759; }
+.kpi-card { background: var(--card); border: 1px solid var(--sep); border-radius: 16px; padding: 18px; box-shadow: var(--shadow-1); }
+.kpi-card h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--label2); margin-bottom: 8px; }
+.kpi-val { font-size: 26px; font-weight: 800; color: var(--label); margin-bottom: 4px; }
+.kpi-sub { font-size: 12px; font-weight: 600; color: var(--green); }
 
-.admin-section { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+.admin-section { background: var(--card); border: 1px solid var(--sep); border-radius: 16px; padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow-1); overflow-x: auto; }
 .admin-section h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
 
 .admin-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-.admin-table th, .admin-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); }
-.admin-table th { font-weight: 700; color: var(--text-muted); background: var(--bg); font-size: 12px; text-transform: uppercase; }
+.admin-table th, .admin-table td { padding: 12px 14px; border-bottom: 1px solid var(--sep); }
+.admin-table th { font-weight: 700; color: var(--label2); background: var(--fill); font-size: 12px; text-transform: uppercase; }
 .admin-table tr:last-child td { border-bottom: none; }
-.badge--success { background: #E8F8EE; color: #1E7E34; }
+.badge--success { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
