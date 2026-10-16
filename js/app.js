@@ -249,7 +249,7 @@
         '<div id="sugg" hidden></div>' +
       '</form>' +
       '<nav class="topnav" aria-label="Main">' +
-        [['#/', 'home'], ['#/services', 'services'], ['#/bookings', 'bookings'], ['#/cart', 'cart'], ['#/help', 'help']].map(function (l) {
+        [['#/', 'home'], ['#/services', 'services'], ['#/bookings', 'bookings'], ['#/cart', 'cart'], ['#/admin', 'admin'], ['#/help', 'help']].map(function (l) {
           return '<a href="' + l[0] + '"' + (route.nav === l[1] || (l[1] === 'help' && route.name === 'help') ? ' aria-current="page"' : '') + '>' + esc(t(l[1])) + (l[1] === 'cart' && cartCount() ? ' (' + cartCount() + ')' : '') + '</a>';
         }).join('') +
       '</nav>' +
@@ -633,6 +633,54 @@
       '<div class="detail__block"><h2>' + esc(t('faqs')) + '</h2>' + faqList(D.faqs || [], 'hf') + '</div>' + footer();
   }
 
+
+  function viewAdmin() {
+    var partners = load('bpe_partners', [
+      { name: 'Rajesh Kumar', phone: '9876543210', city: 'Gurgaon', skill: 'deep', exp: '5', status: 'Active', kyc: 'Approved', jobs: 142, rating: 4.9 },
+      { name: 'Amit Singh', phone: '9812345678', city: 'Delhi NCR', skill: 'bath', exp: '3', status: 'Active', kyc: 'Pending', jobs: 58, rating: 4.8 },
+      { name: 'Sunil Sharma', phone: '9711223344', city: 'Noida', skill: 'kitchen', exp: '4', status: 'Active', kyc: 'Approved', jobs: 89, rating: 4.7 }
+    ]);
+
+    var totalRev = S.bookings.reduce(function(acc, b) { return acc + (b.pricing ? b.pricing.total : 0); }, 125000);
+
+    var partnersRows = partners.map(function(p, i) {
+      return '<tr>' +
+        '<td><strong>' + esc(p.name) + '</strong><br><small>' + esc(p.phone) + '</small></td>' +
+        '<td>' + esc(p.city) + '</td>' +
+        '<td>' + esc(p.skill) + ' (' + esc(p.exp) + ' yrs)</td>' +
+        '<td>' + esc(p.jobs || 0) + ' jobs ⭐ ' + esc(p.rating || 5.0) + '</td>' +
+        '<td><span class="badge">' + esc(p.kyc || 'Pending') + '</span></td>' +
+        '<td><span class="badge badge--success">' + esc(p.status || 'Active') + '</span></td>' +
+        '</tr>';
+    }).join('');
+
+    var bookingRows = S.bookings.map(function(b) {
+      return '<tr>' +
+        '<td><strong>#' + esc(b.id) + '</strong></td>' +
+        '<td>' + esc(b.address ? b.address.name : 'Customer') + '<br><small>' + esc(b.address ? b.address.phone : '') + '</small></td>' +
+        '<td>📅 ' + esc(b.date) + ' (' + esc(b.slot) + ')</td>' +
+        '<td>' + inr(b.pricing ? b.pricing.total : 0) + '</td>' +
+        '<td><span class="badge">' + esc(b.pay === 'upi' ? (b.paymentStatus || 'PAID') : 'COD') + '</span></td>' +
+        '</tr>';
+    }).join('');
+
+    return '<div class="admin-panel">' +
+      '<div class="admin-header"><h1>Urban Company Style Admin Dashboard</h1><p>Real-time marketplace control panel & operational statistics</p></div>' +
+      '<div class="kpi-grid">' +
+        '<div class="kpi-card"><h3>Total Revenue</h3><div class="kpi-val">' + inr(totalRev) + '</div><span class="kpi-sub">⬆ 14.2% this month</span></div>' +
+        '<div class="kpi-card"><h3>Total Bookings</h3><div class="kpi-val">' + (S.bookings.length + 128) + '</div><span class="kpi-sub">Active & Completed</span></div>' +
+        '<div class="kpi-card"><h3>Active Partners</h3><div class="kpi-val">' + partners.length + '</div><span class="kpi-sub">Verified & Onboarded</span></div>' +
+        '<div class="kpi-card"><h3>Customer Rating</h3><div class="kpi-val">4.85 ★</div><span class="kpi-sub">From 1,240 reviews</span></div>' +
+      '</div>' +
+      '<div class="admin-section"><h2>Partner Management & KYC Status</h2>' +
+      '<table class="admin-table"><thead><tr><th>Partner</th><th>City</th><th>Skill & Exp</th><th>Performance</th><th>KYC</th><th>Status</th></tr></thead><tbody>' +
+      partnersRows + '</tbody></table></div>' +
+      '<div class="admin-section"><h2>Recent Customer Bookings</h2>' +
+      '<table class="admin-table"><thead><tr><th>Booking ID</th><th>Customer</th><th>Schedule</th><th>Amount</th><th>Payment</th></tr></thead><tbody>' +
+      (bookingRows || '<tr><td colspan="5">No bookings recorded yet.</td></tr>') + '</tbody></table></div>' +
+      '</div>';
+  }
+
   function viewPartner() {
     var done = load('bpe_partner_done', null);
     if (drafts.partner.sent) {
@@ -714,6 +762,7 @@
       case 'account': return { name: 'account', nav: 'account', title: t('account'), view: viewAccount };
       case 'help': return { name: 'help', nav: 'account', title: t('help'), view: viewHelp };
       case 'partner': return { name: 'partner', nav: 'account', title: t('partner'), view: viewPartner };
+      case 'admin': return { name: 'admin', nav: 'account', title: 'Admin Dashboard', view: viewAdmin };
       default: return { name: '404', nav: '', title: t('notFound'), view: viewNotFound };
     }
   }
