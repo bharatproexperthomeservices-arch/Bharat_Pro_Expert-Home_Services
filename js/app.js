@@ -514,6 +514,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          items: S.cart.map(function(l) { return { id: l.id, qty: l.qty }; }),
           serviceId: primaryItem.id || 'deep-1bhk',
           serviceName: primaryItem.name || '1 BHK Full Home Deep Cleaning',
           bookingId: bookingRef,
