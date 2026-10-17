@@ -242,7 +242,7 @@
     var q = route.name === 'search' ? route.q : '';
     var u = S.user;
     return '<header class="topbar">' +
-      '<a class="topnav__brand" href="#/" style="font-weight:800;text-decoration:none;color:inherit" aria-label="Bharat Pro Expert home">' + esc(D.brand.name) + '</a>' +
+      '<a class="topnav__brand" href="#/" style="display:flex;align-items:center;gap:8px;font-weight:800;text-decoration:none;color:inherit" aria-label="Bharat Pro Expert home"><img src="icons/logo.png" alt="Bharat Pro Expert Logo" style="height:32px;width:32px;object-fit:contain;border-radius:6px;" class="brand-logo-img"><span>' + esc(D.brand.name) + '</span></a>' +
       '<button type="button" class="topbar__loc" data-act="city" aria-label="' + esc(t('chooseCity')) + '">📍 ' + esc(S.city) + ' ▾</button>' +
       '<form class="topbar__search" data-form="search" role="search" style="position:relative" autocomplete="off">' +
         '<input class="input" type="search" name="q" id="q" value="' + esc(q) + '" placeholder="' + esc(t('search')) + '" aria-label="' + esc(t('search')) + '" autocomplete="off">' +
@@ -318,7 +318,7 @@
     var b = D.brand, tel = String(b.phone).replace(/[^\d+]/g, '');
     return '<footer class="footer">' +
       '<div class="footer__inner">' +
-        '<a class="footer__brand" href="#/" aria-label="' + esc(b.name) + ' home"><span class="footer__mark" aria-hidden="true">BP</span><span><strong>' + esc(b.name) + '</strong><small>' + esc(b.tagline) + '</small></span></a>' +
+        '<a class="footer__brand" href="#/" aria-label="' + esc(b.name) + ' home"><img src="icons/logo.png" alt="Bharat Pro Expert Logo" style="height:38px;width:38px;object-fit:contain;border-radius:8px;" class="footer-logo-img"><span><strong>' + esc(b.name) + '</strong><small>' + esc(b.tagline) + '</small></span></a>' +
         '<div class="footer__columns">' +
           '<section class="footer__column"><h2>Company</h2><a href="#/help">About us &amp; contact</a><a href="#/help">Privacy &amp; support</a><a href="#/partner">Careers / partner with us</a></section>' +
           '<section class="footer__column"><h2>For customers</h2><a href="#/services">' + esc(t('services')) + '</a><a href="#/help">' + esc(t('faqs')) + '</a><a href="#/help">Contact us</a></section>' +

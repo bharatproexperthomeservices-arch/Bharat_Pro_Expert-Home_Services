@@ -637,7 +637,6 @@ textarea.input { min-height: 88px; resize: vertical; }
 .admin-table tr:last-child td { border-bottom: none; }
 .badge--success { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
 
-
 /* ---------- Responsive sizing refinement (layout only) ----------
    Keep all existing services, catalogue data, prices and interactions unchanged.
    Let the layout use the available screen width on tablets and desktop while
