@@ -242,7 +242,7 @@
     var q = route.name === 'search' ? route.q : '';
     var u = S.user;
     return '<header class="topbar">' +
-      '<a class="topnav__brand" href="#/" style="font-weight:800;text-decoration:none;color:inherit" aria-label="Bharat Pro Expert home">' + esc(D.brand.name) + '</a>' +
+      '<a class="topnav__brand" href="#/" style="display:flex;align-items:center;gap:8px;font-weight:800;text-decoration:none;color:inherit" aria-label="Bharat Pro Expert home"><img src="icons/logo.png" alt="Bharat Pro Expert Logo" style="height:32px;width:32px;object-fit:contain;border-radius:6px;" class="brand-logo-img"><span>' + esc(D.brand.name) + '</span></a>' +
       '<button type="button" class="topbar__loc" data-act="city" aria-label="' + esc(t('chooseCity')) + '">📍 ' + esc(S.city) + ' ▾</button>' +
       '<form class="topbar__search" data-form="search" role="search" style="position:relative" autocomplete="off">' +
         '<input class="input" type="search" name="q" id="q" value="' + esc(q) + '" placeholder="' + esc(t('search')) + '" aria-label="' + esc(t('search')) + '" autocomplete="off">' +
@@ -316,7 +316,7 @@
 
   function footer() {
     var b = D.brand, tel = String(b.phone).replace(/[^\d+]/g, '');
-    return '<footer class="footer"><strong>' + esc(b.name) + '</strong><p>' + esc(b.tagline) + '</p>' +
+    return '<footer class="footer"><div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><img src="icons/logo.png" alt="Bharat Pro Expert Logo" style="height:40px;width:40px;object-fit:contain;border-radius:8px;" class="footer-logo-img"><strong style="font-size:18px;">' + esc(b.name) + '</strong></div><p>' + esc(b.tagline) + '</p>' +
       '<p>📞 <a href="tel:' + esc(tel) + '">' + esc(b.phone) + '</a><br>✉️ <a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a><br>🏢 <a href="mailto:' + esc(b.companyEmail) + '">' + esc(b.companyEmail) + '</a></p>' +
       '<p><a href="#/services">' + esc(t('services')) + '</a> · <a href="#/help">' + esc(t('help')) + '</a> · <a href="#/partner">' + esc(t('partner')) + '</a></p>' +
       '<small>© ' + new Date().getFullYear() + ' ' + esc(b.name) + '. ' + esc(t('rights')) + '</small></footer>';
