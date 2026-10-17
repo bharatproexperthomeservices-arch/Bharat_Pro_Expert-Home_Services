@@ -478,9 +478,42 @@ textarea.input { min-height: 88px; resize: vertical; }
 .summary__row.is-discount, .summary__row--discount { color: var(--green); }
 .summary__total { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0 10px; margin-top: 4px; border-top: .5px solid var(--sep); font-size: 18px; font-weight: 700; }
 
-.footer { margin-top: 40px; padding: 28px var(--gutter) 24px; text-align: center; font-size: 13px; color: var(--label2); line-height: 1.7; }
-.footer a { color: var(--label2); font-weight: 500; margin: 0 8px; }
-.footer a:hover { color: var(--blue); }
+/* Urban-Company-inspired footer, branded for Bharat Pro Expert */
+.footer {
+  margin-top: 44px;
+  padding: 36px var(--gutter) calc(24px + var(--safe-b));
+  background: var(--bg2);
+  color: var(--label2);
+  font-size: 13px;
+  line-height: 1.6;
+  border-top: 1px solid var(--sep);
+  text-align: left;
+}
+.footer__inner { width: 100%; max-width: 1600px; margin: 0 auto; }
+.footer__brand { display: inline-flex; align-items: center; gap: 10px; color: var(--label); margin: 0 0 30px; text-decoration: none; }
+.footer__brand:hover { color: var(--blue); }
+.footer__brand > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.footer__brand strong { font-size: 19px; line-height: 1.2; letter-spacing: -.03em; }
+.footer__brand small { color: var(--label2); font-size: 11px; }
+.footer__mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: var(--blue); color: #fff; font-size: 14px; font-weight: 800; letter-spacing: -.04em; }
+.footer__columns { display: grid; grid-template-columns: minmax(0,1fr); gap: 26px 28px; padding-bottom: 28px; }
+.footer__column { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.footer__column h2 { color: var(--label); font-size: 15px; font-weight: 650; margin: 0 0 4px; }
+.footer__column a { max-width: 100%; color: var(--label2); font-weight: 400; margin: 0; overflow-wrap: anywhere; }
+.footer__column a:hover { color: var(--blue); }
+.footer__bottom { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--sep); padding-top: 22px; font-size: 11px; }
+@media (min-width: 560px) {
+  .footer__columns { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (min-width: 900px) {
+  .footer { padding-top: 44px; }
+  .footer__brand { margin-bottom: 40px; }
+  .footer__columns { grid-template-columns: 1.1fr 1.1fr 1.1fr 1fr; gap: 24px; padding-bottom: 32px; }
+  .footer__bottom { flex-direction: row; justify-content: space-between; align-items: flex-start; gap: 20px; }
+}
+@media (min-width: 1440px) {
+  .footer { padding-left: max(var(--gutter), calc((100% - 1500px) / 2)); padding-right: max(var(--gutter), calc((100% - 1500px) / 2)); }
+}
 
 .skeleton {
   position: relative; overflow: hidden; min-height: 16px; border-radius: 10px; background: var(--fill);
