@@ -603,3 +603,92 @@ textarea.input { min-height: 88px; resize: vertical; }
 .admin-table th { font-weight: 700; color: var(--label2); background: var(--fill); font-size: 12px; text-transform: uppercase; }
 .admin-table tr:last-child td { border-bottom: none; }
 .badge--success { background: color-mix(in srgb, var(--green) 18%, transparent); color: var(--green); }
+
+
+/* ---------- Responsive sizing refinement (layout only) ----------
+   Keep all existing services, catalogue data, prices and interactions unchanged.
+   Let the layout use the available screen width on tablets and desktop while
+   preserving the existing compact mobile presentation. */
+:root {
+  --layout-max: 1600px;
+}
+html, body {
+  width: 100%;
+  min-width: 320px;
+}
+body {
+  overflow-x: clip;
+}
+.app, .app-shell, #app {
+  width: 100%;
+  max-width: 100%;
+}
+.app-shell {
+  max-width: var(--layout-max);
+}
+.container, .section, .hero {
+  width: 100%;
+  max-width: var(--layout-max);
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+.grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.card, .card__img {
+  min-width: 0;
+}
+img, video, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (min-width: 700px) {
+  :root { --gutter: clamp(24px, 3vw, 40px); }
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(16px, 1.5vw, 24px); }
+  .section { margin-top: clamp(28px, 3vw, 40px); }
+  .section__title { font-size: clamp(20px, 1.5vw, 26px); }
+  .card__name { font-size: clamp(15px, 1.05vw, 18px); }
+  .card__price { font-size: clamp(16px, 1.15vw, 20px); }
+}
+
+@media (min-width: 900px) {
+  :root { --gutter: clamp(28px, 3vw, 48px); }
+  .app-shell { max-width: var(--layout-max); }
+  .container, .section, .hero { max-width: var(--layout-max); }
+  .topbar {
+    padding-left: max(var(--gutter), calc((100vw - var(--layout-max)) / 2 + var(--gutter)));
+    padding-right: max(var(--gutter), calc((100vw - var(--layout-max)) / 2 + var(--gutter)));
+  }
+  .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(18px, 1.6vw, 28px); }
+  .hero__slide { min-height: clamp(220px, 22vw, 340px); padding: clamp(32px, 3vw, 52px) clamp(220px, 20vw, 300px) clamp(32px, 3vw, 52px) clamp(36px, 4vw, 64px); }
+  .hero__slide h1, .hero__slide h2, .hero__slide strong { font-size: clamp(30px, 2.5vw, 42px); }
+  .hero__slide > .hero__emoji, .hero__slide > [aria-hidden="true"] { font-size: clamp(120px, 12vw, 180px); right: clamp(36px, 4vw, 64px); }
+  .catrow { gap: clamp(12px, 1.3vw, 22px); }
+  .catrow__item { width: clamp(92px, 7vw, 120px); }
+  .catrow__icon { width: clamp(68px, 5.4vw, 88px); height: clamp(68px, 5.4vw, 88px); font-size: clamp(34px, 2.5vw, 42px); }
+  .card__img { font-size: clamp(60px, 5vw, 84px); }
+  .promo { padding: clamp(26px, 2.5vw, 40px) clamp(32px, 3vw, 52px); }
+  .promo__title { font-size: clamp(24px, 2vw, 32px); }
+}
+
+@media (min-width: 1200px) {
+  .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 1440px) {
+  .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (min-width: 1800px) {
+  .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+@media (min-width: 900px) and (max-width: 1199px) {
+  :root { --gutter: 24px; }
+  .topbar { gap: 12px; }
+  .topbar__search { max-width: 360px; }
+}
+@media (max-width: 699px) {
+  :root { --gutter: 16px; }
+  .app-shell { max-width: 100%; }
+  .container, .section, .hero { max-width: 100%; }
+}
