@@ -316,10 +316,17 @@
 
   function footer() {
     var b = D.brand, tel = String(b.phone).replace(/[^\d+]/g, '');
-    return '<footer class="footer"><strong>' + esc(b.name) + '</strong><p>' + esc(b.tagline) + '</p>' +
-      '<p>📞 <a href="tel:' + esc(tel) + '">' + esc(b.phone) + '</a><br>✉️ <a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a><br>🏢 <a href="mailto:' + esc(b.companyEmail) + '">' + esc(b.companyEmail) + '</a></p>' +
-      '<p><a href="#/services">' + esc(t('services')) + '</a> · <a href="#/help">' + esc(t('help')) + '</a> · <a href="#/partner">' + esc(t('partner')) + '</a></p>' +
-      '<small>© ' + new Date().getFullYear() + ' ' + esc(b.name) + '. ' + esc(t('rights')) + '</small></footer>';
+    return '<footer class="footer">' +
+      '<div class="footer__inner">' +
+        '<a class="footer__brand" href="#/" aria-label="' + esc(b.name) + ' home"><span class="footer__mark" aria-hidden="true">BP</span><span><strong>' + esc(b.name) + '</strong><small>' + esc(b.tagline) + '</small></span></a>' +
+        '<div class="footer__columns">' +
+          '<section class="footer__column"><h2>Company</h2><a href="#/help">About us &amp; contact</a><a href="#/help">Privacy &amp; support</a><a href="#/partner">Careers / partner with us</a></section>' +
+          '<section class="footer__column"><h2>For customers</h2><a href="#/services">' + esc(t('services')) + '</a><a href="#/help">' + esc(t('faqs')) + '</a><a href="#/help">Contact us</a></section>' +
+          '<section class="footer__column"><h2>For professionals</h2><a href="#/partner">' + esc(t('partner')) + '</a><a href="#/partner">Register as a professional</a></section>' +
+          '<section class="footer__column footer__contact"><h2>Get in touch</h2><a href="tel:' + esc(tel) + '">☎ ' + esc(b.phone) + '</a><a href="mailto:' + esc(b.email) + '">✉ ' + esc(b.email) + '</a><a href="mailto:' + esc(b.companyEmail) + '">' + esc(b.companyEmail) + '</a></section>' +
+        '</div>' +
+        '<div class="footer__bottom"><span>© ' + new Date().getFullYear() + ' ' + esc(b.name) + '. ' + esc(t('rights')) + '</span><span>Trusted home services, delivered with care.</span></div>' +
+      '</div></footer>';
   }
 
   function viewServices() {
