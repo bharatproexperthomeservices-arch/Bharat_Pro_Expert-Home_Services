@@ -33,14 +33,14 @@ import firebaseConfigJson from '../firebase-applet-config.json';
 // ReCAPTCHA Enterprise / Firebase Phone Auth Site Key
 export const reCaptchaSiteKey = "6LdnC9MtAAAAAAAAEDe0ll5X9OF9jRunXjRedGaq-k_";
 
-// Initialize Firebase App
+// Initialize Firebase App dynamically using environment variables or firebaseConfigJson
 export const firebaseConfig = {
-  apiKey: firebaseConfigJson.apiKey || "AIzaSyBHkZBT4HTjxZ9nSi5PbsWHpqgIG9O8weI",
-  authDomain: firebaseConfigJson.authDomain || "gen-lang-client-0808776459.firebaseapp.com",
-  projectId: firebaseConfigJson.projectId || "gen-lang-client-0808776459",
-  storageBucket: firebaseConfigJson.storageBucket || "gen-lang-client-0808776459.firebasestorage.app",
-  messagingSenderId: firebaseConfigJson.messagingSenderId || "1083157968796",
-  appId: firebaseConfigJson.appId || "1:1083157968796:web:03c1157192c02e2ade3a59"
+  apiKey: (import.meta.env?.VITE_FIREBASE_API_KEY as string) || firebaseConfigJson.apiKey || "",
+  authDomain: (import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN as string) || firebaseConfigJson.authDomain || "",
+  projectId: (import.meta.env?.VITE_FIREBASE_PROJECT_ID as string) || firebaseConfigJson.projectId || "",
+  storageBucket: (import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET as string) || firebaseConfigJson.storageBucket || "",
+  messagingSenderId: (import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID as string) || firebaseConfigJson.messagingSenderId || "",
+  appId: (import.meta.env?.VITE_FIREBASE_APP_ID as string) || firebaseConfigJson.appId || ""
 };
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
