@@ -39,6 +39,7 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
   --gutter: 16px;
+  --layout-max: 1600px;
   color-scheme: light;
 }
 
@@ -641,9 +642,6 @@ textarea.input { min-height: 88px; resize: vertical; }
    Keep all existing services, catalogue data, prices and interactions unchanged.
    Let the layout use the available screen width on tablets and desktop while
    preserving the existing compact mobile presentation. */
-:root {
-  --layout-max: 1600px;
-}
 html, body {
   width: 100%;
   min-width: 320px;
