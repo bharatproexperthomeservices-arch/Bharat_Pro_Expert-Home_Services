@@ -4,8 +4,7 @@ import {
   verifyAdminOtp,
   resendAdminOtp,
   getAdminLockoutStatus,
-  getAdminSession,
-  resetFailedAttempts
+  getAdminSession
 } from '../services/adminAuthService';
 import { BharatProLogo } from './BharatProLogo';
 import { 
@@ -39,7 +38,7 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
   const [signInStep, setSignInStep] = useState<'EMAIL' | 'PASSWORD' | 'OTP' | 'SUCCESS'>('EMAIL');
   
   // Credentials
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('bharatproexperthomeservices@gmail.com');
   const [passphrase, setPassphrase] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -174,7 +173,11 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
     setLoading(true);
     try {
       const res = await initiateAdminLoginStep1(cleanEmail, passphrase);
-      if (res.requiresOtp) {
+      if (res.success && !res.requiresOtp) {
+        setSignInStep('SUCCESS');
+        setInfoMsg(res.displayMessage || 'Admin login successful.');
+        setTimeout(() => onAuthorized(), 500);
+      } else if (res.requiresOtp) {
         setSignInStep('OTP');
         setOtpExpirySeconds(300); // 5 minutes fresh
         setResendCooldown(60);
@@ -329,17 +332,7 @@ export const AdminLoginGate: React.FC<AdminLoginGateProps> = ({
                   <Clock className="w-3.5 h-3.5 text-red-400" />
                   <span>Retry available in: {formatTimer(lockoutSeconds)}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetFailedAttempts();
-                    setLockoutSeconds(0);
-                    setErrorMsg(null);
-                  }}
-                  className="px-3 py-1 bg-red-800 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer border border-red-600 shadow-sm"
-                >
-                  Owner Unlock / Reset Lockout
-                </button>
+                <span className="text-[10px] text-red-300 font-semibold">Lockout cannot be reset from this screen.</span>
               </div>
             </div>
           </div>
