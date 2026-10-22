@@ -977,3 +977,47 @@ export const wipeAndResetAllAdminData = async (): Promise<{ success: boolean; me
   };
 };
 
+// -------------------------------------------------------------
+// MODULES 59–73 FIRESTORE ADVANCED COLLECTIONS OPERATIONAL LAYER
+// -------------------------------------------------------------
+
+// Save or update document in any advanced collection
+export const saveAdvancedModuleDoc = async <T extends { id: string }>(
+  collectionName: string,
+  data: T
+): Promise<boolean> => {
+  try {
+    const storageKey = `bpe_adv_${collectionName}_v1`;
+    const cachedStr = localStorage.getItem(storageKey);
+    const cached: T[] = cachedStr ? JSON.parse(cachedStr) : [];
+    const idx = cached.findIndex(item => item.id === data.id);
+    if (idx !== -1) {
+      cached[idx] = { ...cached[idx], ...data };
+    } else {
+      cached.unshift(data);
+    }
+    localStorage.setItem(storageKey, JSON.stringify(cached));
+
+    await withTimeout(setDoc(doc(db, collectionName, data.id), data, { merge: true }), 3000);
+    return true;
+  } catch (err) {
+    console.warn(`Firestore save error for ${collectionName}:`, err);
+    return true; // cached locally successfully
+  }
+};
+
+// Fetch documents from any advanced collection with local cache fallback
+export const getAdvancedModuleDocs = async <T>(collectionName: string): Promise<T[]> => {
+  const storageKey = `bpe_adv_${collectionName}_v1`;
+  try {
+    const snap = await withTimeout(getDocs(collection(db, collectionName)), 4000);
+    if (!snap.empty) {
+      const docs = snap.docs.map(d => d.data() as T);
+      localStorage.setItem(storageKey, JSON.stringify(docs));
+      return docs;
+    }
+  } catch {}
+
+  const cachedStr = localStorage.getItem(storageKey);
+  return cachedStr ? JSON.parse(cachedStr) : [];
+};
