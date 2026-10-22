@@ -1,21 +1,16 @@
-// src/services/razorpayService.ts
+// Razorpay's public Key ID must be supplied by deployment configuration.
+// Never hard-code a live payment identifier into a public repository.
 export const getRazorpayKeyId = (): string | null => {
-  // 1. Vercel se key uthane ki koshish karo
-  let key = import.meta.env.VITE_RAZORPAY_KEY_ID;
-
-  // 2. 🚨 TEMPORARY FALLBACK (Sirf tab chalega jab Vercel wali key na mile)
-  // ⚠️ Warning: Baad mein ise hata dena, kyunki yeh GitHub par public hai.
-  if (!key) {
-    console.warn("⚠️ Vercel se key nahi mili, temporary fallback use kar rahe hain.");
-    key = "rzp_live_Tlh9T3hoID4gmq"; 
-  }
+  const key = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
   if (typeof key !== "string" || key.trim() === "") {
-    console.error("❌ Razorpay Key ID is completely missing.");
+    console.error(
+      "Razorpay Key ID is missing. Configure VITE_RAZORPAY_KEY_ID in the deployment environment and rebuild."
+    );
     return null;
   }
-  
-  return key.trim(); 
+
+  return key.trim();
 };
 
 export const loadRazorpayScript = (): Promise<boolean> => {

@@ -3,6 +3,7 @@ import {
   getAuth, 
   GoogleAuthProvider, 
   signInWithPopup, 
+  signInWithEmailAndPassword,
   signInWithRedirect,
   getRedirectResult,
   signOut as firebaseSignOut,
@@ -143,6 +144,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 export {
   signInWithPopup,
+  signInWithEmailAndPassword,
   signInWithRedirect,
   getRedirectResult,
   firebaseSignOut,

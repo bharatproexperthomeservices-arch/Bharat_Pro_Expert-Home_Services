@@ -1,5 +1,3 @@
-import Razorpay from "razorpay";
-import crypto from "node:crypto";
 import { ADDON_PRICES, CONVENIENCE_FEE_INR, COUPON_CODES, GST_RATE, SERVICE_PRICES } from "./pricing-catalog.js";
 
 function json(res, status, body) {
@@ -115,25 +113,26 @@ export default async function handler(req, res) {
     return json(res, 200, { quote, currency: "INR", paymentMethod: "ONLINE" });
   }
 
-  const key_id = typeof process.env.RAZORPAY_KEY_ID === "string"
-    ? process.env.RAZORPAY_KEY_ID.trim()
-    : "";
-  const key_secret = typeof process.env.RAZORPAY_KEY_SECRET === "string"
-    ? process.env.RAZORPAY_KEY_SECRET.trim()
-    : "";
+  const appId = typeof process.env.CASHFREE_APP_ID === "string" ? process.env.CASHFREE_APP_ID.trim() : "";
+  const secretKey = typeof process.env.CASHFREE_SECRET_KEY === "string" ? process.env.CASHFREE_SECRET_KEY.trim() : "";
+  const mode = String(process.env.CASHFREE_ENV || "sandbox").trim().toLowerCase();
+  const publicAppUrl = String(process.env.PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "")).trim().replace(/\/$/, "");
   const missingVariables = [];
-  if (!key_id) missingVariables.push("RAZORPAY_KEY_ID");
-  if (!key_secret) missingVariables.push("RAZORPAY_KEY_SECRET");
+  if (!appId) missingVariables.push("CASHFREE_APP_ID");
+  if (!secretKey) missingVariables.push("CASHFREE_SECRET_KEY");
+  if (!["sandbox", "production"].includes(mode)) missingVariables.push("CASHFREE_ENV (sandbox or production)");
+  if (!publicAppUrl) missingVariables.push("PUBLIC_APP_URL");
   if (missingVariables.length > 0) {
-    console.error("Razorpay order endpoint missing environment variables:", missingVariables.join(", "));
+    console.error("Cashfree order endpoint missing configuration:", missingVariables.join(", "));
     return json(res, 503, {
-      error: "Payment gateway is not configured on this deployment. Check the listed Vercel Environment Variables and redeploy.",
+      error: "Cashfree is not configured on this deployment. Add the listed Vercel Environment Variables and redeploy.",
       code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
       missingVariables
     });
   }
-  const bookingId = typeof req.body?.bookingId === "string" ? req.body.bookingId.slice(0, 100) : "";
-  if (!/^bpe_[a-zA-Z0-9_-]{8,100}$/.test(bookingId)) {
+
+  const bookingId = typeof req.body?.bookingId === "string" ? req.body.bookingId.slice(0, 45) : "";
+  if (!/^bpe_[a-zA-Z0-9_-]{8,40}$/.test(bookingId)) {
     return json(res, 400, { error: "Invalid booking reference. Refresh the booking and retry.", code: "INVALID_BOOKING_REFERENCE" });
   }
 
@@ -146,38 +145,76 @@ export default async function handler(req, res) {
     });
   }
 
-  try {
-    const razorpay = new Razorpay({ key_id, key_secret });
-    const amountPaise = quote.total * 100;
-    const order = await razorpay.orders.create({
-      amount: amountPaise,
-      currency: "INR",
-      receipt: `bpe_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`,
-      notes: {
-        serviceId: quote.serviceId,
-        bookingId,
-        subtotalInr: String(quote.subtotal),
-        gstInr: String(quote.gst),
-        convenienceFeeInr: String(quote.convenienceFee),
-        discountInr: String(quote.discount)
-      }
-    });
+  const customerPhone = String(req.body?.customerPhone || "").replace(/\D/g, "").slice(-10);
+  if (!/^\d{10}$/.test(customerPhone)) {
+    return json(res, 400, { error: "Enter a valid 10-digit mobile number to continue with payment.", code: "INVALID_CUSTOMER_PHONE" });
+  }
+  const customerName = String(req.body?.customerName || "Bharat Pro Expert Customer").trim().slice(0, 100) || "Customer";
+  const customerEmail = String(req.body?.customerEmail || "").trim().slice(0, 100);
+  const baseUrl = mode === "production" ? "https://api.cashfree.com/pg" : "https://sandbox.cashfree.com/pg";
 
-    if (!order?.id || !Number.isSafeInteger(order.amount) ||
-        order.amount !== amountPaise || order.currency !== "INR") {
-      console.error("Razorpay returned an order that did not match the server-calculated amount/currency.");
-      return json(res, 502, { error: "Razorpay returned an invalid order. Please retry.", code: "INVALID_GATEWAY_ORDER" });
+  try {
+    const response = await fetch(`${baseUrl}/orders`, {
+      method: "POST",
+      headers: {
+        "x-client-id": appId,
+        "x-client-secret": secretKey,
+        "x-api-version": "2025-01-01",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        order_id: bookingId,
+        order_amount: Number(quote.total.toFixed(2)),
+        order_currency: "INR",
+        customer_details: {
+          customer_id: bookingId.slice(0, 50),
+          customer_name: customerName,
+          customer_email: customerEmail || "customer@bharatproexpert.com",
+          customer_phone: customerPhone
+        },
+        order_meta: {
+          return_url: `${publicAppUrl}/?payment=return&order_id={order_id}`
+        },
+        order_note: `Bharat Pro Expert booking - ${quote.serviceId}`,
+        order_tags: {
+          bookingId,
+          serviceId: quote.serviceId,
+          subtotalInr: String(quote.subtotal),
+          gstInr: String(quote.gst),
+          convenienceFeeInr: String(quote.convenienceFee),
+          discountInr: String(quote.discount)
+        }
+      })
+    });
+    const order = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      console.error("Cashfree order creation failed:", response.status, order?.message || order?.type || "provider_error");
+      return json(res, 502, {
+        error: response.status === 401
+          ? "Cashfree rejected the server credentials. Check that the App ID and Secret Key belong to the selected environment."
+          : "Cashfree could not create the order. Check Vercel Function Logs and retry.",
+        code: "CASHFREE_ORDER_CREATION_FAILED"
+      });
     }
-    return json(res, 201, { id: order.id, amount: order.amount, currency: order.currency, keyId: key_id, quote });
+    if (order.order_id !== bookingId || !order.payment_session_id ||
+        order.order_currency !== "INR" || Number(order.order_amount) !== quote.total) {
+      console.error("Cashfree returned an order that did not match the server-calculated amount/currency.");
+      return json(res, 502, { error: "Cashfree returned an invalid order. Please retry.", code: "INVALID_GATEWAY_ORDER" });
+    }
+    return json(res, 201, {
+      order_id: order.order_id,
+      payment_session_id: order.payment_session_id,
+      amount: quote.total,
+      currency: "INR",
+      environment: mode,
+      quote
+    });
   } catch (error) {
-    const providerStatus = error?.statusCode || error?.status;
-    const providerMessage = error?.error?.description || error?.description || error?.message || "";
-    console.error("Razorpay order creation failed:", providerStatus || "provider_error", providerMessage);
+    console.error("Cashfree order creation failed:", error?.message || "Unknown error");
     return json(res, 502, {
-      error: providerStatus === 401 || /authentication|authorization|key_id|key_secret|credentials/i.test(providerMessage)
-        ? "Razorpay rejected the server credentials. Check that RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET belong to the same TEST or LIVE mode."
-        : "Razorpay could not create the order. Check Vercel Function Logs for the provider error, then retry.",
-      code: "RAZORPAY_ORDER_CREATION_FAILED"
+      error: "Unable to connect to Cashfree. Please retry in a moment.",
+      code: "CASHFREE_ORDER_CREATION_FAILED"
     });
   }
 }

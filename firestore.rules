@@ -8,10 +8,9 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && (
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true
-      );
+      return isAuthenticated() &&
+        request.auth.token.email == 'bharatproexperthomeservices@gmail.com' &&
+        request.auth.token.email_verified == true;
     }
 
     function isOwner(userId) {
