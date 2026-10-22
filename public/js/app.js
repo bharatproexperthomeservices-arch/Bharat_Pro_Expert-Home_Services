@@ -515,70 +515,83 @@
       location.hash = '#/booking/' + id;
     }
 
-    if (co.pay === 'upi' && window.Razorpay) {
-      toast('Connecting payment gateway...');
-      fetch('/api/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: S.cart.map(function(l) { return { id: l.id, qty: l.qty }; }),
-          serviceId: primaryItem.id || 'deep-1bhk',
-          serviceName: primaryItem.name || '1 BHK Full Home Deep Cleaning',
-          bookingId: bookingRef,
-          clientTotal: c.total,
-          couponCode: S.coupon && !c.couponErr ? S.coupon : null,
-          paymentMethod: 'ONLINE'
-        })
+    if (co.pay === 'upi') {
+      toast('Connecting Cashfree payment gateway...');
+      function ensureCashfreeSdk() {
+        return new Promise(function(resolve, reject) {
+          if (window.Cashfree) return resolve(true);
+          var existing = document.querySelector('script[src="https://sdk.cashfree.com/js/v3/cashfree.js"]');
+          var script = existing || document.createElement('script');
+          script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+          script.onload = function() { window.Cashfree ? resolve(true) : reject(new Error('Cashfree SDK failed to load')); };
+          script.onerror = function() { reject(new Error('Could not load Cashfree Checkout SDK')); };
+          if (!existing) document.head.appendChild(script);
+        });
+      }
+
+      ensureCashfreeSdk()
+      .then(function() {
+        return fetch('/api/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: S.cart.map(function(l) { return { id: l.id, qty: l.qty }; }),
+            serviceId: primaryItem.id || 'deep-1bhk',
+            serviceName: primaryItem.name || '1 BHK Full Home Deep Cleaning',
+            bookingId: bookingRef,
+            clientTotal: c.total,
+            couponCode: S.coupon && !c.couponErr ? S.coupon : null,
+            customerName: b.address.name,
+            customerPhone: b.address.phone,
+            customerEmail: (S.user && S.user.email) || '',
+            paymentMethod: 'ONLINE',
+            currency: 'INR'
+          })
+        });
       })
-      .then(function (res) { return res.json(); })
-      .then(function (orderData) {
-        if (!orderData.id) {
-          alert('Payment gateway error: ' + (orderData.error || 'Failed to create order'));
-          return;
-        }
-        var options = {
-          key: orderData.keyId || orderData.key || window.RAZORPAY_KEY_ID || 'rzp_test_dummy',
-          amount: orderData.amount,
-          currency: orderData.currency || 'INR',
-          name: 'Bharat Pro Expert',
-          description: 'Payment for ' + (primaryItem.name || 'Cleaning Service'),
-          order_id: orderData.id,
-          prefill: {
-            name: b.address.name,
-            contact: b.address.phone
-          },
-          handler: function (paymentResp) {
-            fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                bookingId: bookingRef,
-                razorpay_order_id: paymentResp.razorpay_order_id,
-                razorpay_payment_id: paymentResp.razorpay_payment_id,
-                razorpay_signature: paymentResp.razorpay_signature
-              })
-            })
-            .then(function (vRes) { return vRes.json(); })
-            .then(function (vData) {
-              if (vData.verified) {
-                b.paymentStatus = 'PAID';
-                b.paymentId = paymentResp.razorpay_payment_id;
-                saveAndRedirect(b);
-              } else {
-                alert('Payment verification failed: ' + (vData.error || 'Invalid signature'));
-              }
-            })
-            .catch(function (err) {
-              alert('Payment verification request failed. Please contact support.');
-            });
-          },
-          theme: { color: '#007AFF' }
-        };
-        var rzp = new window.Razorpay(options);
-        rzp.open();
+      .then(function(res) {
+        return res.json().then(function(data) {
+          if (!res.ok || !data.payment_session_id || !data.order_id) {
+            throw new Error(data.error || 'Cashfree failed to create the payment session');
+          }
+          return data;
+        });
       })
-      .catch(function (err) {
-        alert('Could not initiate online payment: ' + err.message);
+      .then(function(orderData) {
+        var cashfree = window.Cashfree({ mode: orderData.environment === 'production' ? 'production' : 'sandbox' });
+        return cashfree.checkout({
+          paymentSessionId: orderData.payment_session_id,
+          redirectTarget: '_modal'
+        }).then(function(checkoutResult) {
+          if (checkoutResult && checkoutResult.error && !checkoutResult.paymentDetails) {
+            throw new Error(checkoutResult.error.message || 'Payment was cancelled or failed');
+          }
+          return fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bookingId: bookingRef,
+              order_id: orderData.order_id,
+              expectedAmount: orderData.amount
+            })
+          });
+        });
+      })
+      .then(function(res) {
+        return res.json().then(function(data) {
+          if (!res.ok || !data.verified) {
+            throw new Error(data.error || 'Cashfree could not confirm a successful payment');
+          }
+          return data;
+        });
+      })
+      .then(function(verified) {
+        b.paymentStatus = 'PAID';
+        b.paymentId = verified.payment_id || verified.order_id;
+        saveAndRedirect(b);
+      })
+      .catch(function(err) {
+        alert('Cashfree payment error: ' + (err.message || 'Please retry or contact support.'));
       });
     } else {
       saveAndRedirect(b);
