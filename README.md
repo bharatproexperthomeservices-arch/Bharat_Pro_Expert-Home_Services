@@ -21,7 +21,7 @@ Bookings/login/OTP are demo (saved in browser localStorage). Connect Firebase (A
 
 ## Cashfree Payment Gateway (Vercel)
 
-The primary React booking flow uses Cashfree Hosted Checkout. Create orders and verify successful payments through the server-side Vercel API routes; never expose the Cashfree Secret Key in frontend variables such as `VITE_*` or `NEXT_PUBLIC_*`.
+The deployed storefront booking flow uses Cashfree Hosted Checkout. Create orders and verify successful payments through the server-side Vercel API routes; never expose the Cashfree Secret Key in frontend variables such as `VITE_*` or `NEXT_PUBLIC_*`.
 
 Set these in **Vercel → Project → Settings → Environment Variables** for the deployment environments you use:
 
