@@ -1,5 +1,8 @@
 import { 
   db, 
+  auth,
+  signInWithEmailAndPassword,
+  firebaseSignOut,
   collection, 
   doc, 
   setDoc, 
@@ -24,12 +27,12 @@ const STORAGE_REGISTERED_ADMINS_KEY = 'bharat_pro_registered_admins_v1';
 
 // Production Master Security Key (Step 1 Credential)
 // Strictly enforced for the single Owner Admin account
-export const ADMIN_MASTER_PASSPHRASE = 'BharatPro@Security2026';
+// Passwords are managed only by Firebase Authentication; never store them in source code.
+const ADMIN_MASTER_PASSPHRASE = '';
 
 // Authorized Owner Admin Email Addresses
 export const AUTHORIZED_OWNER_EMAILS = [
-  'bharatproexperthomeservices@gmail.com',
-  'bharatproexpert@gmail.com'
+  'bharatproexperthomeservices@gmail.com'
 ];
 
 /**
@@ -110,7 +113,7 @@ export const enforceSingleOwnerAdminOnly = async (): Promise<void> => {
 enforceSingleOwnerAdminOnly().catch(() => {});
 
 // Lockout configuration (Brute-force protection)
-const MAX_FAILED_ATTEMPTS = 4;
+const MAX_FAILED_ATTEMPTS = 2;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes lockout
 const OTP_EXPIRY_DURATION_MS = 5 * 60 * 1000; // 5 minutes strictly
 
@@ -193,13 +196,12 @@ export const resetFailedAttempts = () => {
 export const initiateAdminLoginStep1 = async (
   email: string,
   passphrase: string
-): Promise<{ 
-  success: boolean; 
-  displayMessage: string; 
-  requiresOtp: boolean; 
-  error?: string 
+): Promise<{
+  success: boolean;
+  displayMessage: string;
+  requiresOtp: boolean;
+  error?: string;
 }> => {
-  // Check lockout status
   const lockout = getAdminLockoutStatus();
   if (lockout.isLocked) {
     const mins = Math.floor(lockout.remainingSeconds / 60);
@@ -208,77 +210,63 @@ export const initiateAdminLoginStep1 = async (
       success: false,
       requiresOtp: false,
       displayMessage: '',
-      error: `Security Lockout: Too many failed attempts. Try again in ${mins}m ${secs}s.`
+      error: `Security lockout: try again in ${mins}m ${secs}s.`
     };
   }
 
   const cleanEmail = email.trim().toLowerCase();
-  const cleanPass = passphrase.trim();
-
-  // STRICT REQUIREMENT: Only the single fixed Owner Admin email is permitted.
   if (!isOwnerEmail(cleanEmail)) {
-    await recordFailedAttempt();
+    const result = await recordFailedAttempt();
     return {
       success: false,
       requiresOtp: false,
       displayMessage: '',
-      error: 'Access Denied: Only the verified Owner Admin account is authorized to log in.'
+      error: result.lockedNow
+        ? 'Two failed login attempts reached. Login is locked for 15 minutes.'
+        : 'Access denied. Only the authorized Owner Admin email can sign in.'
     };
   }
 
-  // STRICT REQUIREMENT: Verify fixed Owner Admin Master Security Key
-  const passwordMatches = cleanPass === ADMIN_MASTER_PASSPHRASE;
-  if (!passwordMatches) {
-    const res = await recordFailedAttempt();
-    if (res.lockedNow) {
+  if (!passphrase) {
+    return { success: false, requiresOtp: false, displayMessage: '', error: 'Enter your password.' };
+  }
+
+  try {
+    const credential = await signInWithEmailAndPassword(auth, cleanEmail, passphrase);
+    if (credential.user.email?.trim().toLowerCase() !== 'bharatproexperthomeservices@gmail.com') {
+      await firebaseSignOut(auth);
+      const result = await recordFailedAttempt();
       return {
         success: false,
         requiresOtp: false,
         displayMessage: '',
-        error: 'Security Lockout: Maximum failed attempts exceeded. Portal locked for 15 minutes.'
+        error: result.lockedNow ? 'Two failed login attempts reached. Login is locked for 15 minutes.' : 'Access denied.'
       };
     }
+
+    resetFailedAttempts();
+    saveAdminSession('bharatproexperthomeservices@gmail.com');
     return {
-      success: false,
+      success: true,
       requiresOtp: false,
-      displayMessage: '',
-      error: 'Invalid Owner Admin security key / passphrase. Please try again.'
+      displayMessage: 'Owner Admin authentication successful.'
     };
+  } catch (error: any) {
+    const result = await recordFailedAttempt();
+    const code = typeof error?.code === 'string' ? error.code : '';
+    if (result.lockedNow) {
+      return {
+        success: false,
+        requiresOtp: false,
+        displayMessage: '',
+        error: 'Two failed login attempts reached. Login is locked for 15 minutes on this browser. Firebase may also temporarily throttle repeated sign-in failures.'
+      };
+    }
+    if (code === 'auth/too-many-requests') {
+      return { success: false, requiresOtp: false, displayMessage: '', error: 'Firebase temporarily blocked sign-in attempts. Please wait before trying again.' };
+    }
+    return { success: false, requiresOtp: false, displayMessage: '', error: 'Invalid email or password.' };
   }
-
-  // Generate secure 6-digit OTP
-  const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date(Date.now() + OTP_EXPIRY_DURATION_MS).toISOString(); // Strictly 5 minutes
-
-  const otpPayload = {
-    otp: generatedOtp,
-    createdAt: new Date().toISOString(),
-    expiresAt,
-    isUsed: false,
-    ownerEmail: cleanEmail
-  };
-
-  // Store in Firestore and Session
-  try {
-    await setDoc(doc(db, 'admin_otps', 'latest_admin_otp'), otpPayload);
-  } catch (err) {
-    console.warn('Firestore admin otp write notice:', err);
-  }
-
-  sessionStorage.setItem(STORAGE_ACTIVE_OTP_KEY, JSON.stringify(otpPayload));
-
-  // Send real email to authorized owner
-  try {
-    await sendAdminLoginOtpEmail(generatedOtp);
-  } catch (err) {
-    console.warn('Email dispatch notice:', err);
-  }
-
-  return {
-    success: true,
-    requiresOtp: true,
-    displayMessage: `A 6-digit 2FA verification code has been dispatched to ${cleanEmail}.`
-  };
 };
 
 /**
