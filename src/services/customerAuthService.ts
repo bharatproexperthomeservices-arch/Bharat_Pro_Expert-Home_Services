@@ -376,6 +376,7 @@ export const verifyCustomerMobileOtp = async (
       phone: formattedPhone,
       avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${cleanPhone.slice(-4)}&backgroundColor=0B2A4A&textColor=D4A24E`,
       role: 'customer',
+      blocked: false,
       referralCode,
       walletBalance: 100, // ₹100 Welcome credit
       mobileVerified: true,
@@ -488,6 +489,7 @@ export const handleGoogleCustomerAuth = async (
       phone: fbUser.phoneNumber || '',
       avatarUrl: fbUser.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fbUser.displayName || 'C')}&backgroundColor=0B2A4A&textColor=D4A24E`,
       role: 'customer',
+      blocked: false,
       referralCode,
       walletBalance: 100, // ₹100 Welcome credit
       mobileVerified: !!fbUser.phoneNumber,

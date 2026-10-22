@@ -647,6 +647,7 @@ export interface UserProfile {
   phone: string;
   avatarUrl?: string;
   role: 'customer' | 'partner' | 'admin';
+  blocked?: boolean;
   referralCode: string;
   referredBy?: string;
   walletBalance: number;
