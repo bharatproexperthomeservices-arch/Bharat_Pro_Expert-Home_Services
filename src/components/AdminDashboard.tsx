@@ -40,6 +40,7 @@ import { AdminLiveOperationsTab } from './admin/AdminLiveOperationsTab';
 import { AdminAiDeveloperTab } from './admin/AdminAiDeveloperTab';
 import { AdminAutomationAgentTab } from './admin/AdminAutomationAgentTab';
 import { AdminAiTaskQueueTab } from './admin/AdminAiTaskQueueTab';
+import { AdminSystemReadiness } from './admin/AdminSystemReadiness';
 import { ArrowLeft, RefreshCw, LogOut } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -440,7 +441,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {activeTab === 'CMS' && <AdminCustomerAndCMS hubs={hubs} initialTab="CMS" onAuditLog={handleAuditLog} />}
 
           {activeTab === 'GOVERNANCE' && (
-            <AdminGovernanceAndAudit bookings={bookings} partners={partners} hubs={hubs} onAuditLog={handleAuditLog} />
+            <div className="space-y-6">
+              <AdminSystemReadiness bookings={bookings} partners={partners} hubs={hubs} services={services} loading={loading} />
+              <AdminGovernanceAndAudit bookings={bookings} partners={partners} hubs={hubs} onAuditLog={handleAuditLog} />
+            </div>
           )}
 
           {activeTab === 'LIVE_OPS' && <AdminLiveOperationsTab bookings={bookings} partners={partners} />}
