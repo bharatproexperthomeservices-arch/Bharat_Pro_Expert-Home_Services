@@ -21,15 +21,14 @@ const STORAGE_ACTIVE_OTP_KEY = 'bharat_pro_active_admin_otp_v2';
 const STORAGE_FAILED_ATTEMPTS_KEY = 'bharat_pro_admin_failed_attempts';
 const STORAGE_LOCKOUT_EXPIRY_KEY = 'bharat_pro_admin_lockout_until';
 const STORAGE_REGISTERED_ADMINS_KEY = 'bharat_pro_registered_admins_v1';
+const STORAGE_LAST_LOGIN_ATTEMPT_TIME = 'bharat_pro_admin_last_login_attempt_ts';
 
-// Production Master Security Key (Step 1 Credential)
-// Strictly enforced for the single Owner Admin account
-export const ADMIN_MASTER_PASSPHRASE = 'BharatPro@Security2026';
+// Production Master Security Credentials
+export const ADMIN_MASTER_PASSPHRASE = 'Bharatproexperthomeservices@9319953137';
 
 // Authorized Owner Admin Email Addresses
 export const AUTHORIZED_OWNER_EMAILS = [
-  'bharatproexperthomeservices@gmail.com',
-  'bharatproexpert@gmail.com'
+  'bharatproexperthomeservices@gmail.com'
 ];
 
 /**
@@ -199,6 +198,20 @@ export const initiateAdminLoginStep1 = async (
   requiresOtp: boolean; 
   error?: string 
 }> => {
+  // Check 1-minute rate limit (60 seconds restriction per attempt)
+  const lastAttemptTs = parseInt(localStorage.getItem(STORAGE_LAST_LOGIN_ATTEMPT_TIME) || '0', 10);
+  const now = Date.now();
+  const timeSinceLastAttempt = Math.floor((now - lastAttemptTs) / 1000);
+  if (timeSinceLastAttempt < 60) {
+    const cooldownSecs = 60 - timeSinceLastAttempt;
+    return {
+      success: false,
+      requiresOtp: false,
+      displayMessage: '',
+      error: `Security Limit: 1 मिनट में केवल 1 बार लॉगिन प्रयास की अनुमति है। कृपया ${cooldownSecs} सेकंड प्रतीक्षा करें। (Limit 1 login per minute)`
+    };
+  }
+
   // Check lockout status
   const lockout = getAdminLockoutStatus();
   if (lockout.isLocked) {
@@ -211,6 +224,9 @@ export const initiateAdminLoginStep1 = async (
       error: `Security Lockout: Too many failed attempts. Try again in ${mins}m ${secs}s.`
     };
   }
+
+  // Record attempt timestamp for 1-minute rate limiting
+  localStorage.setItem(STORAGE_LAST_LOGIN_ATTEMPT_TIME, now.toString());
 
   const cleanEmail = email.trim().toLowerCase();
   const cleanPass = passphrase.trim();
