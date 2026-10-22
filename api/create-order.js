@@ -1,5 +1,3 @@
-import Razorpay from "razorpay";
-import crypto from "node:crypto";
 import { ADDON_PRICES, CONVENIENCE_FEE_INR, COUPON_CODES, GST_RATE, SERVICE_PRICES } from "./pricing-catalog.js";
 
 function json(res, status, body) {
