@@ -655,28 +655,40 @@
 
 
 
+  var ADMIN_EMAIL = 'bharatproexperthomeservices@gmail.com';
+  var ADMIN_API_KEY = 'AIzaSyB1GbzmsTs4Uspa4m8h-zYCNbqupfI-L9s';
+  function adminSession() {
+    try {
+      var session = JSON.parse(sessionStorage.getItem('bpe_admin_session') || 'null');
+      if (!session || session.email !== ADMIN_EMAIL || !session.idToken || !session.expiry || session.expiry < Date.now()) return null;
+      return session;
+    } catch (e) { return null; }
+  }
+  function adminLoginView() {
+    var lock = load('bpe_admin_lockout', { count: 0, until: 0 });
+    var locked = lock.until && lock.until > Date.now();
+    var remaining = locked ? Math.ceil((lock.until - Date.now()) / 60000) : 0;
+    return '<div class="admin-panel"><div class="admin-header"><h1>Bharat Pro Expert — Admin Login</h1><p>Authorized owner access only</p></div>' +
+      '<form class="detail__block" data-form="admin-login" novalidate>' +
+      (locked ? '<div class="badge badge--red">Too many attempts. Try again in about ' + remaining + ' minute(s).</div>' : '') +
+      '<label class="field"><span class="field__label">Admin email</span><input class="field__input" type="email" name="email" autocomplete="username" required value="' + ADMIN_EMAIL + '" readonly></label>' +
+      '<label class="field"><span class="field__label">Password</span><input class="field__input" type="password" name="password" autocomplete="current-password" required ' + (locked ? 'disabled' : '') + '></label>' +
+      '<p class="card__meta">Sign-in is verified by Firebase Authentication. Password is not stored in this website code.</p>' +
+      '<button type="submit" class="btn btn--primary btn--block" ' + (locked ? 'disabled' : '') + '>Secure Admin Login</button><p class="field__err" data-admin-error role="alert"></p></form></div>';
+  }
+
   function viewAdmin(subPage) {
     subPage = subPage || 'dashboard';
+    if (!adminSession()) return adminLoginView();
 
-    var partners = load('bpe_partners', [
-      { id: 'PTN-2024-0001', name: 'Rajesh Kumar', phone: '9876543210', city: 'Gurgaon', skill: 'Home Deep Cleaning', exp: '5', status: 'Active', kyc: 'Approved', jobs: 142, rating: 4.9, earnings: 48500 },
-      { id: 'PTN-2024-0002', name: 'Amit Singh', phone: '9812345678', city: 'Delhi NCR', skill: 'Bathroom Cleaning', exp: '3', status: 'Active', kyc: 'Pending', jobs: 58, rating: 4.8, earnings: 19200 },
-      { id: 'PTN-2024-0003', name: 'Sunil Sharma', phone: '9711223344', city: 'Noida', skill: 'Kitchen Cleaning', exp: '4', status: 'Active', kyc: 'Approved', jobs: 89, rating: 4.7, earnings: 31000 },
-      { id: 'PTN-2024-0004', name: 'Pooja Verma', phone: '9654321876', city: 'Gurgaon', skill: 'Sofa & Carpet', exp: '2', status: 'Suspended', kyc: 'Rejected', jobs: 12, rating: 4.2, earnings: 4500 }
-    ]);
-
-    var customers = load('bpe_customers', [
-      { id: 'CUST-101', name: 'Priya Sharma', phone: '9871100223', city: 'Gurgaon', spent: 12499, bookings: 4, status: 'Active' },
-      { id: 'CUST-102', name: 'Rohan Verma', phone: '9810055443', city: 'Noida', spent: 5999, bookings: 2, status: 'Active' },
-      { id: 'CUST-103', name: 'Ananya Gupta', phone: '9711009988', city: 'Delhi NCR', spent: 18999, bookings: 6, status: 'Active' }
-    ]);
-
-    var totalRev = S.bookings.reduce(function(acc, b) { return acc + (b.pricing ? b.pricing.total : 0); }, 245000);
+    var partners = load('bpe_partners', []);
+    var customers = load('bpe_customers', []);
+    var totalRev = S.bookings.reduce(function(acc, b) { return acc + (b.pricing ? b.pricing.total : 0); }, 0);
 
     var navTabs = [
       ['dashboard', '📊 Dashboard'],
       ['partners', '🤝 Partners (' + partners.length + ')'],
-      ['bookings', '📋 Bookings (' + (S.bookings.length + 128) + ')'],
+      ['bookings', '📋 Bookings (' + S.bookings.length + ')'],
       ['customers', '👤 Customers (' + customers.length + ')'],
       ['finance', '💰 Finance & Payouts'],
       ['services', '🛠️ Services (' + D.services.length + ')']
@@ -690,12 +702,12 @@
       contentHtml = '<div class="kpi-grid">' +
         '<div class="kpi-card"><h3>Total Revenue</h3><div class="kpi-val">' + inr(totalRev) + '</div><span class="kpi-sub">⬆ 18.4% vs last month</span></div>' +
         '<div class="kpi-card"><h3>Active Partners</h3><div class="kpi-val">' + partners.length + '</div><span class="kpi-sub">KYC Verified & Online</span></div>' +
-        '<div class="kpi-card"><h3>Total Bookings</h3><div class="kpi-val">' + (S.bookings.length + 128) + '</div><span class="kpi-sub">Completed & Live</span></div>' +
-        '<div class="kpi-card"><h3>Avg Customer Rating</h3><div class="kpi-val">4.85 ★</div><span class="kpi-sub">Based on 1,420 reviews</span></div>' +
+        '<div class="kpi-card"><h3>Total Bookings</h3><div class="kpi-val">' + S.bookings.length + '</div><span class="kpi-sub">Bookings recorded in this browser</span></div>' +
+        '<div class="kpi-card"><h3>Customer Rating</h3><div class="kpi-val">—</div><span class="kpi-sub">No verified rating data connected</span></div>' +
         '</div>' +
         '<div class="admin-section"><h2>Marketplace Activity Overview</h2>' +
         '<p style="color:var(--text-muted);margin-bottom:12px;">Real-time Urban Company style operational monitoring across Gurgaon, Noida, & Delhi NCR.</p>' +
-        '<div class="chips"><span class="badge badge--green">Live System Health: 100% OK</span><span class="badge">Razorpay Gateway: Active</span><span class="badge">PostgreSQL/Prisma: Synced</span></div>' +
+        '<div class="chips"><span class="badge">Customer bookings: ' + S.bookings.length + '</span><span class="badge">Partner records: ' + partners.length + '</span><span class="badge">Customer records: ' + customers.length + '</span></div>' +
         '</div>';
     } else if (subPage === 'partners') {
       var partnersRows = partners.map(function(p) {
@@ -754,7 +766,7 @@
     }
 
     return '<div class="admin-panel">' +
-      '<div class="admin-header"><h1>Urban Company Admin Marketplace Control</h1><p>Full operational control panel for partners, bookings, services & payouts</p></div>' +
+      '<div class="admin-header"><h1>Bharat Pro Expert — Admin Panel</h1><p>Owner dashboard · ' + esc(ADMIN_EMAIL) + '</p><button type="button" class="btn btn--ghost btn--sm" data-act="admin-logout">Log out</button></div>' +
       '<div class="chips" style="margin-bottom:20px;">' + navTabs + '</div>' +
       contentHtml +
       '</div>';
@@ -922,6 +934,7 @@
     setlang: function (el) { setLang(el.dataset.v); },
     theme: function () { S.theme = isDark() ? 'light' : 'dark'; save('bpe_theme', S.theme); applyTheme(); refresh(); },
     login: function () { drafts.login = {}; drafts.errs = {}; openSheet('login', { step: 'phone' }); },
+    'admin-logout': function () { sessionStorage.removeItem('bpe_admin_session'); toast('Admin logged out'); location.hash = '#/'; },
     logout: function () { S.user = null; save('bpe_user', null); toast(t('loggedOut')); refresh(); },
     close: function () { closeSheet(); },
     'co-date': function (el) { drafts.co.date = el.dataset.v; if (slotPast(drafts.co.slot, drafts.co.date)) drafts.co.slot = ''; refresh(); },
@@ -1011,6 +1024,31 @@
       var prev = S.user && S.user.phone === drafts.login.phone ? S.user.name : '';
       S.user = { phone: drafts.login.phone, name: prev || '' }; save('bpe_user', S.user);
       drafts.login = {}; drafts.errs = {}; drafts.co = {}; closeSheet(); toast(t('loggedIn')); refresh();
+    } else if (kind === 'admin-login') {
+      var lock = load('bpe_admin_lockout', { count: 0, until: 0 });
+      if (lock.until && lock.until > Date.now()) { toast('Admin login temporarily locked'); refresh(); return; }
+      var pass = String(f.elements.password.value || '');
+      var errorBox = $('[data-admin-error]', f);
+      if (!pass) { if (errorBox) errorBox.textContent = 'Enter your password.'; return; }
+      var submitButton = f.querySelector('button[type="submit"]');
+      if (submitButton) { submitButton.disabled = true; submitButton.textContent = 'Verifying…'; }
+      fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + ADMIN_API_KEY, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: ADMIN_EMAIL, password: pass, returnSecureToken: true })
+      }).then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+      .then(function (result) {
+        if (!result.ok || !result.data || result.data.email !== ADMIN_EMAIL || !result.data.idToken || result.data.emailVerified !== true) {
+          var next = { count: (lock.count || 0) + 1, until: 0 };
+          if (next.count >= 2) { next.count = 2; next.until = Date.now() + 15 * 60 * 1000; }
+          save('bpe_admin_lockout', next);
+          var message = result.data && result.data.error && result.data.error.message === 'EMAIL_NOT_FOUND' ? 'Admin account not found in Firebase.' : 'Login failed. Check the authorized account and verified email.';
+          if (next.until) message = 'Two failed attempts. Login locked for 15 minutes.';
+          toast(message); refresh(); return;
+        }
+        sessionStorage.setItem('bpe_admin_session', JSON.stringify({ email: ADMIN_EMAIL, idToken: result.data.idToken, expiry: Date.now() + (Number(result.data.expiresIn || 3600) * 1000) }));
+        save('bpe_admin_lockout', { count: 0, until: 0 });
+        toast('Admin login successful'); refresh();
+      }).catch(function () { toast('Unable to reach Firebase. Check your connection.'); refresh(); });
     } else if (kind === 'checkout') {
       if (!S.user) { openSheet('login', { step: 'phone' }); return; }
       if (validateCheckout()) { placeOrder(); return; }
