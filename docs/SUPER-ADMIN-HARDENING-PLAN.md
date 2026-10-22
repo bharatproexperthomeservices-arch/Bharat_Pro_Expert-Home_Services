@@ -59,3 +59,10 @@ These are source-code findings, not claims that an exploit or live production fa
 ### Validation evidence
 - For commit `e636dcd34701185e35c6e86d09ac07487f060c7e`, GitHub Actions reported the TypeScript validation and production build job as successful, and the Vercel Preview Comments check as successful.
 - These checks validate the current build workflow only; they do not prove live Firebase permissions, real payment capture, Cashfree readiness, or production deployment health.
+
+
+### Follow-up fix (2026-10-22)
+- Removed the hard-coded Razorpay live Key ID fallback from `src/services/razorpayService.ts`. Checkout now requires `VITE_RAZORPAY_KEY_ID` to be configured at build/deployment time and returns a clear missing-configuration error rather than silently using a repository-embedded live identifier.
+- This change was committed to `feat/super-admin-hardening` as `23ac1936e0260b520faff9e2f57195b8fab87b9d`.
+- The latest confirmed successful CI runs were for the prior documentation commit; the new payment-key change still needs its own CI run verified.
+- Admin authentication remains a separate unresolved security issue. Do not treat this branch as production-ready until the browser-side passphrase and OTP flow are migrated to trusted server-side verification and regression-tested.
