@@ -31,3 +31,31 @@ This work is being developed on `feat/super-admin-hardening`. Do not remove the 
 
 ## Current status
 This branch contains an initial, additive Admin readiness feature. It is not a claim that all 73 modules, integrations, security reviews, tests, or production deployment are complete.
+
+
+## Audit findings from the next source review (2026-10-22)
+
+These are source-code findings, not claims that an exploit or live production failure was observed.
+
+### Critical — Admin credential is embedded in browser-delivered source
+- `src/services/adminAuthService.ts` contains a hard-coded master passphrase and compares user input against it in client-side code.
+- `getRegisteredAdmins()` also returns a passphrase as part of a client-side account object.
+- Browser-delivered credentials cannot be treated as secret. A safe fix must move verification to a trusted server/identity provider and avoid locking out the legitimate owner during migration. Do not merely replace this value with a `VITE_` variable; that would still expose it.
+- Until that migration is complete, treat the existing credential as exposed and rotate it through a secure server-side flow.
+
+### High — Payment gateway scope does not match the requested Cashfree integration
+- The root API files currently use Razorpay (`api/create-order.js`, `api/verify-payment.js`) and environment variables named `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET`.
+- A repository search did not find a Cashfree implementation in the default branch. Cashfree must be implemented as a separate, server-side provider flow, with sandbox tests and webhook/signature verification before switching production traffic.
+- Do not place any Cashfree secret in browser code or commit it to GitHub.
+
+### High — Firestore rules need emulator-backed negative tests
+- `firestore.rules` allows any authenticated user to read and write `otp_verifications`; this should be narrowed to a trusted server-only verification flow.
+- Admin access is based on a client-visible Firestore document lookup; confirm that users cannot create or modify their own `admins/{uid}` authorization document under the deployed rules.
+- Several collection rules use broad authenticated reads or writes. Build an explicit collection-by-collection access matrix and test allowed and denied cases with the Firebase Emulator before tightening rules in production.
+
+### High — Admin audit events are not durable
+- `AdminDashboard.tsx` currently writes audit information to `console.log`. This is not a protected, durable audit trail and must be replaced by a trusted backend write with actor/action/target/timestamp and authorization checks.
+
+### Validation evidence
+- For commit `e636dcd34701185e35c6e86d09ac07487f060c7e`, GitHub Actions reported the TypeScript validation and production build job as successful, and the Vercel Preview Comments check as successful.
+- These checks validate the current build workflow only; they do not prove live Firebase permissions, real payment capture, Cashfree readiness, or production deployment health.
