@@ -1,0 +1,17 @@
+{
+  "projects": {
+    "default": "bharatproexpert-homeservices"
+  },
+  "targets": {
+    "bharatproexpert-homeservices": {
+      "hosting": {
+        "customer": [
+          "bharatproexpert-homeservices"
+        ],
+        "admin": [
+          "bharatproexpert-admin"
+        ]
+      }
+    }
+  }
+}
