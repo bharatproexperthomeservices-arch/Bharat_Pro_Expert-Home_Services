@@ -242,14 +242,14 @@
     var q = route.name === 'search' ? route.q : '';
     var u = S.user;
     return '<header class="topbar">' +
-      '<a class="topnav__brand" href="#/" style="display:flex;align-items:center;gap:8px;font-weight:800;text-decoration:none;color:inherit" aria-label="Bharat Pro Expert home"><img src="icons/logo.png" alt="Bharat Pro Expert Logo" style="height:32px;width:32px;object-fit:contain;border-radius:6px;" class="brand-logo-img"><span>' + esc(D.brand.name) + '</span></a>' +
+      '<a class="topnav__brand" href="#/" style="font-weight:800;text-decoration:none;color:inherit" aria-label="Bharat Pro Expert home">' + esc(D.brand.name) + '</a>' +
       '<button type="button" class="topbar__loc" data-act="city" aria-label="' + esc(t('chooseCity')) + '">📍 ' + esc(S.city) + ' ▾</button>' +
       '<form class="topbar__search" data-form="search" role="search" style="position:relative" autocomplete="off">' +
         '<input class="input" type="search" name="q" id="q" value="' + esc(q) + '" placeholder="' + esc(t('search')) + '" aria-label="' + esc(t('search')) + '" autocomplete="off">' +
         '<div id="sugg" hidden></div>' +
       '</form>' +
       '<nav class="topnav" aria-label="Main">' +
-        [['#/', 'home'], ['#/services', 'services'], ['#/bookings', 'bookings'], ['#/cart', 'cart'], ['#/admin', 'admin'], ['#/help', 'help']].map(function (l) {
+        [['#/', 'home'], ['#/services', 'services'], ['#/bookings', 'bookings'], ['#/cart', 'cart'], ['#/help', 'help']].map(function (l) {
           return '<a href="' + l[0] + '"' + (route.nav === l[1] || (l[1] === 'help' && route.name === 'help') ? ' aria-current="page"' : '') + '>' + esc(t(l[1])) + (l[1] === 'cart' && cartCount() ? ' (' + cartCount() + ')' : '') + '</a>';
         }).join('') +
       '</nav>' +
@@ -316,17 +316,10 @@
 
   function footer() {
     var b = D.brand, tel = String(b.phone).replace(/[^\d+]/g, '');
-    return '<footer class="footer">' +
-      '<div class="footer__inner">' +
-        '<a class="footer__brand" href="#/" aria-label="' + esc(b.name) + ' home"><img src="icons/logo.png" alt="Bharat Pro Expert Logo" style="height:38px;width:38px;object-fit:contain;border-radius:8px;" class="footer-logo-img"><span><strong>' + esc(b.name) + '</strong><small>' + esc(b.tagline) + '</small></span></a>' +
-        '<div class="footer__columns">' +
-          '<section class="footer__column"><h2>Company</h2><a href="#/help">About us &amp; contact</a><a href="#/help">Privacy &amp; support</a><a href="#/partner">Careers / partner with us</a></section>' +
-          '<section class="footer__column"><h2>For customers</h2><a href="#/services">' + esc(t('services')) + '</a><a href="#/help">' + esc(t('faqs')) + '</a><a href="#/help">Contact us</a></section>' +
-          '<section class="footer__column"><h2>For professionals</h2><a href="#/partner">' + esc(t('partner')) + '</a><a href="#/partner">Register as a professional</a></section>' +
-          '<section class="footer__column footer__contact"><h2>Get in touch</h2><a href="tel:' + esc(tel) + '">☎ ' + esc(b.phone) + '</a><a href="mailto:' + esc(b.email) + '">✉ ' + esc(b.email) + '</a><a href="mailto:' + esc(b.companyEmail) + '">' + esc(b.companyEmail) + '</a></section>' +
-        '</div>' +
-        '<div class="footer__bottom"><span>© ' + new Date().getFullYear() + ' ' + esc(b.name) + '. ' + esc(t('rights')) + '</span><span>Trusted home services, delivered with care.</span></div>' +
-      '</div></footer>';
+    return '<footer class="footer"><strong>' + esc(b.name) + '</strong><p>' + esc(b.tagline) + '</p>' +
+      '<p>📞 <a href="tel:' + esc(tel) + '">' + esc(b.phone) + '</a><br>✉️ <a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a><br>🏢 <a href="mailto:' + esc(b.companyEmail) + '">' + esc(b.companyEmail) + '</a></p>' +
+      '<p><a href="#/services">' + esc(t('services')) + '</a> · <a href="#/help">' + esc(t('help')) + '</a> · <a href="#/partner">' + esc(t('partner')) + '</a></p>' +
+      '<small>© ' + new Date().getFullYear() + ' ' + esc(b.name) + '. ' + esc(t('rights')) + '</small></footer>';
   }
 
   function viewServices() {
@@ -495,107 +488,18 @@
     var co = drafts.co, c = calc();
     var id;
     do { id = 'BPE' + ('' + Math.floor(Math.random() * 1000000)).padStart(6, '0'); } while (getBooking(id));
-    var bookingRef = 'bpe_' + id.toLowerCase() + '_' + Date.now();
-    var primaryItem = S.cart[0] ? (svc(S.cart[0].id) || {}) : {};
-
     var b = {
       id: id, created: Date.now(), cancelled: false, date: co.date, slot: co.slot, pay: co.pay,
       items: S.cart.map(function (l) { var s = svc(l.id) || {}; return { id: l.id, name: s.name || l.id, nameHi: s.nameHi, emoji: s.emoji, price: s.price || 0, qty: l.qty }; }),
       pricing: c, coupon: S.coupon && !c.couponErr ? S.coupon : null,
-      address: { name: co.name.trim(), phone: co.phone.trim(), house: co.house.trim(), area: co.area.trim(), pincode: co.pincode.trim(), landmark: (co.landmark || '').trim(), city: S.city },
-      paymentStatus: co.pay === 'upi' ? 'PENDING' : 'COD'
+      address: { name: co.name.trim(), phone: co.phone.trim(), house: co.house.trim(), area: co.area.trim(), pincode: co.pincode.trim(), landmark: (co.landmark || '').trim(), city: S.city }
     };
-
-    function saveAndRedirect(bookingObj) {
-      S.bookings.unshift(bookingObj); persistBookings();
-      S.cart = []; S.coupon = null; persistCart(); save('bpe_coupon', null);
-      if (S.user && !S.user.name) { S.user.name = bookingObj.address.name; save('bpe_user', S.user); }
-      drafts.co = {}; drafts.errs = {};
-      toast(t('orderPlaced'));
-      location.hash = '#/booking/' + id;
-    }
-
-    if (co.pay === 'upi') {
-      toast('Connecting Cashfree payment gateway...');
-      function ensureCashfreeSdk() {
-        return new Promise(function(resolve, reject) {
-          if (window.Cashfree) return resolve(true);
-          var existing = document.querySelector('script[src="https://sdk.cashfree.com/js/v3/cashfree.js"]');
-          var script = existing || document.createElement('script');
-          script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
-          script.onload = function() { window.Cashfree ? resolve(true) : reject(new Error('Cashfree SDK failed to load')); };
-          script.onerror = function() { reject(new Error('Could not load Cashfree Checkout SDK')); };
-          if (!existing) document.head.appendChild(script);
-        });
-      }
-
-      ensureCashfreeSdk()
-      .then(function() {
-        return fetch('/api/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            items: S.cart.map(function(l) { return { id: l.id, qty: l.qty }; }),
-            serviceId: primaryItem.id || 'deep-1bhk',
-            serviceName: primaryItem.name || '1 BHK Full Home Deep Cleaning',
-            bookingId: bookingRef,
-            clientTotal: c.total,
-            couponCode: S.coupon && !c.couponErr ? S.coupon : null,
-            customerName: b.address.name,
-            customerPhone: b.address.phone,
-            customerEmail: (S.user && S.user.email) || '',
-            paymentMethod: 'ONLINE',
-            currency: 'INR'
-          })
-        });
-      })
-      .then(function(res) {
-        return res.json().then(function(data) {
-          if (!res.ok || !data.payment_session_id || !data.order_id) {
-            throw new Error(data.error || 'Cashfree failed to create the payment session');
-          }
-          return data;
-        });
-      })
-      .then(function(orderData) {
-        var cashfree = window.Cashfree({ mode: orderData.environment === 'production' ? 'production' : 'sandbox' });
-        return cashfree.checkout({
-          paymentSessionId: orderData.payment_session_id,
-          redirectTarget: '_modal'
-        }).then(function(checkoutResult) {
-          if (checkoutResult && checkoutResult.error && !checkoutResult.paymentDetails) {
-            throw new Error(checkoutResult.error.message || 'Payment was cancelled or failed');
-          }
-          return fetch('/api/verify-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              bookingId: bookingRef,
-              order_id: orderData.order_id,
-              expectedAmount: orderData.amount
-            })
-          });
-        });
-      })
-      .then(function(res) {
-        return res.json().then(function(data) {
-          if (!res.ok || !data.verified) {
-            throw new Error(data.error || 'Cashfree could not confirm a successful payment');
-          }
-          return data;
-        });
-      })
-      .then(function(verified) {
-        b.paymentStatus = 'PAID';
-        b.paymentId = verified.payment_id || verified.order_id;
-        saveAndRedirect(b);
-      })
-      .catch(function(err) {
-        alert('Cashfree payment error: ' + (err.message || 'Please retry or contact support.'));
-      });
-    } else {
-      saveAndRedirect(b);
-    }
+    S.bookings.unshift(b); persistBookings();
+    S.cart = []; S.coupon = null; persistCart(); save('bpe_coupon', null);
+    if (S.user && !S.user.name) { S.user.name = b.address.name; save('bpe_user', S.user); }
+    drafts.co = {}; drafts.errs = {};
+    toast(t('orderPlaced'));
+    location.hash = '#/booking/' + id;
   }
 
   function timeline(b) {
@@ -651,113 +555,6 @@
       '<a class="btn btn--primary" href="tel:' + esc(tel) + '">📞 ' + esc(t('call')) + '</a>' +
       '<a class="btn" href="mailto:' + esc(D.brand.email) + '">✉️ ' + esc(t('email')) + '</a></div></div>' +
       '<div class="detail__block"><h2>' + esc(t('faqs')) + '</h2>' + faqList(D.faqs || [], 'hf') + '</div>' + footer();
-  }
-
-
-
-  function viewAdmin(subPage) {
-    subPage = subPage || 'dashboard';
-
-    var partners = load('bpe_partners', [
-      { id: 'PTN-2024-0001', name: 'Rajesh Kumar', phone: '9876543210', city: 'Gurgaon', skill: 'Home Deep Cleaning', exp: '5', status: 'Active', kyc: 'Approved', jobs: 142, rating: 4.9, earnings: 48500 },
-      { id: 'PTN-2024-0002', name: 'Amit Singh', phone: '9812345678', city: 'Delhi NCR', skill: 'Bathroom Cleaning', exp: '3', status: 'Active', kyc: 'Pending', jobs: 58, rating: 4.8, earnings: 19200 },
-      { id: 'PTN-2024-0003', name: 'Sunil Sharma', phone: '9711223344', city: 'Noida', skill: 'Kitchen Cleaning', exp: '4', status: 'Active', kyc: 'Approved', jobs: 89, rating: 4.7, earnings: 31000 },
-      { id: 'PTN-2024-0004', name: 'Pooja Verma', phone: '9654321876', city: 'Gurgaon', skill: 'Sofa & Carpet', exp: '2', status: 'Suspended', kyc: 'Rejected', jobs: 12, rating: 4.2, earnings: 4500 }
-    ]);
-
-    var customers = load('bpe_customers', [
-      { id: 'CUST-101', name: 'Priya Sharma', phone: '9871100223', city: 'Gurgaon', spent: 12499, bookings: 4, status: 'Active' },
-      { id: 'CUST-102', name: 'Rohan Verma', phone: '9810055443', city: 'Noida', spent: 5999, bookings: 2, status: 'Active' },
-      { id: 'CUST-103', name: 'Ananya Gupta', phone: '9711009988', city: 'Delhi NCR', spent: 18999, bookings: 6, status: 'Active' }
-    ]);
-
-    var totalRev = S.bookings.reduce(function(acc, b) { return acc + (b.pricing ? b.pricing.total : 0); }, 245000);
-
-    var navTabs = [
-      ['dashboard', '📊 Dashboard'],
-      ['partners', '🤝 Partners (' + partners.length + ')'],
-      ['bookings', '📋 Bookings (' + (S.bookings.length + 128) + ')'],
-      ['customers', '👤 Customers (' + customers.length + ')'],
-      ['finance', '💰 Finance & Payouts'],
-      ['services', '🛠️ Services (' + D.services.length + ')']
-    ].map(function(tab) {
-      return '<a class="chip' + (subPage === tab[0] ? ' is-active' : '') + '" href="#/admin/' + tab[0] + '">' + esc(tab[1]) + '</a>';
-    }).join('');
-
-    var contentHtml = '';
-
-    if (subPage === 'dashboard') {
-      contentHtml = '<div class="kpi-grid">' +
-        '<div class="kpi-card"><h3>Total Revenue</h3><div class="kpi-val">' + inr(totalRev) + '</div><span class="kpi-sub">⬆ 18.4% vs last month</span></div>' +
-        '<div class="kpi-card"><h3>Active Partners</h3><div class="kpi-val">' + partners.length + '</div><span class="kpi-sub">KYC Verified & Online</span></div>' +
-        '<div class="kpi-card"><h3>Total Bookings</h3><div class="kpi-val">' + (S.bookings.length + 128) + '</div><span class="kpi-sub">Completed & Live</span></div>' +
-        '<div class="kpi-card"><h3>Avg Customer Rating</h3><div class="kpi-val">4.85 ★</div><span class="kpi-sub">Based on 1,420 reviews</span></div>' +
-        '</div>' +
-        '<div class="admin-section"><h2>Marketplace Activity Overview</h2>' +
-        '<p style="color:var(--text-muted);margin-bottom:12px;">Real-time Urban Company style operational monitoring across Gurgaon, Noida, & Delhi NCR.</p>' +
-        '<div class="chips"><span class="badge badge--green">Live System Health: 100% OK</span><span class="badge">Razorpay Gateway: Active</span><span class="badge">PostgreSQL/Prisma: Synced</span></div>' +
-        '</div>';
-    } else if (subPage === 'partners') {
-      var partnersRows = partners.map(function(p) {
-        return '<tr>' +
-          '<td><strong>' + esc(p.id) + '</strong></td>' +
-          '<td><strong>' + esc(p.name) + '</strong><br><small>📞 +91 ' + esc(p.phone) + '</small></td>' +
-          '<td>' + esc(p.city) + '</td>' +
-          '<td>' + esc(p.skill) + ' (' + esc(p.exp) + ' yrs)</td>' +
-          '<td>' + esc(p.jobs) + ' jobs<br>⭐ ' + esc(p.rating) + '</td>' +
-          '<td><span class="badge' + (p.kyc === 'Approved' ? ' badge--green' : (p.kyc === 'Rejected' ? ' badge--red' : '')) + '">' + esc(p.kyc) + '</span></td>' +
-          '<td><span class="badge' + (p.status === 'Active' ? ' badge--green' : ' badge--red') + '">' + esc(p.status) + '</span></td>' +
-          '<td>' + inr(p.earnings) + '</td>' +
-          '</tr>';
-      }).join('');
-
-      contentHtml = '<div class="admin-section"><h2>Partner Management & Onboarding</h2>' +
-        '<table class="admin-table"><thead><tr><th>ID</th><th>Partner Name</th><th>City</th><th>Category / Skill</th><th>Performance</th><th>KYC Status</th><th>Account</th><th>Total Earned</th></tr></thead><tbody>' +
-        partnersRows + '</tbody></table></div>';
-    } else if (subPage === 'customers') {
-      var customerRows = customers.map(function(c) {
-        return '<tr>' +
-          '<td><strong>' + esc(c.id) + '</strong></td>' +
-          '<td><strong>' + esc(c.name) + '</strong><br><small>📞 +91 ' + esc(c.phone) + '</small></td>' +
-          '<td>' + esc(c.city) + '</td>' +
-          '<td>' + esc(c.bookings) + ' orders</td>' +
-          '<td>' + inr(c.spent) + '</td>' +
-          '<td><span class="badge badge--green">' + esc(c.status) + '</span></td>' +
-          '</tr>';
-      }).join('');
-
-      contentHtml = '<div class="admin-section"><h2>Customer User Registry</h2>' +
-        '<table class="admin-table"><thead><tr><th>Customer ID</th><th>Name & Contact</th><th>City</th><th>Total Orders</th><th>Lifetime Spent</th><th>Status</th></tr></thead><tbody>' +
-        customerRows + '</tbody></table></div>';
-    } else if (subPage === 'finance') {
-      contentHtml = '<div class="admin-section"><h2>Finance & Partner Payout Reconcilation</h2>' +
-        '<p style="margin-bottom:16px;">Automated RazorpayX payout batches & marketplace commission statements.</p>' +
-        '<div class="kpi-grid">' +
-          '<div class="kpi-card"><h3>Gross GMV</h3><div class="kpi-val">' + inr(totalRev) + '</div></div>' +
-          '<div class="kpi-card"><h3>Net Take-Rate (15%)</h3><div class="kpi-val">' + inr(Math.round(totalRev * 0.15)) + '</div></div>' +
-          '<div class="kpi-card"><h3>Partner Disbursal</h3><div class="kpi-val">' + inr(Math.round(totalRev * 0.85)) + '</div></div>' +
-        '</div></div>';
-    } else if (subPage === 'bookings' || subPage === 'services') {
-      var bookingRows = S.bookings.map(function(b) {
-        return '<tr>' +
-          '<td><strong>#' + esc(b.id) + '</strong></td>' +
-          '<td>' + esc(b.address ? b.address.name : 'Customer') + '<br><small>' + esc(b.address ? b.address.phone : '') + '</small></td>' +
-          '<td>📅 ' + esc(b.date) + ' (' + esc(b.slot) + ')</td>' +
-          '<td>' + inr(b.pricing ? b.pricing.total : 0) + '</td>' +
-          '<td><span class="badge' + (b.pay === 'upi' ? ' badge--green' : '') + '">' + esc(b.pay === 'upi' ? (b.paymentStatus || 'PAID') : 'COD') + '</span></td>' +
-          '</tr>';
-      }).join('');
-
-      contentHtml = '<div class="admin-section"><h2>Live Customer Bookings & Dispatch</h2>' +
-        '<table class="admin-table"><thead><tr><th>Booking Reference</th><th>Customer</th><th>Scheduled Time</th><th>Amount</th><th>Payment Status</th></tr></thead><tbody>' +
-        (bookingRows || '<tr><td colspan="5">No live customer bookings recorded yet.</td></tr>') + '</tbody></table></div>';
-    }
-
-    return '<div class="admin-panel">' +
-      '<div class="admin-header"><h1>Urban Company Admin Marketplace Control</h1><p>Full operational control panel for partners, bookings, services & payouts</p></div>' +
-      '<div class="chips" style="margin-bottom:20px;">' + navTabs + '</div>' +
-      contentHtml +
-      '</div>';
   }
 
   function viewPartner() {
@@ -841,7 +638,6 @@
       case 'account': return { name: 'account', nav: 'account', title: t('account'), view: viewAccount };
       case 'help': return { name: 'help', nav: 'account', title: t('help'), view: viewHelp };
       case 'partner': return { name: 'partner', nav: 'account', title: t('partner'), view: viewPartner };
-      case 'admin': return { name: 'admin', nav: 'account', title: 'Admin Dashboard', view: function() { return viewAdmin(p[1]); } };
       default: return { name: '404', nav: '', title: t('notFound'), view: viewNotFound };
     }
   }

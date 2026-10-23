@@ -242,14 +242,14 @@
     var q = route.name === 'search' ? route.q : '';
     var u = S.user;
     return '<header class="topbar">' +
-      '<a class="topnav__brand" href="#/" style="display:flex;align-items:center;gap:8px;font-weight:800;text-decoration:none;color:inherit" aria-label="Bharat Pro Expert home"><img src="icons/logo.png" alt="Bharat Pro Expert Logo" style="height:32px;width:32px;object-fit:contain;border-radius:6px;" class="brand-logo-img"><span>' + esc(D.brand.name) + '</span></a>' +
+      '<a class="topnav__brand" href="#/" style="font-weight:800;text-decoration:none;color:inherit" aria-label="Bharat Pro Expert home">' + esc(D.brand.name) + '</a>' +
       '<button type="button" class="topbar__loc" data-act="city" aria-label="' + esc(t('chooseCity')) + '">📍 ' + esc(S.city) + ' ▾</button>' +
       '<form class="topbar__search" data-form="search" role="search" style="position:relative" autocomplete="off">' +
         '<input class="input" type="search" name="q" id="q" value="' + esc(q) + '" placeholder="' + esc(t('search')) + '" aria-label="' + esc(t('search')) + '" autocomplete="off">' +
         '<div id="sugg" hidden></div>' +
       '</form>' +
       '<nav class="topnav" aria-label="Main">' +
-        [['#/', 'home'], ['#/services', 'services'], ['#/bookings', 'bookings'], ['#/cart', 'cart'], ['#/admin', 'admin'], ['#/help', 'help']].map(function (l) {
+        [['#/', 'home'], ['#/services', 'services'], ['#/bookings', 'bookings'], ['#/cart', 'cart'], ['#/help', 'help']].map(function (l) {
           return '<a href="' + l[0] + '"' + (route.nav === l[1] || (l[1] === 'help' && route.name === 'help') ? ' aria-current="page"' : '') + '>' + esc(t(l[1])) + (l[1] === 'cart' && cartCount() ? ' (' + cartCount() + ')' : '') + '</a>';
         }).join('') +
       '</nav>' +
@@ -316,17 +316,10 @@
 
   function footer() {
     var b = D.brand, tel = String(b.phone).replace(/[^\d+]/g, '');
-    return '<footer class="footer">' +
-      '<div class="footer__inner">' +
-        '<a class="footer__brand" href="#/" aria-label="' + esc(b.name) + ' home"><img src="icons/logo.png" alt="Bharat Pro Expert Logo" style="height:38px;width:38px;object-fit:contain;border-radius:8px;" class="footer-logo-img"><span><strong>' + esc(b.name) + '</strong><small>' + esc(b.tagline) + '</small></span></a>' +
-        '<div class="footer__columns">' +
-          '<section class="footer__column"><h2>Company</h2><a href="#/help">About us &amp; contact</a><a href="#/help">Privacy &amp; support</a><a href="#/partner">Careers / partner with us</a></section>' +
-          '<section class="footer__column"><h2>For customers</h2><a href="#/services">' + esc(t('services')) + '</a><a href="#/help">' + esc(t('faqs')) + '</a><a href="#/help">Contact us</a></section>' +
-          '<section class="footer__column"><h2>For professionals</h2><a href="#/partner">' + esc(t('partner')) + '</a><a href="#/partner">Register as a professional</a></section>' +
-          '<section class="footer__column footer__contact"><h2>Get in touch</h2><a href="tel:' + esc(tel) + '">☎ ' + esc(b.phone) + '</a><a href="mailto:' + esc(b.email) + '">✉ ' + esc(b.email) + '</a><a href="mailto:' + esc(b.companyEmail) + '">' + esc(b.companyEmail) + '</a></section>' +
-        '</div>' +
-        '<div class="footer__bottom"><span>© ' + new Date().getFullYear() + ' ' + esc(b.name) + '. ' + esc(t('rights')) + '</span><span>Trusted home services, delivered with care.</span></div>' +
-      '</div></footer>';
+    return '<footer class="footer"><strong>' + esc(b.name) + '</strong><p>' + esc(b.tagline) + '</p>' +
+      '<p>📞 <a href="tel:' + esc(tel) + '">' + esc(b.phone) + '</a><br>✉️ <a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a><br>🏢 <a href="mailto:' + esc(b.companyEmail) + '">' + esc(b.companyEmail) + '</a></p>' +
+      '<p><a href="#/services">' + esc(t('services')) + '</a> · <a href="#/help">' + esc(t('help')) + '</a> · <a href="#/partner">' + esc(t('partner')) + '</a></p>' +
+      '<small>© ' + new Date().getFullYear() + ' ' + esc(b.name) + '. ' + esc(t('rights')) + '</small></footer>';
   }
 
   function viewServices() {
@@ -495,107 +488,18 @@
     var co = drafts.co, c = calc();
     var id;
     do { id = 'BPE' + ('' + Math.floor(Math.random() * 1000000)).padStart(6, '0'); } while (getBooking(id));
-    var bookingRef = 'bpe_' + id.toLowerCase() + '_' + Date.now();
-    var primaryItem = S.cart[0] ? (svc(S.cart[0].id) || {}) : {};
-
     var b = {
       id: id, created: Date.now(), cancelled: false, date: co.date, slot: co.slot, pay: co.pay,
       items: S.cart.map(function (l) { var s = svc(l.id) || {}; return { id: l.id, name: s.name || l.id, nameHi: s.nameHi, emoji: s.emoji, price: s.price || 0, qty: l.qty }; }),
       pricing: c, coupon: S.coupon && !c.couponErr ? S.coupon : null,
-      address: { name: co.name.trim(), phone: co.phone.trim(), house: co.house.trim(), area: co.area.trim(), pincode: co.pincode.trim(), landmark: (co.landmark || '').trim(), city: S.city },
-      paymentStatus: co.pay === 'upi' ? 'PENDING' : 'COD'
+      address: { name: co.name.trim(), phone: co.phone.trim(), house: co.house.trim(), area: co.area.trim(), pincode: co.pincode.trim(), landmark: (co.landmark || '').trim(), city: S.city }
     };
-
-    function saveAndRedirect(bookingObj) {
-      S.bookings.unshift(bookingObj); persistBookings();
-      S.cart = []; S.coupon = null; persistCart(); save('bpe_coupon', null);
-      if (S.user && !S.user.name) { S.user.name = bookingObj.address.name; save('bpe_user', S.user); }
-      drafts.co = {}; drafts.errs = {};
-      toast(t('orderPlaced'));
-      location.hash = '#/booking/' + id;
-    }
-
-    if (co.pay === 'upi') {
-      toast('Connecting Cashfree payment gateway...');
-      function ensureCashfreeSdk() {
-        return new Promise(function(resolve, reject) {
-          if (window.Cashfree) return resolve(true);
-          var existing = document.querySelector('script[src="https://sdk.cashfree.com/js/v3/cashfree.js"]');
-          var script = existing || document.createElement('script');
-          script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
-          script.onload = function() { window.Cashfree ? resolve(true) : reject(new Error('Cashfree SDK failed to load')); };
-          script.onerror = function() { reject(new Error('Could not load Cashfree Checkout SDK')); };
-          if (!existing) document.head.appendChild(script);
-        });
-      }
-
-      ensureCashfreeSdk()
-      .then(function() {
-        return fetch('/api/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            items: S.cart.map(function(l) { return { id: l.id, qty: l.qty }; }),
-            serviceId: primaryItem.id || 'deep-1bhk',
-            serviceName: primaryItem.name || '1 BHK Full Home Deep Cleaning',
-            bookingId: bookingRef,
-            clientTotal: c.total,
-            couponCode: S.coupon && !c.couponErr ? S.coupon : null,
-            customerName: b.address.name,
-            customerPhone: b.address.phone,
-            customerEmail: (S.user && S.user.email) || '',
-            paymentMethod: 'ONLINE',
-            currency: 'INR'
-          })
-        });
-      })
-      .then(function(res) {
-        return res.json().then(function(data) {
-          if (!res.ok || !data.payment_session_id || !data.order_id) {
-            throw new Error(data.error || 'Cashfree failed to create the payment session');
-          }
-          return data;
-        });
-      })
-      .then(function(orderData) {
-        var cashfree = window.Cashfree({ mode: orderData.environment === 'production' ? 'production' : 'sandbox' });
-        return cashfree.checkout({
-          paymentSessionId: orderData.payment_session_id,
-          redirectTarget: '_modal'
-        }).then(function(checkoutResult) {
-          if (checkoutResult && checkoutResult.error && !checkoutResult.paymentDetails) {
-            throw new Error(checkoutResult.error.message || 'Payment was cancelled or failed');
-          }
-          return fetch('/api/verify-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              bookingId: bookingRef,
-              order_id: orderData.order_id,
-              expectedAmount: orderData.amount
-            })
-          });
-        });
-      })
-      .then(function(res) {
-        return res.json().then(function(data) {
-          if (!res.ok || !data.verified) {
-            throw new Error(data.error || 'Cashfree could not confirm a successful payment');
-          }
-          return data;
-        });
-      })
-      .then(function(verified) {
-        b.paymentStatus = 'PAID';
-        b.paymentId = verified.payment_id || verified.order_id;
-        saveAndRedirect(b);
-      })
-      .catch(function(err) {
-        alert('Cashfree payment error: ' + (err.message || 'Please retry or contact support.'));
-      });
-    } else {
-      saveAndRedirect(b);
-    }
+    S.bookings.unshift(b); persistBookings();
+    S.cart = []; S.coupon = null; persistCart(); save('bpe_coupon', null);
+    if (S.user && !S.user.name) { S.user.name = b.address.name; save('bpe_user', S.user); }
+    drafts.co = {}; drafts.errs = {};
+    toast(t('orderPlaced'));
+    location.hash = '#/booking/' + id;
   }
 
   function timeline(b) {
@@ -651,125 +555,6 @@
       '<a class="btn btn--primary" href="tel:' + esc(tel) + '">📞 ' + esc(t('call')) + '</a>' +
       '<a class="btn" href="mailto:' + esc(D.brand.email) + '">✉️ ' + esc(t('email')) + '</a></div></div>' +
       '<div class="detail__block"><h2>' + esc(t('faqs')) + '</h2>' + faqList(D.faqs || [], 'hf') + '</div>' + footer();
-  }
-
-
-
-  var ADMIN_EMAIL = 'bharatproexperthomeservices@gmail.com';
-  var ADMIN_API_KEY = 'AIzaSyB1GbzmsTs4Uspa4m8h-zYCNbqupfI-L9s';
-  function adminSession() {
-    try {
-      var session = JSON.parse(sessionStorage.getItem('bpe_admin_session') || 'null');
-      if (!session || session.email !== ADMIN_EMAIL || !session.idToken || !session.expiry || session.expiry < Date.now()) return null;
-      return session;
-    } catch (e) { return null; }
-  }
-  function adminLoginView() {
-    var lock = load('bpe_admin_lockout', { count: 0, until: 0 });
-    var locked = lock.until && lock.until > Date.now();
-    var remaining = locked ? Math.ceil((lock.until - Date.now()) / 60000) : 0;
-    return '<div class="admin-panel"><div class="admin-header"><h1>Bharat Pro Expert — Admin Login</h1><p>Authorized owner access only</p></div>' +
-      '<form class="detail__block" data-form="admin-login" novalidate>' +
-      (locked ? '<div class="badge badge--red">Too many attempts. Try again in about ' + remaining + ' minute(s).</div>' : '') +
-      '<label class="field"><span class="field__label">Admin email</span><input class="field__input" type="email" name="email" autocomplete="username" required value="' + ADMIN_EMAIL + '" readonly></label>' +
-      '<label class="field"><span class="field__label">Password</span><input class="field__input" type="password" name="password" autocomplete="current-password" required ' + (locked ? 'disabled' : '') + '></label>' +
-      '<p class="card__meta">Sign-in is verified by Firebase Authentication. Password is not stored in this website code.</p>' +
-      '<button type="submit" class="btn btn--primary btn--block" ' + (locked ? 'disabled' : '') + '>Secure Admin Login</button><p class="field__err" data-admin-error role="alert"></p></form></div>';
-  }
-
-  function viewAdmin(subPage) {
-    subPage = subPage || 'dashboard';
-    if (!adminSession()) return adminLoginView();
-
-    var partners = load('bpe_partners', []);
-    var customers = load('bpe_customers', []);
-    var totalRev = S.bookings.reduce(function(acc, b) { return acc + (b.pricing ? b.pricing.total : 0); }, 0);
-
-    var navTabs = [
-      ['dashboard', '📊 Dashboard'],
-      ['partners', '🤝 Partners (' + partners.length + ')'],
-      ['bookings', '📋 Bookings (' + S.bookings.length + ')'],
-      ['customers', '👤 Customers (' + customers.length + ')'],
-      ['finance', '💰 Finance & Payouts'],
-      ['services', '🛠️ Services (' + D.services.length + ')']
-    ].map(function(tab) {
-      return '<a class="chip' + (subPage === tab[0] ? ' is-active' : '') + '" href="#/admin/' + tab[0] + '">' + esc(tab[1]) + '</a>';
-    }).join('');
-
-    var contentHtml = '';
-
-    if (subPage === 'dashboard') {
-      contentHtml = '<div class="kpi-grid">' +
-        '<div class="kpi-card"><h3>Total Revenue</h3><div class="kpi-val">' + inr(totalRev) + '</div><span class="kpi-sub">⬆ 18.4% vs last month</span></div>' +
-        '<div class="kpi-card"><h3>Active Partners</h3><div class="kpi-val">' + partners.length + '</div><span class="kpi-sub">KYC Verified & Online</span></div>' +
-        '<div class="kpi-card"><h3>Total Bookings</h3><div class="kpi-val">' + S.bookings.length + '</div><span class="kpi-sub">Bookings recorded in this browser</span></div>' +
-        '<div class="kpi-card"><h3>Customer Rating</h3><div class="kpi-val">—</div><span class="kpi-sub">No verified rating data connected</span></div>' +
-        '</div>' +
-        '<div class="admin-section"><h2>Marketplace Activity Overview</h2>' +
-        '<p style="color:var(--text-muted);margin-bottom:12px;">Real-time Urban Company style operational monitoring across Gurgaon, Noida, & Delhi NCR.</p>' +
-        '<div class="chips"><span class="badge">Customer bookings: ' + S.bookings.length + '</span><span class="badge">Partner records: ' + partners.length + '</span><span class="badge">Customer records: ' + customers.length + '</span></div>' +
-        '</div>';
-    } else if (subPage === 'partners') {
-      var partnersRows = partners.map(function(p) {
-        return '<tr>' +
-          '<td><strong>' + esc(p.id) + '</strong></td>' +
-          '<td><strong>' + esc(p.name) + '</strong><br><small>📞 +91 ' + esc(p.phone) + '</small></td>' +
-          '<td>' + esc(p.city) + '</td>' +
-          '<td>' + esc(p.skill) + ' (' + esc(p.exp) + ' yrs)</td>' +
-          '<td>' + esc(p.jobs) + ' jobs<br>⭐ ' + esc(p.rating) + '</td>' +
-          '<td><span class="badge' + (p.kyc === 'Approved' ? ' badge--green' : (p.kyc === 'Rejected' ? ' badge--red' : '')) + '">' + esc(p.kyc) + '</span></td>' +
-          '<td><span class="badge' + (p.status === 'Active' ? ' badge--green' : ' badge--red') + '">' + esc(p.status) + '</span></td>' +
-          '<td>' + inr(p.earnings) + '</td>' +
-          '</tr>';
-      }).join('');
-
-      contentHtml = '<div class="admin-section"><h2>Partner Management & Onboarding</h2>' +
-        '<table class="admin-table"><thead><tr><th>ID</th><th>Partner Name</th><th>City</th><th>Category / Skill</th><th>Performance</th><th>KYC Status</th><th>Account</th><th>Total Earned</th></tr></thead><tbody>' +
-        partnersRows + '</tbody></table></div>';
-    } else if (subPage === 'customers') {
-      var customerRows = customers.map(function(c) {
-        return '<tr>' +
-          '<td><strong>' + esc(c.id) + '</strong></td>' +
-          '<td><strong>' + esc(c.name) + '</strong><br><small>📞 +91 ' + esc(c.phone) + '</small></td>' +
-          '<td>' + esc(c.city) + '</td>' +
-          '<td>' + esc(c.bookings) + ' orders</td>' +
-          '<td>' + inr(c.spent) + '</td>' +
-          '<td><span class="badge badge--green">' + esc(c.status) + '</span></td>' +
-          '</tr>';
-      }).join('');
-
-      contentHtml = '<div class="admin-section"><h2>Customer User Registry</h2>' +
-        '<table class="admin-table"><thead><tr><th>Customer ID</th><th>Name & Contact</th><th>City</th><th>Total Orders</th><th>Lifetime Spent</th><th>Status</th></tr></thead><tbody>' +
-        customerRows + '</tbody></table></div>';
-    } else if (subPage === 'finance') {
-      contentHtml = '<div class="admin-section"><h2>Finance & Partner Payout Reconcilation</h2>' +
-        '<p style="margin-bottom:16px;">Automated RazorpayX payout batches & marketplace commission statements.</p>' +
-        '<div class="kpi-grid">' +
-          '<div class="kpi-card"><h3>Gross GMV</h3><div class="kpi-val">' + inr(totalRev) + '</div></div>' +
-          '<div class="kpi-card"><h3>Net Take-Rate (15%)</h3><div class="kpi-val">' + inr(Math.round(totalRev * 0.15)) + '</div></div>' +
-          '<div class="kpi-card"><h3>Partner Disbursal</h3><div class="kpi-val">' + inr(Math.round(totalRev * 0.85)) + '</div></div>' +
-        '</div></div>';
-    } else if (subPage === 'bookings' || subPage === 'services') {
-      var bookingRows = S.bookings.map(function(b) {
-        return '<tr>' +
-          '<td><strong>#' + esc(b.id) + '</strong></td>' +
-          '<td>' + esc(b.address ? b.address.name : 'Customer') + '<br><small>' + esc(b.address ? b.address.phone : '') + '</small></td>' +
-          '<td>📅 ' + esc(b.date) + ' (' + esc(b.slot) + ')</td>' +
-          '<td>' + inr(b.pricing ? b.pricing.total : 0) + '</td>' +
-          '<td><span class="badge' + (b.pay === 'upi' ? ' badge--green' : '') + '">' + esc(b.pay === 'upi' ? (b.paymentStatus || 'PAID') : 'COD') + '</span></td>' +
-          '</tr>';
-      }).join('');
-
-      contentHtml = '<div class="admin-section"><h2>Live Customer Bookings & Dispatch</h2>' +
-        '<table class="admin-table"><thead><tr><th>Booking Reference</th><th>Customer</th><th>Scheduled Time</th><th>Amount</th><th>Payment Status</th></tr></thead><tbody>' +
-        (bookingRows || '<tr><td colspan="5">No live customer bookings recorded yet.</td></tr>') + '</tbody></table></div>';
-    }
-
-    return '<div class="admin-panel">' +
-      '<div class="admin-header"><h1>Bharat Pro Expert — Admin Panel</h1><p>Owner dashboard · ' + esc(ADMIN_EMAIL) + '</p><button type="button" class="btn btn--ghost btn--sm" data-act="admin-logout">Log out</button></div>' +
-      '<div class="chips" style="margin-bottom:20px;">' + navTabs + '</div>' +
-      contentHtml +
-      '</div>';
   }
 
   function viewPartner() {
@@ -853,7 +638,6 @@
       case 'account': return { name: 'account', nav: 'account', title: t('account'), view: viewAccount };
       case 'help': return { name: 'help', nav: 'account', title: t('help'), view: viewHelp };
       case 'partner': return { name: 'partner', nav: 'account', title: t('partner'), view: viewPartner };
-      case 'admin': return { name: 'admin', nav: 'account', title: 'Admin Dashboard', view: function() { return viewAdmin(p[1]); } };
       default: return { name: '404', nav: '', title: t('notFound'), view: viewNotFound };
     }
   }
@@ -934,7 +718,6 @@
     setlang: function (el) { setLang(el.dataset.v); },
     theme: function () { S.theme = isDark() ? 'light' : 'dark'; save('bpe_theme', S.theme); applyTheme(); refresh(); },
     login: function () { drafts.login = {}; drafts.errs = {}; openSheet('login', { step: 'phone' }); },
-    'admin-logout': function () { sessionStorage.removeItem('bpe_admin_session'); toast('Admin logged out'); location.hash = '#/'; },
     logout: function () { S.user = null; save('bpe_user', null); toast(t('loggedOut')); refresh(); },
     close: function () { closeSheet(); },
     'co-date': function (el) { drafts.co.date = el.dataset.v; if (slotPast(drafts.co.slot, drafts.co.date)) drafts.co.slot = ''; refresh(); },
@@ -1024,31 +807,6 @@
       var prev = S.user && S.user.phone === drafts.login.phone ? S.user.name : '';
       S.user = { phone: drafts.login.phone, name: prev || '' }; save('bpe_user', S.user);
       drafts.login = {}; drafts.errs = {}; drafts.co = {}; closeSheet(); toast(t('loggedIn')); refresh();
-    } else if (kind === 'admin-login') {
-      var lock = load('bpe_admin_lockout', { count: 0, until: 0 });
-      if (lock.until && lock.until > Date.now()) { toast('Admin login temporarily locked'); refresh(); return; }
-      var pass = String(f.elements.password.value || '');
-      var errorBox = $('[data-admin-error]', f);
-      if (!pass) { if (errorBox) errorBox.textContent = 'Enter your password.'; return; }
-      var submitButton = f.querySelector('button[type="submit"]');
-      if (submitButton) { submitButton.disabled = true; submitButton.textContent = 'Verifying…'; }
-      fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + ADMIN_API_KEY, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: ADMIN_EMAIL, password: pass, returnSecureToken: true })
-      }).then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
-      .then(function (result) {
-        if (!result.ok || !result.data || result.data.email !== ADMIN_EMAIL || !result.data.idToken || result.data.emailVerified !== true) {
-          var next = { count: (lock.count || 0) + 1, until: 0 };
-          if (next.count >= 2) { next.count = 2; next.until = Date.now() + 15 * 60 * 1000; }
-          save('bpe_admin_lockout', next);
-          var message = result.data && result.data.error && result.data.error.message === 'EMAIL_NOT_FOUND' ? 'Admin account not found in Firebase.' : 'Login failed. Check the authorized account and verified email.';
-          if (next.until) message = 'Two failed attempts. Login locked for 15 minutes.';
-          toast(message); refresh(); return;
-        }
-        sessionStorage.setItem('bpe_admin_session', JSON.stringify({ email: ADMIN_EMAIL, idToken: result.data.idToken, expiry: Date.now() + (Number(result.data.expiresIn || 3600) * 1000) }));
-        save('bpe_admin_lockout', { count: 0, until: 0 });
-        toast('Admin login successful'); refresh();
-      }).catch(function () { toast('Unable to reach Firebase. Check your connection.'); refresh(); });
     } else if (kind === 'checkout') {
       if (!S.user) { openSheet('login', { step: 'phone' }); return; }
       if (validateCheckout()) { placeOrder(); return; }
