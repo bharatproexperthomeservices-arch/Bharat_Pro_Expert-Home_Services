@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    name: TypeScript and production build
+    name: Code syntax check and static verification
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -27,7 +27,7 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: TypeScript validation
+      - name: Syntax check
         run: npm run lint
-      - name: Production build
+      - name: Build check
         run: npm run build
