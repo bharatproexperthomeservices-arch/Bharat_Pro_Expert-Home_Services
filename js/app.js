@@ -4,9 +4,34 @@
 (function () {
   'use strict';
 
+  var CURRENT_CACHE_VERSION = 'v3.0.0-final';
+  try {
+    var storedVer = localStorage.getItem('bpe_cache_version');
+    if (storedVer !== CURRENT_CACHE_VERSION) {
+      var legacyKeys = ['uc_partner_session', 'uc_mode', 'bpe_gold_theme', 'admin_token', 'bpe_admin_auth', 'bpe_admin_user', 'bpe_legacy_theme', 'bpe_old_catalog'];
+      legacyKeys.forEach(function (k) { localStorage.removeItem(k); });
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { r.unregister(); });
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function (names) {
+          names.forEach(function (name) { caches.delete(name); });
+        });
+      }
+      localStorage.setItem('bpe_cache_version', CURRENT_CACHE_VERSION);
+    }
+  } catch (e) { /* storage or cache error */ }
+
   var D = window.BPE_DATA;
+  if (!D || !Array.isArray(D.categories) || D.categories.length === 0 || !Array.isArray(D.services) || D.services.length === 0) {
+    if (window.BPE_DATA) {
+      D = window.BPE_DATA;
+    }
+  }
   var root = document.getElementById('app');
-  if (!D) {
+  if (!D || !Array.isArray(D.categories) || D.categories.length === 0) {
     root.innerHTML = '<p style="padding:24px;font-family:sans-serif">Data failed to load. Please refresh.</p>';
     return;
   }
