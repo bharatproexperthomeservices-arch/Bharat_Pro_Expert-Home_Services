@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import createOrderHandler from "./api/create-order.js";
@@ -29,13 +30,21 @@ app.get("/api/health", (_req, res) => res.status(200).json({ ok: true }));
 app.post("/api/create-order", (req, res) => createOrderHandler(req, res));
 app.post("/api/verify-payment", (req, res) => verifyPaymentHandler(req, res));
 
-// Serve static frontend files
+// Serve static frontend files (from dist/ if built, or root directory)
+const distPath = path.join(__dirname, "dist");
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+}
 app.use(express.static(__dirname));
 
 // Fallback to index.html for single-page routing
 app.get("*", (req, res) => {
   if (!req.path.startsWith("/api/")) {
-    res.sendFile(path.join(__dirname, "index.html"));
+    if (fs.existsSync(path.join(distPath, "index.html"))) {
+      res.sendFile(path.join(distPath, "index.html"));
+    } else {
+      res.sendFile(path.join(__dirname, "index.html"));
+    }
   }
 });
 
