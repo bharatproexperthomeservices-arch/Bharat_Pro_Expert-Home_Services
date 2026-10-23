@@ -1,19 +1,16 @@
-# Bharat Pro Expert — Apartment Cleaning Website (iOS-style)
+# Bharat Pro Expert — Apartment Cleaning Website
 
-Static site, no build step. Open `index.html` or host the folder on Firebase Hosting / Netlify / any server.
+Only this design is allowed. No old designs, no old admin, no old Firebase. All new work is built only on this design.
 
 ## Structure
-- `index.html` — shell
-- `css/styles.css` — iOS design system (light + dark)
-- `js/data.js` — 8 apartment-cleaning categories (home deep, bathroom, kitchen, sofa/carpet/mattress, appliance, floor/window, fans/wardrobes, move-in/special), 64 cleaning services (prices, FAQs, coupons, slots). Edit here to change content.
-- `js/app.js` — router + pages (Home, Services, Category, Detail, Search, Cart, Checkout, Bookings, Account, Help, Partner) + Hindi/English
-- `manifest.webmanifest`, `icons/icon.svg` — installable PWA
+- `index.html` — main HTML template
+- `css/styles.css` — iOS design system stylesheet
+- `js/data.js` — 8 apartment-cleaning categories and 64 cleaning services
+- `js/app.js` — routing, views, and cart/checkout logic
+- `js/overrides.js` — site overrides
+- `api/` — backend payment endpoints for Razorpay and Cashfree
+- `server.js` — Express API and static file server
 
-## APK / iOS app
-Wrap this folder with Capacitor: `npm i @capacitor/core @capacitor/cli`, `npx cap init BharatProExpert com.bharatproexpert.homeservices --web-dir=.`, then `npx cap add android ios`.
-
-## Contacts used
+## Contacts & Branding
 Support +91 89202 52647 · bharatproexpert@gmail.com · bharatproexperthomeservices@gmail.com
-
-## Note
-Bookings/login/OTP are demo (saved in browser localStorage). Connect Firebase (Auth + Firestore) for real backend.
+Brand: Bharat Pro Expert
