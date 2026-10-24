@@ -795,33 +795,82 @@
       }
       h += '</div>';
     } else if (adminTab === 'partners') {
-      h += '<div class="detail__block"><h2>Partner Applications & Onboarding (' + allPartners.length + ')</h2>';
+      h += '<div class="detail__block"><h2>🤝 Partner Onboarding & 360° Management (' + allPartners.length + ')</h2>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">Review onboarding applications, verify document KYC, adjust wallets, and manage availability calendars.</p>';
       if (!allPartners.length) {
-        h += '<p style="color:var(--text-sub)">No partner onboarding submissions yet.</p>';
+        h += '<p style="color:var(--text-sub)">No partner onboarding applications registered yet.</p>';
       } else {
-        h += '<div class="list">' + allPartners.map(function (p) {
-          return '<div class="list__row"><div><strong>' + esc(p.name) + '</strong> (' + esc(p.phone) + ')<br><small>City: ' + esc(p.city) + ' | Skill: ' + esc(p.skill) + ' | Exp: ' + esc(p.exp) + ' yrs</small></div><button type="button" class="btn btn--sm btn--primary">Approve KYC</button></div>';
+        h += '<div class="list">' + allPartners.map(function (p, idx) {
+          var statusBg = p.status === 'APPROVED' ? '#34C759' : (p.status === 'REJECTED' ? '#FF3B30' : '#FF9500');
+          return '<div class="list__row" style="flex-direction:column;align-items:flex-start;gap:8px">' +
+            '<div style="display:flex;justify-content:space-between;width:100%"><strong>' + esc(p.name) + '</strong><span class="badge" style="background:' + statusBg + ';color:#fff">' + esc(p.status || 'UNDER REVIEW') + '</span></div>' +
+            '<div>Mobile: 📞 +91 ' + esc(p.phone) + ' | City: 📍 ' + esc(p.city) + ' | Skill: 🛠️ ' + esc(p.skill) + '</div>' +
+            '<div>Experience: ' + esc(p.exp) + ' years | Wallet Balance: <strong>' + inr(p.wallet || 0) + '</strong></div>' +
+            '<div class="chips" style="margin-top:4px">' +
+              '<button type="button" class="btn btn--sm btn--primary" data-act="admin-partner-approve" data-i="' + idx + '">Approve Partner KYC</button>' +
+              '<button type="button" class="btn btn--sm btn--ghost" data-act="admin-partner-reject" data-i="' + idx + '">Reject</button>' +
+              '<button type="button" class="btn btn--sm btn--ghost" data-act="admin-partner-credit" data-i="' + idx + '">+ Credit ₹500 Wallet</button>' +
+            '</div>' +
+          '</div>';
         }).join('') + '</div>';
       }
       h += '</div>';
     } else if (adminTab === 'hubs') {
-      h += '<div class="detail__block"><h2>Hub, Zone & Service Area Radius Management</h2>' +
-        '<p style="margin-bottom:16px">Configured coverage ranges for active operation hubs in India.</p>' +
+      h += '<div class="detail__block"><h2>📍 Hub, Zone & Dispatch Queue Management</h2>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">Manage city operation hubs, service area polygons/radii (8–10 km default), and dispatch queue assignments.</p>' +
+        '<h3>Add / Update Service Hub</h3>' +
+        '<form data-form="admin-add-hub" novalidate style="display:grid;gap:12px;margin-bottom:24px">' +
+          field('Hub / City Name', 'hub.name', { ph: 'e.g. Patna Hub 1' }) +
+          field('Operating Service Radius (km)', 'hub.radius', { type: 'number', ph: '8' }) +
+          '<button type="submit" class="btn btn--primary">Save Operation Hub</button>' +
+        '</form>' +
+        '<h3>Active Operational Hubs (' + D.cities.length + ')</h3>' +
         '<div class="list">' + D.cities.map(function (c) {
-          return '<div class="list__row"><div><strong>Hub ' + esc(c) + '</strong><br><small>Active Operating Zone (Radius: 8–10 km, Extended: 15 km)</small></div><span class="badge" style="background:#34C759;color:#fff">OPERATIONAL</span></div>';
+          return '<div class="list__row"><div><strong>Hub ' + esc(c) + '</strong><br><small>Active Operating Zone (Coverage Radius: 8–10 km, Extended: 15 km)</small></div><span class="badge" style="background:#34C759;color:#fff">OPERATIONAL</span></div>';
         }).join('') + '</div>' +
       '</div>';
     } else if (adminTab === 'content') {
-      h += '<div class="detail__block"><h2>Brand Contact & Official Info</h2>' +
-        '<form data-form="admin-brand" novalidate style="display:grid;gap:12px">' +
+      h += '<div class="detail__block"><h2>🌐 Website Content & Global Settings Editor</h2>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">Edit every hero slider, promo offer banner, coupon, brand phone, official email, and homepage text in real-time.</p>' +
+        '<h3>1. Official Brand & Contact Info</h3>' +
+        '<form data-form="admin-brand" novalidate style="display:grid;gap:12px;margin-bottom:24px">' +
           field('Phone Number', 'brand.phone', { ph: '+91 89202 52647' }) +
           field('Official Email', 'brand.email', { ph: 'bharatproexpert@gmail.com' }) +
           field('Company Email', 'brand.companyEmail', { ph: 'bharatproexperthomeservices@gmail.com' }) +
-          '<button type="submit" class="btn btn--primary">Update Live Contact Info</button>' +
+          '<button type="submit" class="btn btn--primary">Update Official Brand Info</button>' +
         '</form>' +
+        '<h3>2. Promo Offer Banner Strip</h3>' +
+        '<form data-form="admin-promo" novalidate style="display:grid;gap:12px;margin-bottom:24px">' +
+          field('Promo Title', 'promo.title', { ph: 'Flat ₹100 off on your first cleaning' }) +
+          field('Promo Subtitle', 'promo.sub', { ph: 'Use code FIRST100 at checkout' }) +
+          field('Button Text', 'promo.cta', { ph: 'Claim Offer' }) +
+          field('Coupon Code', 'promo.code', { ph: 'FIRST100' }) +
+          '<button type="submit" class="btn btn--primary">Save Promo Banner</button>' +
+        '</form>' +
+        '<h3>3. Create / Manage Promo Coupons</h3>' +
+        '<form data-form="admin-coupon" novalidate style="display:grid;gap:12px;margin-bottom:16px">' +
+          field('Coupon Code', 'coupon.code', { ph: 'CLEAN50' }) +
+          field('Label / Description', 'coupon.label', { ph: 'Flat ₹50 off' }) +
+          field('Discount Type', 'coupon.type', { options: [{v: 'flat', l: 'Flat ₹ Discount'}, {v: 'pct', l: 'Percentage % Discount'}] }) +
+          field('Discount Value', 'coupon.value', { type: 'number', ph: '50' }) +
+          field('Minimum Order Total (₹)', 'coupon.min', { type: 'number', ph: '299' }) +
+          '<button type="submit" class="btn btn--primary">Add Live Coupon</button>' +
+        '</form>' +
+        '<div class="list" style="margin-bottom:24px">' + (D.coupons || []).map(function (cp) {
+          return '<div class="list__row"><div><strong>' + esc(cp.code) + '</strong> — ' + esc(cp.label) + ' <small>(' + (cp.type === 'flat' ? '₹' + cp.value : cp.value + '%') + ' off, min ' + inr(cp.min) + ')</small></div><span class="badge" style="background:#34C759;color:#fff">ACTIVE</span></div>';
+        }).join('') + '</div>' +
       '</div>';
     } else if (adminTab === 'payments') {
-      h += '<div class="detail__block"><h2>Payments, Ledger & Reconciliation</h2>' +
+      var paidBookings = allBookings.filter(function (b) { return !b.cancelled && b.pay !== 'cod'; });
+      var totalOnlinePaid = paidBookings.reduce(function (sum, b) { return sum + (b.pricing ? b.pricing.total : 0); }, 0);
+      h += '<div class="detail__block"><h2>💳 Payments, Ledger & Refund Approvals</h2>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">Track Cashfree & Razorpay payment transactions, process refund requests, and inspect the financial ledger.</p>' +
+        '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px">' +
+          '<div class="card" style="padding:16px"><small style="color:var(--text-sub)">Online Settled Amount</small><h2 style="margin:4px 0">' + inr(totalOnlinePaid) + '</h2></div>' +
+          '<div class="card" style="padding:16px"><small style="color:var(--text-sub)">Total Online Payments</small><h2 style="margin:4px 0">' + paidBookings.length + '</h2></div>' +
+          '<div class="card" style="padding:16px"><small style="color:var(--text-sub)">Pending Refunds</small><h2 style="margin:4px 0">0</h2></div>' +
+        '</div>' +
+        '<h3>Verified Transactions & Payment Gateways</h3>' +
         '<div class="list">' +
           '<div class="list__row"><span>Primary Gateway</span><strong>Cashfree PG Serverless API (/api/create-order)</strong></div>' +
           '<div class="list__row"><span>Secondary Gateway</span><strong>Razorpay SDK Integration (/api/verify-payment)</strong></div>' +
@@ -1016,6 +1065,36 @@
       save('bpe_admin_auth', false);
       toast('Logged out of Super Admin Panel');
       location.hash = '#/admin';
+    },
+    'admin-partner-approve': function (el) {
+      var all = load('bpe_partners', []);
+      var idx = Number(el.dataset.i);
+      if (all[idx]) {
+        all[idx].status = 'APPROVED';
+        save('bpe_partners', all);
+        toast('Partner KYC Approved & Activated');
+        refresh();
+      }
+    },
+    'admin-partner-reject': function (el) {
+      var all = load('bpe_partners', []);
+      var idx = Number(el.dataset.i);
+      if (all[idx]) {
+        all[idx].status = 'REJECTED';
+        save('bpe_partners', all);
+        toast('Partner Application Rejected');
+        refresh();
+      }
+    },
+    'admin-partner-credit': function (el) {
+      var all = load('bpe_partners', []);
+      var idx = Number(el.dataset.i);
+      if (all[idx]) {
+        all[idx].wallet = (all[idx].wallet || 0) + 500;
+        save('bpe_partners', all);
+        toast('Credited ₹500 to Partner Wallet');
+        refresh();
+      }
     }
   };
   function setLang(l) { S.lang = l; save('bpe_lang', l); applyTheme(); renderSheet(); refresh(); }
@@ -1144,6 +1223,48 @@
       if (bDraft.companyEmail) catalogBrand.brand.companyEmail = bDraft.companyEmail.trim();
       saveAdminCatalog(catalogBrand);
       drafts.brand = {};
+    } else if (kind === 'admin-promo') {
+      var pDraft = drafts.promo || {};
+      var catalogPromo = getAdminCatalog();
+      if (!catalogPromo.promo) catalogPromo.promo = {};
+      if (pDraft.title) catalogPromo.promo.title = pDraft.title.trim();
+      if (pDraft.sub) catalogPromo.promo.sub = pDraft.sub.trim();
+      if (pDraft.cta) catalogPromo.promo.cta = pDraft.cta.trim();
+      if (pDraft.code) catalogPromo.promo.code = pDraft.code.trim().toUpperCase();
+      saveAdminCatalog(catalogPromo);
+      drafts.promo = {};
+    } else if (kind === 'admin-coupon') {
+      var cDraft = drafts.coupon || {};
+      if (!cDraft.code || !cDraft.value) {
+        toast('Enter Coupon Code and Value');
+        return;
+      }
+      var catalogCoupon = getAdminCatalog();
+      if (!catalogCoupon.coupons) catalogCoupon.coupons = D.coupons ? D.coupons.slice() : [];
+      catalogCoupon.coupons.push({
+        code: cDraft.code.trim().toUpperCase(),
+        label: (cDraft.label || cDraft.code).trim(),
+        type: cDraft.type || 'flat',
+        value: Number(cDraft.value),
+        min: Number(cDraft.min || 0),
+        active: true
+      });
+      saveAdminCatalog(catalogCoupon);
+      drafts.coupon = {};
+    } else if (kind === 'admin-add-hub') {
+      var hDraft = drafts.hub || {};
+      if (!hDraft.name) {
+        toast('Enter Hub Name');
+        return;
+      }
+      var catalogHub = getAdminCatalog();
+      if (!catalogHub.cities) catalogHub.cities = D.cities ? D.cities.slice() : [];
+      if (catalogHub.cities.indexOf(hDraft.name.trim()) < 0) {
+        catalogHub.cities.push(hDraft.name.trim());
+      }
+      saveAdminCatalog(catalogHub);
+      toast('Operation Hub Added');
+      drafts.hub = {};
     }
   });
 
