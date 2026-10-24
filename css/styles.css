@@ -730,7 +730,7 @@ textarea.input { min-height: 88px; resize: vertical; }
 
 @media (min-width: 1000px) {
   .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .catrow { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; }
+  .catrow { justify-content: center; overflow-x: visible; flex-wrap: wrap; width: 100% !important; }
 }
 
 @media (min-width: 1280px) {
