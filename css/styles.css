@@ -8,7 +8,6 @@ html, body, #root, #app, .app, .app-shell {
   max-width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
-  overflow-x: hidden !important;
   box-sizing: border-box !important;
 }
 
@@ -140,7 +139,6 @@ body {
   text-rendering: optimizeLegibility;
   padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 16px);
   overflow-x: hidden;
-  overscroll-behavior-y: none;
 }
 :lang(hi), [lang="hi"] { line-height: 1.65; }
 h1, h2, h3, h4, p, ul, ol, figure, dl, dd { margin: 0; }
