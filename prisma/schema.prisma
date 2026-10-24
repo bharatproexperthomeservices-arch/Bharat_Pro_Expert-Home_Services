@@ -1,0 +1,299 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         String    @default("SUPER_ADMIN")
+  permissions  String[]  @default(["*"])
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  auditLogs    AuditLog[]
+
+  @@map("admin_users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  permissions String[]
+  createdAt   DateTime @default(now())
+
+  @@map("roles")
+}
+
+model Customer {
+  id        String    @id @default(uuid())
+  phone     String    @unique
+  name      String?
+  email     String?
+  status    String    @default("active") // active | blocked
+  createdAt DateTime  @default(now())
+  bookings  Booking[]
+
+  @@map("customers")
+}
+
+model Category {
+  id        String    @id
+  name      String
+  nameHi    String?
+  emoji     String
+  g1        String    @default("#007AFF")
+  g2        String    @default("#5AC8FA")
+  blurb     String?
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  services  Service[]
+
+  @@map("categories")
+}
+
+model Service {
+  id          String   @id
+  catId       String
+  category    Category @relation(fields: [catId], references: [id])
+  name        String
+  nameHi      String?
+  emoji       String   @default("✨")
+  price       Float
+  mrp         Float
+  rating      Float    @default(4.8)
+  reviews     Int      @default(1)
+  duration    Int      @default(60)
+  desc        String?
+  includes    String[] @default([])
+  excludes    String[] @default([])
+  faqs        Json     @default("[]")
+  tag         String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+
+  @@map("services")
+}
+
+model Coupon {
+  id         String   @id @default(uuid())
+  code       String   @unique
+  label      String
+  type       String   // flat | pct
+  value      Float
+  min        Float    @default(0)
+  isActive   Boolean  @default(true)
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@map("coupons")
+}
+
+model Booking {
+  id          String    @id
+  bookingCode String    @unique
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  date        String
+  slot        String
+  payStatus   String    @default("pending") // pending | paid | refunded
+  status      String    @default("confirmed") // confirmed | assigned | on_the_way | completed | cancelled
+  totalAmount Float
+  pricing     Json
+  items       Json
+  address     Json
+  partnerId   String?
+  partner     Partner?  @relation(fields: [partnerId], references: [id])
+  cancelled   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  payments    Payment[]
+  refunds     Refund[]
+
+  @@map("bookings")
+}
+
+model Partner {
+  id               String            @id @default(uuid())
+  name             String
+  phone            String            @unique
+  city             String
+  skill            String
+  experience       String
+  status           String            @default("pending") // pending | approved | rejected | suspended
+  kycStatus        String            @default("pending") // pending | verified | rejected
+  rating           Float             @default(4.8)
+  walletBalance    Float             @default(0)
+  availabilityJson Json?
+  createdAt        DateTime          @default(now())
+  bookings         Booking[]
+  documents        PartnerDocument[]
+  leaves           PartnerLeave[]
+  payouts          Payout[]
+
+  @@map("partners")
+}
+
+model PartnerDocument {
+  id         String   @id @default(uuid())
+  partnerId  String
+  partner    Partner  @relation(fields: [partnerId], references: [id])
+  docType    String   // aadhaar | pan | bank
+  fileUrl    String
+  status     String   @default("pending") // pending | verified | rejected
+  uploadedAt DateTime @default(now())
+
+  @@map("partner_documents")
+}
+
+model PartnerLeave {
+  id        String   @id @default(uuid())
+  partnerId String
+  partner   Partner  @relation(fields: [partnerId], references: [id])
+  startDate String
+  endDate   String
+  reason    String?
+  status    String   @default("pending") // pending | approved | rejected
+
+  @@map("partner_leaves")
+}
+
+model Hub {
+  id             String   @id @default(uuid())
+  name           String
+  city           String
+  radiusKm       Float    @default(10)
+  coordinates    Json?
+  isActive       Boolean  @default(true)
+
+  @@map("hubs")
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  bookingId     String
+  booking       Booking  @relation(fields: [bookingId], references: [id])
+  gateway       String   // cashfree | razorpay | cod
+  transactionId String?
+  amount        Float
+  status        String   @default("pending") // pending | success | failed
+  createdAt     DateTime @default(now())
+  refunds       Refund[]
+
+  @@map("payments")
+}
+
+model Refund {
+  id        String   @id @default(uuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+  amount    Float
+  reason    String?
+  status    String   @default("pending") // pending | approved | rejected | refunded
+  createdAt DateTime @default(now())
+
+  @@map("refunds")
+}
+
+model Payout {
+  id             String   @id @default(uuid())
+  partnerId      String
+  partner        Partner  @relation(fields: [partnerId], references: [id])
+  amount         Float
+  status         String   @default("pending") // pending | approved | paid
+  transactionRef String?
+  createdAt      DateTime @default(now())
+
+  @@map("payouts")
+}
+
+model Ledger {
+  id          String   @id @default(uuid())
+  entityType  String   // partner | customer | system
+  entityId    String
+  type        String   // credit | debit
+  amount      Float
+  description String
+  createdAt   DateTime @default(now())
+
+  @@map("ledger")
+}
+
+model SupportTicket {
+  id         String   @id @default(uuid())
+  ticketCode String   @unique
+  customerId String?
+  bookingId  String?
+  subject    String
+  status     String   @default("open") // open | in_progress | resolved | closed
+  priority   String   @default("normal")
+  messages   Json     @default("[]")
+  createdAt  DateTime @default(now())
+
+  @@map("support_tickets")
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  bookingId  String?
+  serviceId  String?
+  customerName String
+  rating     Float
+  comment    String
+  isApproved Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@map("reviews")
+}
+
+model AuditLog {
+  id           String     @id @default(uuid())
+  adminId      String?
+  adminUser    AdminUser? @relation(fields: [adminId], references: [id])
+  action       String
+  targetEntity String
+  entityId     String?
+  changes      Json?
+  createdAt    DateTime   @default(now())
+
+  @@map("audit_logs")
+}
+
+model PageSection {
+  id          String   @id @default(uuid())
+  pageKey     String
+  sectionKey  String
+  sectionType String
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+
+  @@map("page_sections")
+}
+
+model ContentVersion {
+  id          String   @id @default(uuid())
+  pageKey     String
+  snapshot    Json
+  publishedBy String?
+  status      String   @default("published")
+  publishedAt DateTime @default(now())
+
+  @@map("content_versions")
+}
+
+model SiteSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
