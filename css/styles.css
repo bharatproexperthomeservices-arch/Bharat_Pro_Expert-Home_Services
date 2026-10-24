@@ -128,10 +128,10 @@ button:disabled { cursor: not-allowed; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ---------- 3. Layout ---------- */
-.app, .app-shell { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; width: 100%; }
-.app-shell { max-width: 1200px; margin: 0 auto; }
-.page { flex: 1; width: 100%; animation: pageIn .45s var(--ease) both; }
-.container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 var(--gutter); }
+.app, .app-shell { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; width: 100%; max-width: 100% !important; }
+.app-shell { width: 100%; max-width: 100% !important; margin: 0 !important; }
+.page { flex: 1; width: 100%; max-width: 100% !important; animation: pageIn .45s var(--ease) both; }
+.container { width: 100%; max-width: 100% !important; margin: 0 !important; padding: 0 var(--gutter); }
 .page > .container + .container, .page > .section, .page > .hero, .page > .catrow, .page > .promo { margin-top: 20px; }
 .page > :first-child { margin-top: 12px; }
 
@@ -208,7 +208,7 @@ button:disabled { cursor: not-allowed; }
 }
 
 /* ---------- 5. Home: hero, categories, promo, sections ---------- */
-.hero { position: relative; padding: 0 var(--gutter); max-width: 1200px; margin-left: auto; margin-right: auto; }
+.hero { position: relative; padding: 0 var(--gutter); width: 100%; max-width: 100% !important; margin-left: 0 !important; margin-right: 0 !important; }
 .hero__track {
   display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
   scrollbar-width: none; -webkit-overflow-scrolling: touch; border-radius: var(--r-lg);
@@ -269,7 +269,7 @@ button:disabled { cursor: not-allowed; }
 }
 .promo__btn:active { transform: scale(.94); filter: brightness(.92); }
 
-.section { padding: 0 var(--gutter); max-width: 1200px; margin-left: auto; margin-right: auto; margin-top: 24px; width: 100%; }
+.section { padding: 0 var(--gutter); width: 100%; max-width: 100% !important; margin-left: 0 !important; margin-right: 0 !important; margin-top: 24px; }
 .section__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .section__title { font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
 .section__more { font-size: 14px; font-weight: 500; color: var(--blue); white-space: nowrap; }
@@ -511,7 +511,7 @@ textarea.input { min-height: 88px; resize: vertical; }
   body { padding-bottom: 0; }
   .tabbar { display: none; }
   .topnav { display: flex; }
-  .topbar { padding-left: max(var(--gutter), calc((100vw - 1200px) / 2 + var(--gutter))); padding-right: max(var(--gutter), calc((100vw - 1200px) / 2 + var(--gutter))); gap: 16px; }
+  .topbar { padding-left: var(--gutter); padding-right: var(--gutter); gap: 16px; width: 100%; max-width: 100% !important; }
   .topbar__search { max-width: 440px; }
   .topbar__loc { max-width: 220px; }
   .detail__bar { bottom: 0; border-radius: var(--r-lg) var(--r-lg) 0 0; }
@@ -531,7 +531,7 @@ textarea.input { min-height: 88px; resize: vertical; }
 }
 @media (min-width: 1280px) {
   .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .app-shell, .container, .section, .hero { max-width: 1200px; }
+  .app-shell, .container, .section, .hero { width: 100%; max-width: 100% !important; }
 }
 @media (min-width: 1500px) {
   .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
