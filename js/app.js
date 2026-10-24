@@ -597,11 +597,18 @@
   }
 
   /* ---------- SUPER ADMIN PANEL STATE & FUNCTIONS ---------- */
-  var ADMIN_PASS = 'admin123';
+  var ADMIN_EMAIL = 'bharatproexperthomeservices@gmail.com';
+  var ADMIN_PASS = 'bharatproexperthomeservices@9319953137';
+  var LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes lockout on 1 failed attempt
   var adminTab = 'overview';
 
   function isAdminLoggedIn() {
     return load('bpe_admin_auth', false) === true;
+  }
+
+  function getAdminLockoutUntil() {
+    var until = load('bpe_admin_lockout', 0);
+    return typeof until === 'number' ? until : 0;
   }
 
   function viewAdminLogin() {
@@ -609,13 +616,24 @@
       location.hash = '#/admin/dashboard';
       return '';
     }
+    var lockoutUntil = getAdminLockoutUntil();
+    var now = Date.now();
+    var isLocked = lockoutUntil > now;
+    var remainingMinutes = isLocked ? Math.ceil((lockoutUntil - now) / 60000) : 0;
+
     return backBar('Super Admin Login', '#/') +
       '<div class="detail__block" style="max-width:440px;margin:24px auto">' +
         '<h2>🔒 Super Admin Authentication</h2>' +
-        '<p style="color:var(--text-sub);margin-bottom:16px">Enter your Super Admin Access Key / Password to manage live services, bookings, partners, payments, and website content.</p>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">Enter Super Admin Email and Password to access system settings, services, and live operations.</p>' +
+        (isLocked
+          ? '<div style="background:#FF3B301A;border:1px solid #FF3B30;border-radius:8px;padding:12px;margin-bottom:16px;color:#FF3B30;font-size:14px;font-weight:600">' +
+              '⛔ High Security Lockout Active! 1 failed login attempt detected. Login is locked for 15 minutes. Please try again in ' + remainingMinutes + ' minute(s).' +
+            '</div>'
+          : '') +
         '<form data-form="admin-login" novalidate>' +
-          field('Admin Password / Key', 'admin.pass', { type: 'password', ph: 'Enter Admin Password', auto: true }) +
-          '<button type="submit" class="btn btn--primary btn--block">Login to Super Admin Panel</button>' +
+          field('Admin Email / User ID', 'admin.email', { type: 'email', ph: 'bharatproexperthomeservices@gmail.com', auto: true, ac: 'email' }) +
+          field('Admin Password', 'admin.pass', { type: 'password', ph: 'Enter Admin Password', ac: 'current-password' }) +
+          '<button type="submit" class="btn btn--primary btn--block"' + (isLocked ? ' disabled style="opacity:0.6;cursor:not-allowed"' : '') + '>Login to Super Admin Panel</button>' +
         '</form>' +
       '</div>';
   }
@@ -1100,13 +1118,29 @@
       save('bpe_partners', all);
       drafts.partner = { sent: true }; drafts.errs = {}; refresh();
     } else if (kind === 'admin-login') {
+      var lockoutUntil = getAdminLockoutUntil();
+      var now = Date.now();
+      if (lockoutUntil > now) {
+        var mins = Math.ceil((lockoutUntil - now) / 60000);
+        toast('Login locked due to failed attempt. Try again in ' + mins + ' min');
+        refresh();
+        return;
+      }
+
+      var email = ((drafts.admin || {}).email || '').trim().toLowerCase();
       var pass = ((drafts.admin || {}).pass || '').trim();
-      if (pass === ADMIN_PASS) {
+
+      if (email === ADMIN_EMAIL.toLowerCase() && pass === ADMIN_PASS) {
         save('bpe_admin_auth', true);
+        save('bpe_admin_lockout', 0);
+        drafts.admin = {};
         toast('Welcome Super Admin');
         location.hash = '#/admin/dashboard';
       } else {
-        toast('Invalid Admin Password');
+        var newLockout = Date.now() + LOCKOUT_DURATION_MS;
+        save('bpe_admin_lockout', newLockout);
+        toast('Invalid Admin credentials! Access locked for 15 minutes');
+        refresh();
       }
     } else if (kind === 'admin-add-svc') {
       var sDraft = drafts.adminSvc || {};
