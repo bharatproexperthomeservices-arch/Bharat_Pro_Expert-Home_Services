@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bharat Pro Expert Home services - Footer</title>
+  <!-- FontAwesome CDN for social icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    /* Reset & Base Styles */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Roboto', Arial, 'Segoe UI', sans-serif;
+      background-color: #f8f9fa;
+      color: #111111;
+      line-height: 1.5;
+    }
+
+    /* CRITICAL RULE: 100% FLUID FULL-WIDTH LAYOUT */
+    .site-footer {
+      width: 100%;
+      background-color: #ffffff;
+      padding: 40px 6% 30px 6%;
+      box-sizing: border-box;
+      border-top: 1px solid #eaeaea;
+    }
+
+    /* Branding Section (Top Left) */
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      background-color: #111111;
+      color: #ffffff;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: -0.5px;
+      flex-shrink: 0;
+    }
+
+    .brand-text-container {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111111;
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 13px;
+      color: #666666;
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
+    /* Grid Layout Structure */
+    .footer-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 32px;
+      width: 100%;
+    }
+
+    .footer-column {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .footer-heading {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111111;
+      margin-bottom: 16px;
+    }
+
+    .footer-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .footer-links a {
+      color: #666666;
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.2s ease;
+    }
+
+    .footer-links a:hover {
+      color: #111111;
+    }
+
+    /* Column 4: Social Icons & App Store Badges */
+    .social-icons {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .social-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid #d1d5db;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #4b5563;
+      text-decoration: none;
+      font-size: 15px;
+      transition: all 0.2s ease;
+    }
+
+    .social-icon:hover {
+      border-color: #111111;
+      color: #111111;
+      background-color: #f9fafb;
+    }
+
+    /* App Store Badges */
+    .app-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 180px;
+    }
+
+    .app-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background-color: #000000;
+      color: #ffffff;
+      padding: 8px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: opacity 0.2s ease, transform 0.15s ease;
+    }
+
+    .app-btn:hover {
+      opacity: 0.88;
+    }
+
+    .app-btn:active {
+      transform: scale(0.98);
+    }
+
+    .app-btn i {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .app-btn-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+
+    .app-btn-sub {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.8;
+    }
+
+    .app-btn-main {
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    /* Bottom Section */
+    .footer-divider {
+      border: none;
+      height: 1px;
+      background-color: #e5e7eb;
+      margin: 36px 0 20px 0;
+      width: 100%;
+    }
+
+    .footer-bottom-text {
+      font-size: 12px;
+      color: #666666;
+      line-height: 1.6;
+    }
+
+    .footer-bottom-text.disclaimer {
+      margin-bottom: 8px;
+    }
+
+    /* RESPONSIVENESS */
+
+    /* Tablet Layout (max-width: 992px) */
+    @media (max-width: 992px) {
+      .site-footer {
+        padding: 32px 5% 24px 5%;
+      }
+
+      .footer-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 28px 24px;
+      }
+    }
+
+    /* Mobile Layout (max-width: 600px) */
+    @media (max-width: 600px) {
+      .site-footer {
+        padding: 28px 5% 20px 5%;
+      }
+
+      .footer-brand {
+        margin-bottom: 24px;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+
+      .app-buttons {
+        max-width: 100%;
+        flex-direction: column;
+      }
+
+      .app-btn {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 10px 16px;
+      }
+
+      .footer-divider {
+        margin: 28px 0 16px 0;
+      }
+
+      .footer-bottom-text {
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 100% FLUID FULL-WIDTH FOOTER -->
+  <footer class="site-footer">
+
+    <!-- BRANDING (Top Left) -->
+    <div class="footer-brand">
+      <div class="brand-logo">BP</div>
+      <div class="brand-text-container">
+        <span class="brand-title">Bharat Pro Expert Home services</span>
+        <span class="brand-subtitle">Expert Home services</span>
+      </div>
+    </div>
+
+    <!-- LAYOUT STRUCTURE (4 Columns Grid) -->
+    <div class="footer-grid">
+
+      <!-- Column 1: Company -->
+      <div class="footer-column">
+        <h4 class="footer-heading">Company</h4>
+        <ul class="footer-links">
+          <li><a href="#">About us</a></li>
+          <li><a href="#">Investor Relations</a></li>
+          <li><a href="#">Terms &amp; conditions</a></li>
+          <li><a href="#">Privacy policy</a></li>
+          <li><a href="#">Anti-discrimination policy</a></li>
+          <li><a href="#">Careers</a></li>
+        </ul>
+      </div>
+
+      <!-- Column 2: For customers -->
+      <div class="footer-column">
+        <h4 class="footer-heading">For customers</h4>
+        <ul class="footer-links">
+          <li><a href="#">Bharat Pro Expert Home services reviews</a></li>
+          <li><a href="#">Categories near you</a></li>
+          <li><a href="#">Contact us</a></li>
+        </ul>
+      </div>
+
+      <!-- Column 3: For professionals -->
+      <div class="footer-column">
+        <h4 class="footer-heading">For professionals</h4>
+        <ul class="footer-links">
+          <li><a href="#">Register as a professional</a></li>
+        </ul>
+      </div>
+
+      <!-- Column 4: Social links & App Buttons -->
+      <div class="footer-column">
+        <h4 class="footer-heading">Social links</h4>
+
+        <!-- 4 Circular Icons with thin grey borders -->
+        <div class="social-icons">
+          <a href="#" class="social-icon" aria-label="X / Twitter"><i class="fa-brands fa-x-twitter"></i></a>
+          <a href="#" class="social-icon" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="#" class="social-icon" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+          <a href="#" class="social-icon" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
+        </div>
+
+        <!-- Stacked App Store Buttons -->
+        <div class="app-buttons">
+          <a href="#" class="app-btn">
+            <i class="fa-brands fa-apple"></i>
+            <div class="app-btn-text">
+              <span class="app-btn-sub">Download on the</span>
+              <span class="app-btn-main">App Store</span>
+            </div>
+          </a>
+          <a href="#" class="app-btn">
+            <i class="fa-brands fa-google-play"></i>
+            <div class="app-btn-text">
+              <span class="app-btn-sub">GET IT ON</span>
+              <span class="app-btn-main">Google Play</span>
+            </div>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BOTTOM SECTION -->
+    <hr class="footer-divider">
+    <p class="footer-bottom-text disclaimer">* As on December 31, 2024</p>
+    <p class="footer-bottom-text">
+      &copy; Copyright 2026 Bharat Pro Expert Home services Limited (formerly known as Bharat Pro Expert Home services Technologies India Limited and Bharat Pro Expert Home services Technologies India Private Limited) All rights reserved. | CIN: L74140DL2014PLC274413
+    </p>
+
+  </footer>
+
+</body>
+</html>
