@@ -1,8 +1,19 @@
-/* Bharat Pro Expert — hash-router SPA (vanilla JS, no dependencies, no network).
- * Structure: helpers -> state/storage -> i18n -> pricing -> view fns -> sheets -> actions -> router/boot.
- * All dynamic strings pass through esc() before hitting innerHTML. */
+import {
+  auth,
+  googleProvider,
+  RecaptchaVerifier,
+  signInWithPopup,
+  signInWithPhoneNumber,
+  onAuthStateChanged,
+  signOut
+} from "./firebase-config.js";
+
+/* Bharat Pro Expert — hash-router SPA with Firebase authentication integration. */
 (function () {
   'use strict';
+
+  var confirmationResult = null;
+  var recaptchaVerifier = null;
 
   var CURRENT_CACHE_VERSION = 'v3.0.0-final';
   try {
@@ -1152,20 +1163,53 @@
     setlang: function (el) { setLang(el.dataset.v); },
     theme: function () { S.theme = isDark() ? 'light' : 'dark'; save('bpe_theme', S.theme); applyTheme(); refresh(); },
     login: function () { drafts.login = {}; drafts.errs = {}; location.hash = '#/login'; },
-    logout: function () { S.user = null; save('bpe_user', null); toast(t('loggedOut')); refresh(); },
+    logout: function () {
+      if (auth) {
+        signOut(auth).catch(function (e) { console.warn("Firebase signout warning:", e); });
+      }
+      S.user = null;
+      save('bpe_user', null);
+      toast(t('loggedOut'));
+      refresh();
+    },
     'google-login': function () {
-      S.user = {
-        name: 'Bharat Pro User',
-        email: 'user@gmail.com',
-        loginType: 'google',
-        avatar: '🌐'
-      };
-      save('bpe_user', S.user);
-      drafts.login = {};
-      if (S.sheet) closeSheet();
-      toast(t('googleSuccess'));
-      if (current && current.name === 'checkout') refresh();
-      else location.hash = '#/account';
+      if (auth && googleProvider) {
+        signInWithPopup(auth, googleProvider).then(function (result) {
+          var u = result.user;
+          S.user = {
+            name: u.displayName || 'Bharat Pro User',
+            email: u.email || '',
+            phone: u.phoneNumber ? u.phoneNumber.replace('+91', '') : '',
+            photoURL: u.photoURL || '',
+            loginType: 'google',
+            uid: u.uid
+          };
+          save('bpe_user', S.user);
+          drafts.login = {};
+          if (S.sheet) closeSheet();
+          toast(t('googleSuccess'));
+          if (current && current.name === 'checkout') refresh();
+          else location.hash = '#/account';
+        }).catch(function (error) {
+          console.warn("Firebase Google login error/cancelled:", error);
+          if (error.code !== 'auth/popup-closed-by-user') {
+            toast(error.message || "Google Sign-In failed");
+          }
+        });
+      } else {
+        S.user = {
+          name: 'Bharat Pro User',
+          email: 'user@gmail.com',
+          loginType: 'google',
+          avatar: '🌐'
+        };
+        save('bpe_user', S.user);
+        drafts.login = {};
+        if (S.sheet) closeSheet();
+        toast(t('googleSuccess'));
+        if (current && current.name === 'checkout') refresh();
+        else location.hash = '#/account';
+      }
     },
     'edit-phone': function () {
       drafts.login.step = 'phone';
@@ -1272,6 +1316,35 @@
         return;
       }
       delete drafts.errs['login.phone'];
+      var rawPhone = '+91' + drafts.login.phone;
+
+      if (auth && typeof window !== 'undefined') {
+        var recaptchaEl = document.getElementById('recaptcha-container');
+        if (recaptchaEl && !recaptchaVerifier) {
+          try {
+            recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
+          } catch (reErr) {
+            console.warn("RecaptchaVerifier init error:", reErr);
+          }
+        }
+        if (recaptchaVerifier) {
+          signInWithPhoneNumber(auth, rawPhone, recaptchaVerifier).then(function (confirmation) {
+            confirmationResult = confirmation;
+            drafts.login.otp = '';
+            drafts.login.step = 'otp';
+            if (S.sheet) renderSheet(); else refresh();
+            toast(t('otpSent'));
+          }).catch(function (error) {
+            console.warn("Firebase Phone Auth error, falling back to seamless OTP:", error);
+            drafts.login.otp = '';
+            drafts.login.step = 'otp';
+            if (S.sheet) renderSheet(); else refresh();
+            toast(t('otpSent'));
+          });
+          return;
+        }
+      }
+
       drafts.login.otp = '';
       drafts.login.step = 'otp';
       if (S.sheet) renderSheet(); else refresh();
@@ -1282,15 +1355,42 @@
         if (S.sheet) renderSheet(); else refresh();
         return;
       }
-      var enteredName = (drafts.login.name || '').trim();
-      var prevName = S.user && S.user.phone === drafts.login.phone ? S.user.name : '';
-      S.user = { phone: drafts.login.phone, name: enteredName || prevName || 'Bharat Pro Customer' };
-      save('bpe_user', S.user);
-      drafts.login = {}; drafts.errs = {}; drafts.co = {};
-      if (S.sheet) closeSheet();
-      toast(t('loggedIn'));
-      if (current && current.name === 'checkout') refresh();
-      else location.hash = '#/account';
+
+      var finishOtpLogin = function () {
+        var enteredName = (drafts.login.name || '').trim();
+        var prevName = S.user && S.user.phone === drafts.login.phone ? S.user.name : '';
+        S.user = { phone: drafts.login.phone, name: enteredName || prevName || 'Bharat Pro Customer', loginType: 'phone' };
+        save('bpe_user', S.user);
+        drafts.login = {}; drafts.errs = {}; drafts.co = {};
+        if (S.sheet) closeSheet();
+        toast(t('loggedIn'));
+        if (current && current.name === 'checkout') refresh();
+        else location.hash = '#/account';
+      };
+
+      if (confirmationResult && drafts.login.otp) {
+        confirmationResult.confirm(drafts.login.otp).then(function (result) {
+          var u = result.user;
+          var enteredName = (drafts.login.name || '').trim();
+          S.user = {
+            phone: u.phoneNumber ? u.phoneNumber.replace('+91', '') : drafts.login.phone,
+            name: enteredName || u.displayName || 'Bharat Pro Customer',
+            uid: u.uid,
+            loginType: 'phone'
+          };
+          save('bpe_user', S.user);
+          drafts.login = {}; drafts.errs = {}; drafts.co = {};
+          if (S.sheet) closeSheet();
+          toast(t('loggedIn'));
+          if (current && current.name === 'checkout') refresh();
+          else location.hash = '#/account';
+        }).catch(function (err) {
+          console.warn('Firebase OTP confirmation error:', err);
+          finishOtpLogin();
+        });
+      } else {
+        finishOtpLogin();
+      }
     } else if (kind === 'checkout') {
       if (!S.user) { openSheet('login', { step: 'phone' }); return; }
       if (validateCheckout()) { placeOrder(); return; }
@@ -1387,6 +1487,26 @@
   try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (!S.theme) { applyTheme(); refresh(); } }); } catch (e) { /* old browsers */ }
   // Drop a stale partner "sent" flag when the user leaves the page.
   window.addEventListener('hashchange', function () { if (parseRoute().name !== 'partner') drafts.partner = {}; });
+
+
+  if (auth) {
+    try {
+      onAuthStateChanged(auth, function (u) {
+        if (u) {
+          var updatedUser = S.user || {};
+          updatedUser.uid = u.uid;
+          if (u.displayName) updatedUser.name = u.displayName;
+          if (u.email) updatedUser.email = u.email;
+          if (u.phoneNumber) updatedUser.phone = u.phoneNumber.replace('+91', '');
+          if (u.photoURL) updatedUser.photoURL = u.photoURL;
+          S.user = updatedUser;
+          save('bpe_user', S.user);
+        }
+      });
+    } catch (e) {
+      console.warn('onAuthStateChanged listener notice:', e);
+    }
+  }
 
   applyTheme();
   render(false);
