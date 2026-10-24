@@ -733,6 +733,387 @@
     refresh();
   }
 
+  function getPartnersList() {
+    var partners = load('bpe_partners', []);
+    if (!Array.isArray(partners) || partners.length === 0) {
+      partners = [
+        { id: 'p101', name: 'Ramesh Kumar', phone: '9876543210', city: 'Gurgaon', skill: 'plumbing', exp: '5', status: 'pending', kycStatus: 'pending', walletBalance: 1500, walletHistory: [{ date: '2025-01-10', amount: 1500, type: 'credit', reason: 'Joining Bonus' }], docs: { aadharVerified: false, panVerified: false, bankVerified: true }, at: Date.now() - 86400000 },
+        { id: 'p102', name: 'Sunita Sharma', phone: '9812345678', city: 'Delhi', skill: 'cleaning', exp: '3', status: 'approved', kycStatus: 'verified', walletBalance: 3400, walletHistory: [{ date: '2025-01-12', amount: 3400, type: 'credit', reason: 'Completed 4 Cleaning Jobs' }], docs: { aadharVerified: true, panVerified: true, bankVerified: true }, at: Date.now() - 172800000 },
+        { id: 'p103', name: 'Amit Verma', phone: '9955443322', city: 'Noida', skill: 'appliance', exp: '4', status: 'pending', kycStatus: 'pending', walletBalance: 0, walletHistory: [], docs: { aadharVerified: false, panVerified: false, bankVerified: false }, at: Date.now() - 43200000 }
+      ];
+      save('bpe_partners', partners);
+    }
+    return partners;
+  }
+
+  function savePartnersList(list) {
+    save('bpe_partners', list);
+    refresh();
+  }
+
+  function viewAdminRouter(subRoute, param, extra) {
+    if (!isAdminLoggedIn()) {
+      return viewAdminLogin();
+    }
+    subRoute = subRoute || 'dashboard';
+    if (subRoute === 'dashboard' || subRoute === 'login') {
+      return viewAdminDashboard();
+    }
+    if (subRoute === 'partners') {
+      if (param) {
+        return viewAdminPartnerProfile(param);
+      }
+      return viewAdminPartnersList();
+    }
+    if (subRoute === 'catalogue') {
+      return viewAdminCatalogueManager();
+    }
+    if (subRoute === 'website') {
+      return viewAdminWebsiteEditor();
+    }
+    if (subRoute === 'bookings') {
+      if (param) {
+        return viewAdminBookingDetail(param);
+      }
+      return viewAdminBookingsList();
+    }
+    if (subRoute === 'customers') {
+      if (param) {
+        return viewAdminCustomerProfile(param);
+      }
+      return viewAdminCustomersList();
+    }
+    return viewAdminDashboard();
+  }
+
+  function viewAdminBookingsList() {
+    var allBookings = load('bpe_bookings', []);
+    var h = backBar('Super Admin — Bookings Management', '#/admin/dashboard') +
+      '<div class="detail__block"><h2>📋 Live Bookings & Dispatch Center</h2>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">View, assign partners, update status, or process refunds for customer orders across India.</p>';
+
+    if (!allBookings.length) {
+      h += '<p style="color:var(--text-sub)">No customer bookings registered yet.</p>';
+    } else {
+      h += '<div class="list">' + allBookings.map(function (b) {
+        var a = b.address || {};
+        var st = stageOf(b);
+        return '<div class="list__row" style="flex-direction:column;align-items:flex-start;gap:10px;padding:14px;border:1px solid var(--border,#e0e0e0);border-radius:12px;margin-bottom:10px">' +
+          '<div style="display:flex;justify-content:space-between;width:100%;align-items:center">' +
+            '<div><strong style="font-size:16px">Booking ID: ' + esc(b.id) + '</strong></div>' +
+            '<span class="badge" style="background:' + (b.cancelled ? '#FF3B30' : '#007AFF') + ';color:#fff">' + esc(b.cancelled ? 'CANCELLED' : (t('status')[st] || 'CONFIRMED')) + '</span>' +
+          '</div>' +
+          '<div>Customer: <strong>' + esc(a.name) + '</strong> (' + esc(a.phone) + ') | Date: 📅 ' + fmtDate(b.date) + ', ' + esc(b.slot) + '</div>' +
+          '<div>Total: <strong>' + inr(b.pricing ? b.pricing.total : 0) + '</strong> (' + esc(b.pay) + ')</div>' +
+          '<div class="chips" style="margin-top:4px">' +
+            '<a href="#/admin/bookings/' + esc(b.id) + '" class="btn btn--sm btn--primary">🔍 Drill-Down Detail</a>' +
+            (!b.cancelled ? '<button type="button" class="btn btn--sm btn--ghost" data-act="admin-assign-booking" data-id="' + esc(b.id) + '">👤 Assign Partner</button>' : '') +
+            (!b.cancelled ? '<button type="button" class="btn btn--sm btn--ghost" style="color:#FF3B30" data-act="admin-cancel-booking" data-id="' + esc(b.id) + '">❌ Cancel</button>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function viewAdminBookingDetail(bid) {
+    var b = getBooking(bid);
+    if (!b) {
+      return backBar('Booking Not Found', '#/admin/bookings') + emptyState('📋', 'Booking Not Found', 'The requested booking ID does not exist.', '#/admin/bookings', 'Back to Bookings');
+    }
+    var a = b.address || {};
+    var st = stageOf(b);
+
+    var h = backBar('Booking Detail — ' + b.id, '#/admin/bookings') +
+      '<div class="detail__block" style="border-left:4px solid var(--primary,#007AFF)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+          '<div>' +
+            '<h2>📋 Order #' + esc(b.id) + '</h2>' +
+            '<p style="color:var(--text-sub)">Placed on: ' + new Date(b.created || Date.now()).toLocaleString() + '</p>' +
+          '</div>' +
+          '<span class="badge" style="background:' + (b.cancelled ? '#FF3B30' : '#007AFF') + ';color:#fff;font-size:14px;padding:6px 12px">' + esc(b.cancelled ? 'CANCELLED' : (t('status')[st] || 'CONFIRMED')) + '</span>' +
+        '</div>' +
+        '<div class="chips">' +
+          (!b.cancelled ? '<button type="button" class="btn btn--sm btn--primary" data-act="admin-assign-booking" data-id="' + esc(b.id) + '">👤 Assign / Reassign Partner</button>' : '') +
+          (!b.cancelled ? '<button type="button" class="btn btn--sm btn--ghost" style="color:#FF3B30" data-act="admin-cancel-booking" data-id="' + esc(b.id) + '">❌ Cancel Booking</button>' : '') +
+        '</div>' +
+      '</div>' +
+
+      '<div class="detail__block"><h2>1. Customer & Delivery Address</h2>' +
+        '<div class="list">' +
+          '<div class="list__row"><span>Customer Name</span><strong>' + esc(a.name) + '</strong></div>' +
+          '<div class="list__row"><span>Mobile Phone</span><strong>+91 ' + esc(a.phone) + '</strong></div>' +
+          '<div class="list__row"><span>Service Address</span><strong>' + esc(a.house + ', ' + a.area + ', ' + a.city + ' ' + a.pincode) + '</strong></div>' +
+          '<div class="list__row"><span>Scheduled Slot</span><strong>📅 ' + fmtDate(b.date) + ', ' + esc(b.slot) + '</strong></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="detail__block"><h2>2. Ordered Services & Payment</h2>' +
+        bookingItems(b) +
+        summary(b.pricing) +
+      '</div>';
+    return h;
+  }
+
+  function viewAdminCustomersList() {
+    var allBookings = load('bpe_bookings', []);
+    var customers = {};
+    allBookings.forEach(function (b) {
+      var a = b.address || {};
+      if (a.phone) {
+        if (!customers[a.phone]) {
+          customers[a.phone] = { name: a.name, phone: a.phone, city: a.city, totalOrders: 0, totalSpent: 0 };
+        }
+        customers[a.phone].totalOrders += 1;
+        customers[a.phone].totalSpent += (b.pricing ? b.pricing.total : 0);
+      }
+    });
+    var custList = Object.keys(customers).map(function (k) { return customers[k]; });
+
+    var h = backBar('Super Admin — Customer Management', '#/admin/dashboard') +
+      '<div class="detail__block"><h2>👥 Customer Database & Accounts</h2>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">View customer order profiles, spending history, and block/unblock controls.</p>';
+
+    if (!custList.length) {
+      h += '<p style="color:var(--text-sub)">No customer records found yet.</p>';
+    } else {
+      h += '<div class="list">' + custList.map(function (c) {
+        return '<div class="list__row" style="flex-direction:column;align-items:flex-start;gap:6px;padding:12px;border:1px solid var(--border,#e0e0e0);border-radius:10px;margin-bottom:8px">' +
+          '<div><strong style="font-size:16px">' + esc(c.name) + '</strong> (+91 ' + esc(c.phone) + ')</div>' +
+          '<div>City: 📍 ' + esc(c.city) + ' | Orders: <strong>' + c.totalOrders + '</strong> | Total Spent: <strong>' + inr(c.totalSpent) + '</strong></div>' +
+          '<div class="chips" style="margin-top:4px">' +
+            '<a href="#/admin/customers/' + esc(c.phone) + '" class="btn btn--sm btn--primary">🔍 View Profile</a>' +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function viewAdminCustomerProfile(phone) {
+    var allBookings = load('bpe_bookings', []);
+    var userBookings = allBookings.filter(function (b) { return b.address && b.address.phone === phone; });
+    var custName = userBookings.length ? userBookings[0].address.name : 'Customer';
+
+    var h = backBar('Customer Profile — ' + custName, '#/admin/customers') +
+      '<div class="detail__block"><h2>👤 ' + esc(custName) + '</h2>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">Mobile: +91 ' + esc(phone) + ' | Total Bookings: ' + userBookings.length + '</p>' +
+        '<h3>Order History</h3>' +
+        (userBookings.length ? '<div class="list">' + userBookings.map(function (b) {
+          return '<div class="list__row"><div><strong>Order #' + esc(b.id) + '</strong><br><small>📅 ' + fmtDate(b.date) + ', ' + esc(b.slot) + '</small></div><strong>' + inr(b.pricing ? b.pricing.total : 0) + '</strong></div>';
+        }).join('') + '</div>' : '<p style="color:var(--text-sub)">No order history found.</p>') +
+      '</div>';
+    return h;
+  }
+
+  function viewAdminWebsiteEditor() {
+    var catalog = getAdminCatalog();
+    var brand = catalog.brand || {};
+    var promo = catalog.promo || {};
+    var heroSlides = catalog.heroSlides || D.heroSlides || [];
+    var faqs = catalog.faqs || D.faqs || [];
+
+    var h = backBar('Super Admin — Website Content Editor', '#/admin/dashboard') +
+      '<div class="detail__block"><h2>🌐 Full Website Content & Brand Settings Editor</h2>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">Edit every hero slide, promotional banner, brand contact number, email, and customer FAQs in real-time.</p>' +
+
+        '<h3>1. Official Brand & Contact Information</h3>' +
+        '<form data-form="admin-brand" novalidate style="display:grid;gap:12px;margin-bottom:24px">' +
+          field('Phone Number', 'brand.phone', { ph: brand.phone || '+91 89202 52647' }) +
+          field('Official Email', 'brand.email', { ph: brand.email || 'bharatproexpert@gmail.com' }) +
+          field('Company Email', 'brand.companyEmail', { ph: brand.companyEmail || 'bharatproexperthomeservices@gmail.com' }) +
+          '<button type="submit" class="btn btn--primary">Update Brand Contact Information</button>' +
+        '</form>' +
+
+        '<h3>2. Promo & Offer Banner Editor</h3>' +
+        '<form data-form="admin-promo" novalidate style="display:grid;gap:12px;margin-bottom:24px">' +
+          field('Promo Banner Title', 'promo.title', { ph: promo.title || 'FLAT ₹100 OFF on First Booking' }) +
+          field('Promo Subtitle', 'promo.sub', { ph: promo.sub || 'Use code FIRST100 at checkout' }) +
+          field('Coupon Code', 'promo.code', { ph: promo.code || 'FIRST100' }) +
+          field('CTA Button Text', 'promo.cta', { ph: promo.cta || 'Claim Offer' }) +
+          '<button type="submit" class="btn btn--primary">Update Homepage Promo Banner</button>' +
+        '</form>' +
+
+        '<h3>3. Customer FAQ Accordion Manager (' + faqs.length + ' FAQs)</h3>' +
+        '<form data-form="admin-add-faq" novalidate style="display:grid;gap:12px;margin-bottom:16px">' +
+          field('Question', 'adminFaq.q', { ph: 'How do I book a deep cleaning expert?' }) +
+          field('Answer', 'adminFaq.a', { ph: 'Choose your preferred service, date, and slot on our website.' }) +
+          '<button type="submit" class="btn btn--primary">+ Add New FAQ</button>' +
+        '</form>' +
+        '<div class="list" style="margin-bottom:24px">' + faqs.map(function (f, idx) {
+          return '<div class="list__row" style="flex-direction:column;align-items:flex-start;gap:6px">' +
+            '<div><strong>Q: ' + esc(f.q) + '</strong></div>' +
+            '<div style="color:var(--text-sub)">A: ' + esc(f.a) + '</div>' +
+            '<button type="button" class="btn btn--sm btn--ghost" style="color:#FF3B30" data-act="admin-delete-faq" data-idx="' + idx + '">🗑️ Delete FAQ</button>' +
+          '</div>';
+        }).join('') + '</div>' +
+
+        '<h3>4. Hero Slider Banners (' + heroSlides.length + ' Slides)</h3>' +
+        '<div class="list">' + heroSlides.map(function (s, idx) {
+          return '<div class="list__row"><div><strong>' + esc(s.emoji || '✨') + ' ' + esc(s.title) + '</strong><br><small style="color:var(--text-sub)">' + esc(s.sub) + '</small></div></div>';
+        }).join('') + '</div>' +
+      '</div>';
+    return h;
+  }
+
+  function viewAdminCatalogueManager() {
+    var catalog = getAdminCatalog();
+    var h = backBar('Super Admin — Catalogue & Services CRUD', '#/admin/dashboard') +
+      '<div class="detail__block"><h2>🛠️ Service & Category Management</h2>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">Add new services/categories, edit existing prices, or remove items. All changes immediately sync with live website catalogue overrides.</p>' +
+
+        '<h3>Add / Edit Custom Service</h3>' +
+        '<form data-form="admin-add-svc" novalidate style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px">' +
+          field('Service Name (EN)', 'adminSvc.name', { ph: 'e.g. 5 BHK Villa Deep Cleaning' }) +
+          field('Service Name (HI)', 'adminSvc.nameHi', { ph: 'e.g. 5 BHK विला डीप क्लीनिंग' }) +
+          field('Category ID', 'adminSvc.cat', { options: D.categories.map(function(c){ return {v: c.id, l: c.name}; }) }) +
+          field('Service Price (₹)', 'adminSvc.price', { type: 'number', ph: '2999' }) +
+          field('MRP / Original Price (₹)', 'adminSvc.mrp', { type: 'number', ph: '3999' }) +
+          field('Emoji Icon', 'adminSvc.emoji', { ph: '🏰' }) +
+          '<button type="submit" class="btn btn--primary" style="grid-column:1/-1">Save Service to Live Catalogue</button>' +
+        '</form>' +
+
+        '<h3>Categories Catalogue (' + D.categories.length + ')</h3>' +
+        '<div class="list" style="margin-bottom:24px">' + D.categories.map(function (c) {
+          return '<div class="list__row"><div><strong>' + esc(c.emoji) + ' ' + esc(c.name) + '</strong> (' + esc(c.id) + ')<br><small style="color:var(--text-sub)">' + esc(c.blurb) + '</small></div>' +
+            '<button type="button" class="btn btn--sm btn--ghost" style="color:#FF3B30" data-act="admin-delete-cat" data-id="' + esc(c.id) + '">Delete Category</button></div>';
+        }).join('') + '</div>' +
+
+        '<h3>Active Services Catalogue (' + D.services.length + ')</h3>' +
+        '<div class="list">' + D.services.map(function (s) {
+          return '<div class="list__row" style="flex-direction:column;align-items:flex-start;gap:8px;padding:12px;border:1px solid var(--border,#e0e0e0);border-radius:10px;margin-bottom:8px">' +
+            '<div style="display:flex;justify-content:space-between;width:100%;align-items:center">' +
+              '<strong>' + esc(s.emoji || '✨') + ' ' + esc(s.name) + '</strong>' +
+              '<span class="badge">' + esc(s.cat) + '</span>' +
+            '</div>' +
+            '<div>Price: <strong>' + inr(s.price) + '</strong> | MRP: <s>' + inr(s.mrp) + '</s> | Duration: ' + esc(s.duration) + ' min</div>' +
+            '<div class="chips">' +
+              '<button type="button" class="btn btn--sm btn--ghost" data-act="admin-edit-svc-price" data-id="' + esc(s.id) + '">✏️ Edit Price</button>' +
+              '<button type="button" class="btn btn--sm btn--ghost" style="color:#FF3B30" data-act="admin-delete-svc" data-id="' + esc(s.id) + '">🗑️ Delete Service</button>' +
+            '</div>' +
+          '</div>';
+        }).join('') + '</div>' +
+      '</div>';
+    return h;
+  }
+
+  function viewAdminPartnersList() {
+    var partners = getPartnersList();
+    var h = backBar('Super Admin — Partner Onboarding & Applications', '#/admin/dashboard') +
+      '<div class="detail__block"><h2>🤝 Partner Onboarding & 360° Management</h2>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">View, review KYC documents, approve, suspend, or manage wallet balances for service partners across India.</p>' +
+        '<div class="list">' + partners.map(function (p, idx) {
+          var pid = p.id || ('p' + idx);
+          var statusColor = p.status === 'approved' ? '#34C759' : (p.status === 'suspended' ? '#FF3B30' : '#FF9500');
+          return '<div class="list__row" style="flex-direction:column;align-items:flex-start;gap:10px;padding:14px;border:1px solid var(--border,#e0e0e0);border-radius:12px;margin-bottom:10px">' +
+            '<div style="display:flex;justify-content:space-between;width:100%;align-items:center">' +
+              '<div><strong style="font-size:16px">' + esc(p.name) + '</strong> <small style="color:var(--text-sub)">(ID: ' + esc(pid) + ')</small></div>' +
+              '<span class="badge" style="background:' + statusColor + ';color:#fff">' + esc((p.status || 'pending').toUpperCase()) + '</span>' +
+            '</div>' +
+            '<div>📞 ' + esc(p.phone) + ' | 📍 ' + esc(p.city) + ' | 🛠️ Skill: ' + esc(p.skill) + ' (' + esc(p.exp) + ' yrs exp)</div>' +
+            '<div>💰 Wallet Balance: <strong>' + inr(p.walletBalance || 0) + '</strong> | KYC: <strong>' + esc(p.kycStatus || 'pending') + '</strong></div>' +
+            '<div class="chips" style="margin-top:6px">' +
+              '<a href="#/admin/partners/' + esc(pid) + '" class="btn btn--sm btn--primary">🔍 360° Profile & Control</a>' +
+              (p.status !== 'approved' ? '<button type="button" class="btn btn--sm" data-act="admin-partner-approve" data-id="' + esc(pid) + '">✅ Approve</button>' : '') +
+              (p.status !== 'suspended' ? '<button type="button" class="btn btn--sm btn--ghost" data-act="admin-partner-suspend" data-id="' + esc(pid) + '">⏸️ Suspend</button>' : '') +
+              '<button type="button" class="btn btn--sm btn--ghost" style="color:#FF3B30" data-act="admin-partner-delete" data-id="' + esc(pid) + '">🗑️ Delete</button>' +
+            '</div>' +
+          '</div>';
+        }).join('') + '</div>' +
+      '</div>';
+    return h;
+  }
+
+  function viewAdminPartnerProfile(pid) {
+    var partners = getPartnersList();
+    var partner = null;
+    for (var i = 0; i < partners.length; i++) {
+      if (partners[i].id === pid || ('p' + i) === pid) {
+        partner = partners[i];
+        break;
+      }
+    }
+    if (!partner) {
+      return backBar('Partner Not Found', '#/admin/partners') + emptyState('👤', 'Partner Not Found', 'The requested partner ID does not exist.', '#/admin/partners', 'Back to Partners');
+    }
+
+    var docs = partner.docs || { aadharVerified: false, panVerified: false, bankVerified: false };
+    var history = partner.walletHistory || [];
+
+    var h = backBar('Partner 360° Profile — ' + partner.name, '#/admin/partners') +
+      '<div class="detail__block" style="border-left:4px solid var(--primary,#007AFF)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+          '<div>' +
+            '<h2>👤 ' + esc(partner.name) + '</h2>' +
+            '<p style="color:var(--text-sub)">Phone: +91 ' + esc(partner.phone) + ' | City: ' + esc(partner.city) + '</p>' +
+          '</div>' +
+          '<div>' +
+            '<span class="badge" style="background:' + (partner.status === 'approved' ? '#34C759' : '#FF9500') + ';color:#fff;font-size:14px;padding:6px 12px">' + esc((partner.status || 'pending').toUpperCase()) + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="chips">' +
+          (partner.status !== 'approved' ? '<button type="button" class="btn btn--sm btn--primary" data-act="admin-partner-approve" data-id="' + esc(pid) + '">✅ Approve Partner</button>' : '') +
+          (partner.status !== 'suspended' ? '<button type="button" class="btn btn--sm btn--ghost" data-act="admin-partner-suspend" data-id="' + esc(pid) + '">⏸️ Suspend Partner</button>' : '') +
+          '<button type="button" class="btn btn--sm btn--ghost" style="color:#FF3B30" data-act="admin-partner-delete" data-id="' + esc(pid) + '">🗑️ Delete Partner</button>' +
+        '</div>' +
+      '</div>' +
+
+      '<!-- 360 Degree Sub-Sections -->' +
+      '<div class="detail__block"><h2>1. Profile & Service Credentials</h2>' +
+        '<div class="list">' +
+          '<div class="list__row"><span>Registered Skill</span><strong>' + esc(partner.skill) + '</strong></div>' +
+          '<div class="list__row"><span>Experience</span><strong>' + esc(partner.exp) + ' Years</strong></div>' +
+          '<div class="list__row"><span>Operating Hub City</span><strong>' + esc(partner.city) + '</strong></div>' +
+          '<div class="list__row"><span>Application Date</span><strong>' + new Date(partner.at || Date.now()).toLocaleDateString() + '</strong></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="detail__block"><h2>2. KYC & Document Verification</h2>' +
+        '<div class="list">' +
+          '<div class="list__row"><span>Aadhaar Card Verification</span>' +
+            (docs.aadharVerified ? '<span class="badge" style="background:#34C759;color:#fff">VERIFIED</span>' : '<button type="button" class="btn btn--sm btn--primary" data-act="admin-verify-doc" data-id="' + esc(pid) + '" data-doc="aadhar">Verify Aadhaar</button>') +
+          '</div>' +
+          '<div class="list__row"><span>PAN Card Verification</span>' +
+            (docs.panVerified ? '<span class="badge" style="background:#34C759;color:#fff">VERIFIED</span>' : '<button type="button" class="btn btn--sm btn--primary" data-act="admin-verify-doc" data-id="' + esc(pid) + '" data-doc="pan">Verify PAN</button>') +
+          '</div>' +
+          '<div class="list__row"><span>Bank Account Verification</span>' +
+            (docs.bankVerified ? '<span class="badge" style="background:#34C759;color:#fff">VERIFIED</span>' : '<button type="button" class="btn btn--sm btn--primary" data-act="admin-verify-doc" data-id="' + esc(pid) + '" data-doc="bank">Verify Bank</button>') +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="detail__block"><h2>3. Partner Wallet & Payout Adjustments</h2>' +
+        '<div style="background:var(--bg-sub,#f9f9f9);padding:16px;border-radius:12px;margin-bottom:16px">' +
+          '<div style="font-size:14px;color:var(--text-sub)">Current Balance</div>' +
+          '<div style="font-size:28px;font-weight:bold;color:var(--primary,#007AFF)">' + inr(partner.walletBalance || 0) + '</div>' +
+        '</div>' +
+        '<form data-form="admin-partner-wallet" data-id="' + esc(pid) + '" novalidate style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">' +
+          field('Adjustment Amount (₹)', 'partnerWallet.amount', { type: 'number', ph: '500' }) +
+          field('Type (credit / debit)', 'partnerWallet.type', { options: [{v:'credit', l:'Credit (+)'}, {v:'debit', l:'Debit (-)'}] }) +
+          field('Reason / Reference', 'partnerWallet.reason', { ph: 'Bonus / Penalty / Payout' }) +
+          '<button type="submit" class="btn btn--primary" style="grid-column:1/-1">Adjust Wallet Balance</button>' +
+        '</form>' +
+        '<h3>Wallet History Log</h3>' +
+        (history.length ? '<div class="list">' + history.map(function(h) {
+          return '<div class="list__row"><div><strong>' + esc(h.reason || 'Wallet Adjust') + '</strong><br><small>' + esc(h.date) + '</small></div>' +
+            '<strong style="color:' + (h.type === 'credit' ? '#34C759' : '#FF3B30') + '">' + (h.type === 'credit' ? '+' : '-') + inr(h.amount) + '</strong></div>';
+        }).join('') + '</div>' : '<p style="color:var(--text-sub)">No wallet transactions recorded yet.</p>') +
+      '</div>' +
+
+      '<div class="detail__block"><h2>4. Availability, Leaves & Performance</h2>' +
+        '<div class="list">' +
+          '<div class="list__row"><span>Weekly Availability</span><span class="badge" style="background:#34C759;color:#fff">ACTIVE (7 DAYS)</span></div>' +
+          '<div class="list__row"><span>Overall Customer Rating</span><strong>4.9 ★ (32 Reviews)</strong></div>' +
+          '<div class="list__row"><span>Job Completion Rate</span><strong>98.5%</strong></div>' +
+          '<div class="list__row"><span>On-Time Arrival Rate</span><strong>99.1%</strong></div>' +
+        '</div>' +
+      '</div>';
+
+    return h;
+  }
+
   function viewAdminDashboard() {
     if (!isAdminLoggedIn()) {
       location.hash = '#/admin';
@@ -830,6 +1211,7 @@
       ['services', '🛠️ Services & Prices'],
       ['bookings', '📋 Live Bookings'],
       ['partners', '🤝 Partner Applications'],
+      ['customers', '👥 Customers'],
       ['hubs', '📍 Hubs & Coverage'],
       ['content', '🌐 Site Content & Brand'],
       ['payments', '💳 Payments & Refunds'],
@@ -895,15 +1277,19 @@
       }
       h += '</div>';
     } else if (adminTab === 'partners') {
-      h += '<div class="detail__block"><h2>Partner Applications & Onboarding (' + allPartners.length + ')</h2>';
+      h += '<div class="detail__block"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h2>Partner Applications & Onboarding (' + allPartners.length + ')</h2><a href="#/admin/partners" class="btn btn--sm btn--primary">Open Full Partner Onboarding Portal ›</a></div>';
       if (!allPartners.length) {
         h += '<p style="color:var(--text-sub)">No partner onboarding submissions yet.</p>';
       } else {
-        h += '<div class="list">' + allPartners.map(function (p) {
-          return '<div class="list__row"><div><strong>' + esc(p.name) + '</strong> (' + esc(p.phone) + ')<br><small>City: ' + esc(p.city) + ' | Skill: ' + esc(p.skill) + ' | Exp: ' + esc(p.exp) + ' yrs</small></div><button type="button" class="btn btn--sm btn--primary">Approve KYC</button></div>';
+        h += '<div class="list">' + allPartners.map(function (p, idx) {
+          var pid = p.id || ('p' + idx);
+          return '<div class="list__row"><div><strong>' + esc(p.name) + '</strong> (' + esc(p.phone) + ')<br><small>City: ' + esc(p.city) + ' | Skill: ' + esc(p.skill) + ' | Exp: ' + esc(p.exp) + ' yrs</small></div><a href="#/admin/partners/' + esc(pid) + '" class="btn btn--sm btn--primary">Review 360° Profile</a></div>';
         }).join('') + '</div>';
       }
       h += '</div>';
+    } else if (adminTab === 'customers') {
+      h += '<div class="detail__block"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h2>Registered Customers Directory</h2><a href="#/admin/customers" class="btn btn--sm btn--primary">Open Customer Database Portal ›</a></div>';
+      h += '<p style="color:var(--text-sub)">Access customer transaction profiles, booking history, and account status controls.</p></div>';
     } else if (adminTab === 'hubs') {
       h += '<div class="detail__block"><h2>Hub, Zone & Service Area Radius Management</h2>' +
         '<p style="margin-bottom:16px">Configured coverage ranges for active operation hubs in India.</p>' +
@@ -1007,7 +1393,7 @@
       case 'account': return { name: 'account', nav: 'account', title: t('account'), view: viewAccount };
       case 'help': return { name: 'help', nav: 'account', title: t('help'), view: viewHelp };
       case 'partner': return { name: 'partner', nav: 'account', title: t('partner'), view: viewPartner };
-      case 'admin': return { name: 'admin', nav: 'account', title: 'Super Admin Panel', view: function () { return p[1] === 'dashboard' ? viewAdminDashboard() : viewAdminLogin(); } };
+      case 'admin': return { name: 'admin', nav: 'account', subRoute: p[1] || 'login', param: p[2] || '', title: 'Super Admin Panel', view: function () { return viewAdminRouter(p[1], p[2], p[3]); } };
       default: return { name: '404', nav: '', title: t('notFound'), view: viewNotFound };
     }
   }
@@ -1120,6 +1506,127 @@
     'refresh-captcha': function () {
       generateCaptcha();
       refresh();
+    },
+    'admin-partner-approve': function (el) {
+      var pid = el.dataset.id;
+      var partners = getPartnersList();
+      for (var i = 0; i < partners.length; i++) {
+        if (partners[i].id === pid || ('p' + i) === pid) {
+          partners[i].status = 'approved';
+          partners[i].kycStatus = 'verified';
+          break;
+        }
+      }
+      savePartnersList(partners);
+      toast('Partner approved & activated');
+    },
+    'admin-partner-suspend': function (el) {
+      var pid = el.dataset.id;
+      var partners = getPartnersList();
+      for (var i = 0; i < partners.length; i++) {
+        if (partners[i].id === pid || ('p' + i) === pid) {
+          partners[i].status = 'suspended';
+          break;
+        }
+      }
+      savePartnersList(partners);
+      toast('Partner status set to suspended');
+    },
+    'admin-partner-delete': function (el) {
+      var pid = el.dataset.id;
+      if (!confirm('Are you sure you want to delete this partner onboarding record?')) return;
+      var partners = getPartnersList().filter(function(p, i) {
+        return p.id !== pid && ('p' + i) !== pid;
+      });
+      savePartnersList(partners);
+      toast('Partner record deleted');
+      if (location.hash.indexOf('/admin/partners/') >= 0) {
+        location.hash = '#/admin/partners';
+      }
+    },
+    'admin-verify-doc': function (el) {
+      var pid = el.dataset.id;
+      var docType = el.dataset.doc;
+      var partners = getPartnersList();
+      for (var i = 0; i < partners.length; i++) {
+        if (partners[i].id === pid || ('p' + i) === pid) {
+          if (!partners[i].docs) partners[i].docs = {};
+          if (docType === 'aadhar') partners[i].docs.aadharVerified = true;
+          if (docType === 'pan') partners[i].docs.panVerified = true;
+          if (docType === 'bank') partners[i].docs.bankVerified = true;
+          break;
+        }
+      }
+      savePartnersList(partners);
+      toast('Document verified successfully');
+    },
+    'admin-edit-svc-price': function (el) {
+      var sid = el.dataset.id;
+      var newPrice = prompt('Enter new price (₹) for service ' + sid + ':');
+      if (newPrice == null || newPrice.trim() === '') return;
+      var p = Number(newPrice);
+      if (isNaN(p) || p <= 0) {
+        toast('Invalid price value');
+        return;
+      }
+      var catalog = getAdminCatalog();
+      if (!catalog.services) catalog.services = {};
+      catalog.services[sid] = Object.assign({}, catalog.services[sid] || {}, { price: p });
+      saveAdminCatalog(catalog);
+      toast('Service price updated to ' + inr(p));
+    },
+    'admin-delete-svc': function (el) {
+      var sid = el.dataset.id;
+      if (!confirm('Are you sure you want to delete/deactivate service ' + sid + '?')) return;
+      var catalog = getAdminCatalog();
+      if (!catalog.services) catalog.services = {};
+      catalog.services[sid] = Object.assign({}, catalog.services[sid] || {}, { active: false });
+      saveAdminCatalog(catalog);
+      toast('Service deleted/deactivated from catalogue');
+    },
+    'admin-delete-cat': function (el) {
+      var cid = el.dataset.id;
+      if (!confirm('Are you sure you want to delete/deactivate category ' + cid + '?')) return;
+      var catalog = getAdminCatalog();
+      if (!catalog.categories) catalog.categories = {};
+      catalog.categories[cid] = Object.assign({}, catalog.categories[cid] || {}, { active: false });
+      saveAdminCatalog(catalog);
+      toast('Category deleted/deactivated from catalogue');
+    },
+    'admin-delete-faq': function (el) {
+      var idx = Number(el.dataset.idx);
+      var catalog = getAdminCatalog();
+      var faqs = (catalog.faqs || D.faqs || []).slice();
+      if (idx >= 0 && idx < faqs.length) {
+        faqs.splice(idx, 1);
+        catalog.faqs = faqs;
+        saveAdminCatalog(catalog);
+        toast('FAQ deleted from live website');
+      }
+    },
+    'admin-assign-booking': function (el) {
+      var bid = el.dataset.id;
+      var partners = getPartnersList();
+      var approvedPartners = partners.filter(function (p) { return p.status === 'approved'; });
+      if (!approvedPartners.length) {
+        toast('No active approved partners available to assign');
+        return;
+      }
+      var pName = prompt('Enter Partner Name to assign to Booking #' + bid + ':\n(Available: ' + approvedPartners.map(function (p) { return p.name; }).join(', ') + ')');
+      if (pName && pName.trim()) {
+        toast('Assigned partner ' + pName.trim() + ' to Booking #' + bid);
+      }
+    },
+    'admin-cancel-booking': function (el) {
+      var bid = el.dataset.id;
+      if (!confirm('Are you sure you want to cancel booking #' + bid + '?')) return;
+      var b = getBooking(bid);
+      if (b) {
+        b.cancelled = true;
+        persistBookings();
+        toast('Booking #' + bid + ' cancelled');
+        refresh();
+      }
     }
   };
   function setLang(l) { S.lang = l; save('bpe_lang', l); applyTheme(); renderSheet(); refresh(); }
@@ -1271,6 +1778,57 @@
       if (bDraft.companyEmail) catalogBrand.brand.companyEmail = bDraft.companyEmail.trim();
       saveAdminCatalog(catalogBrand);
       drafts.brand = {};
+    } else if (kind === 'admin-partner-wallet') {
+      var pid = f.dataset.id;
+      var wDraft = drafts.partnerWallet || {};
+      var amount = Number(wDraft.amount || 0);
+      if (amount <= 0) {
+        toast('Enter a valid adjustment amount');
+        return;
+      }
+      var partners = getPartnersList();
+      for (var i = 0; i < partners.length; i++) {
+        if (partners[i].id === pid || ('p' + i) === pid) {
+          var currentBal = partners[i].walletBalance || 0;
+          var type = wDraft.type || 'credit';
+          partners[i].walletBalance = type === 'credit' ? (currentBal + amount) : Math.max(0, currentBal - amount);
+          if (!partners[i].walletHistory) partners[i].walletHistory = [];
+          partners[i].walletHistory.unshift({
+            date: new Date().toISOString().slice(0, 10),
+            amount: amount,
+            type: type,
+            reason: wDraft.reason || 'Admin Adjustment'
+          });
+          break;
+        }
+      }
+      savePartnersList(partners);
+      drafts.partnerWallet = {};
+      toast('Partner wallet adjusted');
+    } else if (kind === 'admin-promo') {
+      var pDraft = drafts.promo || {};
+      var catalogPromo = getAdminCatalog();
+      if (!catalogPromo.promo) catalogPromo.promo = {};
+      if (pDraft.title) catalogPromo.promo.title = pDraft.title.trim();
+      if (pDraft.sub) catalogPromo.promo.sub = pDraft.sub.trim();
+      if (pDraft.code) catalogPromo.promo.code = pDraft.code.trim().toUpperCase();
+      if (pDraft.cta) catalogPromo.promo.cta = pDraft.cta.trim();
+      saveAdminCatalog(catalogPromo);
+      drafts.promo = {};
+      toast('Homepage promo banner updated');
+    } else if (kind === 'admin-add-faq') {
+      var fDraft = drafts.adminFaq || {};
+      if (!fDraft.q || !fDraft.a) {
+        toast('Enter both Question and Answer');
+        return;
+      }
+      var catalogFaq = getAdminCatalog();
+      var faqs = (catalogFaq.faqs || D.faqs || []).slice();
+      faqs.push({ q: fDraft.q.trim(), a: fDraft.a.trim() });
+      catalogFaq.faqs = faqs;
+      saveAdminCatalog(catalogFaq);
+      drafts.adminFaq = {};
+      toast('New FAQ added to live website');
     }
   });
 

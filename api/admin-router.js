@@ -64,11 +64,38 @@ router.patch("/partners/:id/approve", authMiddleware, (req, res) => {
   res.json({ ok: true, message: `Partner ${req.params.id} approved successfully.` });
 });
 
+router.patch("/partners/:id/kyc-verify", authMiddleware, (req, res) => {
+  res.json({ ok: true, message: `Partner ${req.params.id} document verified successfully.` });
+});
+
+router.post("/partners/:id/wallet-adjust", authMiddleware, (req, res) => {
+  const { amount, type, reason } = req.body || {};
+  res.json({ ok: true, message: `Partner ${req.params.id} wallet adjusted by ${type === 'credit' ? '+' : '-'}${amount}. Reason: ${reason || 'Admin Adjustment'}` });
+});
+
 router.get("/bookings", authMiddleware, (req, res) => {
   res.json({
     ok: true,
     bookings: []
   });
+});
+
+router.patch("/bookings/:id/status", authMiddleware, (req, res) => {
+  const { status } = req.body || {};
+  res.json({ ok: true, message: `Booking ${req.params.id} status updated to ${status}` });
+});
+
+router.patch("/bookings/:id/assign", authMiddleware, (req, res) => {
+  const { partnerId } = req.body || {};
+  res.json({ ok: true, message: `Partner ${partnerId || 'assigned'} linked to booking ${req.params.id}` });
+});
+
+router.post("/catalogue/services", authMiddleware, (req, res) => {
+  res.json({ ok: true, message: "Custom service added to catalogue successfully" });
+});
+
+router.post("/coupons", authMiddleware, (req, res) => {
+  res.json({ ok: true, message: "New coupon created successfully" });
 });
 
 export default router;
