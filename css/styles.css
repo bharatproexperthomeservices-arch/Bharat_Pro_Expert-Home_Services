@@ -692,8 +692,9 @@ textarea.input { min-height: 88px; resize: vertical; }
   .hero__slide { min-height: 220px; padding: 32px 220px 32px 36px; }
   .hero__slide h1, .hero__slide h2, .hero__slide strong { font-size: 30px; }
   .hero__slide > .hero__emoji, .hero__slide > [aria-hidden="true"] { font-size: 120px; right: 36px; }
-  .catrow { gap: 12px; }
-  .catrow__item { width: 92px; }
+  .catrow { justify-content: space-evenly; flex-wrap: wrap; overflow-x: visible; gap: 16px 12px; width: 100% !important; max-width: 100% !important; }
+  .catrow__item { width: 100px; flex: 0 1 auto; }
+  .catrow__label { max-width: 96px; font-size: 13px; }
   .catrow__icon { width: 68px; height: 68px; font-size: 34px; }
   .card__img { font-size: 60px; }
   .promo { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 26px 32px; }
@@ -728,7 +729,7 @@ textarea.input { min-height: 88px; resize: vertical; }
 
 @media (min-width: 1000px) {
   .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .catrow { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; }
+  .catrow { justify-content: space-evenly; overflow-x: visible; flex-wrap: wrap; gap: 20px 16px; width: 100% !important; max-width: 100% !important; }
 }
 
 @media (min-width: 1280px) {
