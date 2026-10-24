@@ -91,8 +91,10 @@
       status: ['Confirmed', 'Expert assigned', 'On the way', 'Done'], cancelled: 'Cancelled', cancel: 'Cancel booking',
       reschedule: 'Reschedule', save: 'Save', close: 'Close', details: 'View details', noBookings: 'No bookings yet',
       noBookingsSub: 'Your booked services will appear here.', sendOtp: 'Send OTP', verify: 'Verify & login', otp: 'Enter 4-digit OTP',
-      otpHint: 'Demo mode: enter any 4 digits.', loginTitle: 'Login to continue', loginSub: 'Enter your mobile number to book services.',
+      otpHint: 'Enter 4-digit code sent to your mobile', loginTitle: 'Welcome to Bharat Pro Expert', loginSub: 'Sign in to book trusted home services in seconds.',
       loginReq: 'Please login to complete your booking.', welcome: 'Welcome', help: 'Help & FAQs', partner: 'Become a partner',
+      googleLogin: 'Continue with Google', orDivider: 'OR CONTINUING WITH MOBILE', enterName: 'Full name (optional)', resendOtp: 'Resend OTP',
+      resendIn: 'Resend OTP in', otpSent: 'OTP sent successfully!', googleSuccess: 'Logged in with Google!',
       contact: 'Contact us', call: 'Call support', email: 'Email us', includes: 'What’s included', excludes: 'Not included',
       faqs: 'Frequently asked questions', goCart: 'Go to cart', sort: 'Sort', popular: 'Popular', priceLow: 'Price: low to high',
       topRated: 'Top rated', noResults: 'No services found', noResultsSub: 'Try another word, like "sofa", "bathroom" or "fan".',
@@ -107,7 +109,7 @@
       errName: 'Enter your name', errPhone: 'Enter a valid 10-digit mobile number', errHouse: 'Enter house / flat number',
       errArea: 'Enter your area', errPin: 'Enter a valid 6-digit pincode', errSlot: 'Pick a date and time slot', errOtp: 'Enter 4 digits',
       loggedOut: 'Logged out', loggedIn: 'Logged in', suggestions: 'Suggestions', searchFor: 'Search for', results: 'Results for',
-      hello: 'Hello', guest: 'Guest', myBookings: 'My bookings', pastSlot: 'Slot passed'
+      hello: 'Hello', guest: 'Guest', myBookings: 'My bookings', pastSlot: 'Slot passed', editPhone: 'Change mobile number'
     },
     hi: {
       home: 'होम', services: 'सेवाएँ', bookings: 'बुकिंग', cart: 'कार्ट', account: 'खाता', login: 'लॉगिन', logout: 'लॉगआउट',
@@ -124,8 +126,10 @@
       status: ['पक्की', 'एक्सपर्ट तय', 'रास्ते में', 'पूरा'], cancelled: 'रद्द', cancel: 'बुकिंग रद्द करें',
       reschedule: 'समय बदलें', save: 'सेव करें', close: 'बंद करें', details: 'विवरण देखें', noBookings: 'अभी कोई बुकिंग नहीं',
       noBookingsSub: 'आपकी बुक की गई सेवाएँ यहाँ दिखेंगी।', sendOtp: 'OTP भेजें', verify: 'सत्यापित करें', otp: '4 अंकों का OTP डालें',
-      otpHint: 'डेमो: कोई भी 4 अंक डालें।', loginTitle: 'जारी रखने के लिए लॉगिन करें', loginSub: 'सेवा बुक करने के लिए मोबाइल नंबर डालें।',
+      otpHint: 'अपने मोबाइल पर भेजा गया 4 अंकों का कोड डालें', loginTitle: 'भारत प्रो एक्सपर्ट में आपका स्वागत है', loginSub: 'विश्वसनीय होम सर्विस बुक करने के लिए लॉगिन करें।',
       loginReq: 'बुकिंग पूरी करने के लिए लॉगिन करें।', welcome: 'स्वागत', help: 'मदद और सवाल', partner: 'पार्टनर बनें',
+      googleLogin: 'गूगल से लॉगिन करें', orDivider: 'या मोबाइल नंबर से जारी रखें', enterName: 'पूरा नाम (वैकल्पिक)', resendOtp: 'OTP फिर भेजें',
+      resendIn: 'OTP फिर भेजें', otpSent: 'OTP सफलतापूर्वक भेजा गया!', googleSuccess: 'गूगल से लॉगिन सफल!',
       contact: 'संपर्क करें', call: 'सपोर्ट को कॉल करें', email: 'ईमेल करें', includes: 'क्या शामिल है', excludes: 'शामिल नहीं',
       faqs: 'अक्सर पूछे जाने वाले सवाल', goCart: 'कार्ट पर जाएँ', sort: 'क्रम', popular: 'लोकप्रिय', priceLow: 'कीमत: कम से ज़्यादा',
       topRated: 'सर्वश्रेष्ठ रेटिंग', noResults: 'कोई सेवा नहीं मिली', noResultsSub: 'दूसरा शब्द आज़माएँ, जैसे "AC", "सफाई" या "सैलून"।',
@@ -140,7 +144,7 @@
       errName: 'अपना नाम लिखें', errPhone: 'सही 10 अंकों का मोबाइल नंबर लिखें', errHouse: 'मकान / फ्लैट नंबर लिखें',
       errArea: 'अपना इलाका लिखें', errPin: 'सही 6 अंकों का पिनकोड लिखें', errSlot: 'तारीख और समय चुनें', errOtp: '4 अंक डालें',
       loggedOut: 'लॉगआउट हो गए', loggedIn: 'लॉगिन सफल', suggestions: 'सुझाव', searchFor: 'खोजें', results: 'इनके नतीजे',
-      hello: 'नमस्ते', guest: 'अतिथि', myBookings: 'मेरी बुकिंग', pastSlot: 'समय निकल गया'
+      hello: 'नमस्ते', guest: 'अतिथि', myBookings: 'मेरी बुकिंग', pastSlot: 'समय निकल गया', editPhone: 'नंबर बदलें'
     }
   };
   function t(k) { var v = (TR[S.lang] || {})[k]; return v != null ? v : (TR.en[k] != null ? TR.en[k] : k); }
@@ -266,8 +270,9 @@
   function topbar(route) {
     var q = route.name === 'search' ? route.q : '';
     var u = S.user;
+    var userLabel = u ? esc((u.name || u.phone || u.email || '').split(' ')[0]) : '';
     return '<header class="topbar">' +
-      '<a class="topnav__brand" href="#/" style="font-weight:800;text-decoration:none;color:inherit" aria-label="Bharat Pro Expert home">' + esc(D.brand.name) + '</a>' +
+      '<a class="topnav__brand" href="#/" aria-label="Bharat Pro Expert home">' + esc(D.brand.name) + '</a>' +
       '<button type="button" class="topbar__loc" data-act="city" aria-label="' + esc(t('chooseCity')) + '">📍 ' + esc(S.city) + ' ▾</button>' +
       '<form class="topbar__search" data-form="search" role="search" style="position:relative" autocomplete="off">' +
         '<input class="input" type="search" name="q" id="q" value="' + esc(q) + '" placeholder="' + esc(t('search')) + '" aria-label="' + esc(t('search')) + '" autocomplete="off">' +
@@ -275,13 +280,13 @@
       '</form>' +
       '<nav class="topnav" aria-label="Main">' +
         [['#/', 'home'], ['#/services', 'services'], ['#/bookings', 'bookings'], ['#/cart', 'cart'], ['#/help', 'help']].map(function (l) {
-          return '<a href="' + l[0] + '"' + (route.nav === l[1] || (l[1] === 'help' && route.name === 'help') ? ' aria-current="page"' : '') + '>' + esc(t(l[1])) + (l[1] === 'cart' && cartCount() ? ' (' + cartCount() + ')' : '') + '</a>';
+          return '<a href="' + l[0] + '"' + (route.nav === l[1] || (l[1] === 'help' && route.name === 'help') ? ' class="is-active" aria-current="page"' : '') + '>' + esc(t(l[1])) + (l[1] === 'cart' && cartCount() ? ' (' + cartCount() + ')' : '') + '</a>';
         }).join('') +
       '</nav>' +
       '<button type="button" class="btn btn--ghost btn--sm" data-act="lang" aria-label="' + esc(t('lang')) + '">' + (isHi() ? 'EN' : 'हिं') + '</button>' +
       '<button type="button" class="btn btn--ghost btn--sm" data-act="theme" aria-label="' + esc(t('dark')) + '">' + (isDark() ? '☀️' : '🌙') + '</button>' +
-      (u ? '<a class="topbar__login btn btn--sm" href="#/account" aria-label="' + esc(t('account')) + '">👤 ' + esc((u.name || u.phone || '').split(' ')[0]) + '</a>'
-         : '<button type="button" class="topbar__login btn btn--primary btn--sm" data-act="login">' + esc(t('login')) + '</button>') +
+      (u ? '<a class="topbar__login btn btn--sm" href="#/account" aria-label="' + esc(t('account')) + '">👤 ' + userLabel + '</a>'
+         : '<a class="topbar__login btn btn--primary btn--sm" href="#/login">' + esc(t('login')) + '</a>') +
     '</header>';
   }
   function tabbar(route) {
@@ -625,10 +630,72 @@
     }).join('');
   }
 
+  function viewLoginPage() {
+    if (S.user) {
+      location.hash = '#/account';
+      return '';
+    }
+    return backBar(t('loginTitle'), '#/') +
+      '<div class="login-card-wrapper">' +
+        renderLoginCardBody() +
+      '</div>';
+  }
+
+  function renderGoogleSvg() {
+    return '<svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>';
+  }
+
+  function renderLoginCardBody() {
+    var L = drafts.login;
+    var step = L.step || 'phone';
+    var nameVal = L.name || '';
+
+    var h = '<div class="auth-card">' +
+      '<div class="auth-card__header">' +
+        '<div class="auth-card__logo-badge"><span>BP</span></div>' +
+        '<h2>' + esc(t('loginTitle')) + '</h2>' +
+        '<p>' + esc(t('loginSub')) + '</p>' +
+      '</div>';
+
+    // Google Sign-In Button
+    h += '<button type="button" class="btn-google" data-act="google-login">' +
+      renderGoogleSvg() +
+      '<span>' + esc(t('googleLogin')) + '</span>' +
+    '</button>';
+
+    h += '<div class="auth-divider"><span>' + esc(t('orDivider')) + '</span></div>';
+
+    if (step === 'otp') {
+      h += '<form data-form="login-otp" novalidate class="auth-form-animated">' +
+        '<div class="phone-display-badge">' +
+          '<span>📱 +91 ' + esc(L.phone) + '</span>' +
+          '<button type="button" class="btn-link" data-act="edit-phone">' + esc(t('editPhone')) + '</button>' +
+        '</div>' +
+        field(t('otp'), 'login.otp', { inputmode: 'numeric', max: 4, ac: 'one-time-code', auto: true, ph: '• • • •' }) +
+        '<p class="card__meta" style="margin-bottom:12px;text-align:center">' + esc(t('otpHint')) + '</p>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
+          '<button type="button" class="btn btn--ghost btn--sm" data-act="resend-otp">' + esc(t('resendOtp')) + '</button>' +
+        '</div>' +
+        '<button type="submit" class="btn btn--primary btn--block btn--animated">' + esc(t('verify')) + '</button>' +
+      '</form>';
+    } else {
+      h += '<form data-form="login-phone" novalidate class="auth-form-animated">' +
+        field(t('enterName'), 'login.name', { ac: 'name', ph: 'e.g. Rahul Sharma', value: nameVal }) +
+        field(t('phone'), 'login.phone', { type: 'tel', inputmode: 'numeric', max: 10, ac: 'tel-national', auto: true, ph: '9876543210' }) +
+        '<button type="submit" class="btn btn--primary btn--block btn--animated" style="margin-top:12px">' + esc(t('sendOtp')) + '</button>' +
+      '</form>';
+    }
+
+    h += '</div>';
+    return h;
+  }
+
   function viewAccount() {
     var u = S.user;
-    var h = backBar(t('account')) + '<div class="list"><div class="list__row"><span aria-hidden="true" style="font-size:32px">👤</span><div><strong>' + esc(u ? (u.name || t('welcome')) : t('guest')) + '</strong><div class="card__meta">' + esc(u ? '+91 ' + u.phone : t('loginSub')) + '</div></div>' +
-      (u ? '<button type="button" class="btn btn--ghost btn--sm" data-act="logout">' + esc(t('logout')) + '</button>' : '<button type="button" class="btn btn--primary btn--sm" data-act="login">' + esc(t('login')) + '</button>') + '</div>' +
+    var userAvatar = u && u.email ? '🌐' : '👤';
+    var userSub = u ? (u.phone ? '+91 ' + u.phone : (u.email || '')) : t('loginSub');
+    var h = backBar(t('account')) + '<div class="list"><div class="list__row"><span aria-hidden="true" style="font-size:32px">' + userAvatar + '</span><div><strong>' + esc(u ? (u.name || t('welcome')) : t('guest')) + '</strong><div class="card__meta">' + esc(userSub) + '</div></div>' +
+      (u ? '<button type="button" class="btn btn--ghost btn--sm" data-act="logout">' + esc(t('logout')) + '</button>' : '<a class="btn btn--primary btn--sm" href="#/login">' + esc(t('login')) + '</a>') + '</div>' +
       '<div class="list__row"><span>' + esc(t('lang')) + '</span><div class="chips"><button type="button" class="chip' + (!isHi() ? ' is-active' : '') + '" data-act="setlang" data-v="en" aria-pressed="' + (!isHi()) + '">English</button><button type="button" class="chip' + (isHi() ? ' is-active' : '') + '" data-act="setlang" data-v="hi" aria-pressed="' + isHi() + '">हिन्दी</button></div></div>' +
       '<div class="list__row"><span>' + esc(t('dark')) + '</span><button type="button" class="chip' + (isDark() ? ' is-active' : '') + '" role="switch" aria-checked="' + isDark() + '" data-act="theme">' + (isDark() ? 'ON' : 'OFF') + '</button></div>' +
       '<div class="list__row"><span>' + esc(t('city')) + ': ' + esc(S.city) + '</span><button type="button" class="btn btn--ghost btn--sm" data-act="city">' + esc(t('chooseCity')) + '</button></div>' +
@@ -1344,11 +1411,7 @@
       }).join('') + '</div>';
     } else if (sh.kind === 'login') {
       label = t('loginTitle');
-      var L = drafts.login;
-      body = '<h2>' + esc(label) + '</h2><p>' + esc(t('loginSub')) + '</p>' +
-        (d.step === 'otp'
-          ? '<form data-form="login-otp" novalidate><p>+91 ' + esc(L.phone) + '</p>' + field(t('otp'), 'login.otp', { inputmode: 'numeric', max: 4, ac: 'one-time-code', auto: true }) + '<p class="card__meta">' + esc(t('otpHint')) + '</p><button type="submit" class="btn btn--primary btn--block">' + esc(t('verify')) + '</button></form>'
-          : '<form data-form="login-phone" novalidate>' + field(t('phone'), 'login.phone', { type: 'tel', inputmode: 'numeric', max: 10, ac: 'tel-national', auto: true }) + '<button type="submit" class="btn btn--primary btn--block">' + esc(t('sendOtp')) + '</button></form>');
+      body = renderLoginCardBody();
     } else if (sh.kind === 'resched') {
       label = t('reschedule');
       body = '<h2>' + esc(label) + '</h2>' + chipsHtml(d.date, d.slot, 'rs-date', 'rs-slot') + '<button type="button" class="btn btn--primary btn--block" data-act="rs-save">' + esc(t('save')) + '</button>';
@@ -1391,6 +1454,7 @@
       case 'bookings': return { name: 'bookings', nav: 'bookings', title: t('bookings'), view: viewBookings };
       case 'booking': return { name: 'booking', nav: 'bookings', title: t('bookingId'), view: function () { return viewBookingPage(p[1]); } };
       case 'account': return { name: 'account', nav: 'account', title: t('account'), view: viewAccount };
+      case 'login': return { name: 'login', nav: 'account', title: t('loginTitle'), view: viewLoginPage };
       case 'help': return { name: 'help', nav: 'account', title: t('help'), view: viewHelp };
       case 'partner': return { name: 'partner', nav: 'account', title: t('partner'), view: viewPartner };
       case 'admin': return { name: 'admin', nav: 'account', subRoute: p[1] || 'login', param: p[2] || '', title: 'Super Admin Panel', view: function () { return viewAdminRouter(p[1], p[2], p[3]); } };
@@ -1473,8 +1537,29 @@
     lang: function () { setLang(isHi() ? 'en' : 'hi'); },
     setlang: function (el) { setLang(el.dataset.v); },
     theme: function () { S.theme = isDark() ? 'light' : 'dark'; save('bpe_theme', S.theme); applyTheme(); refresh(); },
-    login: function () { drafts.login = {}; drafts.errs = {}; openSheet('login', { step: 'phone' }); },
+    login: function () { drafts.login = {}; drafts.errs = {}; location.hash = '#/login'; },
     logout: function () { S.user = null; save('bpe_user', null); toast(t('loggedOut')); refresh(); },
+    'google-login': function () {
+      S.user = {
+        name: 'Bharat Pro User',
+        email: 'user@gmail.com',
+        loginType: 'google',
+        avatar: '🌐'
+      };
+      save('bpe_user', S.user);
+      drafts.login = {};
+      if (S.sheet) closeSheet();
+      toast(t('googleSuccess'));
+      if (current && current.name === 'checkout') refresh();
+      else location.hash = '#/account';
+    },
+    'edit-phone': function () {
+      drafts.login.step = 'phone';
+      if (S.sheet) renderSheet(); else refresh();
+    },
+    'resend-otp': function () {
+      toast(t('otpSent'));
+    },
     close: function () { closeSheet(); },
     'co-date': function (el) { drafts.co.date = el.dataset.v; if (slotPast(drafts.co.slot, drafts.co.date)) drafts.co.slot = ''; refresh(); },
     'co-slot': function (el) { drafts.co.slot = el.dataset.v; delete drafts.errs['co.slot']; refresh(); },
@@ -1688,13 +1773,31 @@
     } else if (kind === 'coupon') {
       applyCoupon(f.elements.code.value);
     } else if (kind === 'login-phone') {
-      if (!/^[6-9]\d{9}$/.test(drafts.login.phone || '')) { drafts.errs['login.phone'] = t('errPhone'); renderSheet(); return; }
-      delete drafts.errs['login.phone']; drafts.login.otp = ''; openSheet('login', { step: 'otp' });
+      if (!/^[6-9]\d{9}$/.test(drafts.login.phone || '')) {
+        drafts.errs['login.phone'] = t('errPhone');
+        if (S.sheet) renderSheet(); else refresh();
+        return;
+      }
+      delete drafts.errs['login.phone'];
+      drafts.login.otp = '';
+      drafts.login.step = 'otp';
+      if (S.sheet) renderSheet(); else refresh();
+      toast(t('otpSent'));
     } else if (kind === 'login-otp') {
-      if (!/^\d{4}$/.test(drafts.login.otp || '')) { drafts.errs['login.otp'] = t('errOtp'); renderSheet(); return; }
-      var prev = S.user && S.user.phone === drafts.login.phone ? S.user.name : '';
-      S.user = { phone: drafts.login.phone, name: prev || '' }; save('bpe_user', S.user);
-      drafts.login = {}; drafts.errs = {}; drafts.co = {}; closeSheet(); toast(t('loggedIn')); refresh();
+      if (!/^\d{4}$/.test(drafts.login.otp || '')) {
+        drafts.errs['login.otp'] = t('errOtp');
+        if (S.sheet) renderSheet(); else refresh();
+        return;
+      }
+      var enteredName = (drafts.login.name || '').trim();
+      var prevName = S.user && S.user.phone === drafts.login.phone ? S.user.name : '';
+      S.user = { phone: drafts.login.phone, name: enteredName || prevName || 'Bharat Pro Customer' };
+      save('bpe_user', S.user);
+      drafts.login = {}; drafts.errs = {}; drafts.co = {};
+      if (S.sheet) closeSheet();
+      toast(t('loggedIn'));
+      if (current && current.name === 'checkout') refresh();
+      else location.hash = '#/account';
     } else if (kind === 'checkout') {
       if (!S.user) { openSheet('login', { step: 'phone' }); return; }
       if (validateCheckout()) { placeOrder(); return; }
