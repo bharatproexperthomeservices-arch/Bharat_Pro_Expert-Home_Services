@@ -340,11 +340,73 @@
   }
 
   function footer() {
-    var b = D.brand, tel = String(b.phone).replace(/[^\d+]/g, '');
-    return '<footer class="footer"><strong>' + esc(b.name) + '</strong><p>' + esc(b.tagline) + '</p>' +
-      '<p>📞 <a href="tel:' + esc(tel) + '">' + esc(b.phone) + '</a><br>✉️ <a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a><br>🏢 <a href="mailto:' + esc(b.companyEmail) + '">' + esc(b.companyEmail) + '</a></p>' +
-      '<p><a href="#/services">' + esc(t('services')) + '</a> · <a href="#/help">' + esc(t('help')) + '</a> · <a href="#/partner">' + esc(t('partner')) + '</a> · <a href="#/admin">🔒 Admin Panel</a></p>' +
-      '<small>© ' + new Date().getFullYear() + ' ' + esc(b.name) + '. ' + esc(t('rights')) + '</small></footer>';
+    return '<footer class="site-footer">' +
+      '<div class="footer-brand">' +
+        '<div class="brand-logo">BP</div>' +
+        '<div class="brand-text-container">' +
+          '<span class="brand-title">Bharat Pro Expert Home services</span>' +
+          '<span class="brand-subtitle">Expert Home services</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="footer-grid">' +
+        '<div class="footer-column">' +
+          '<h4 class="footer-heading">Company</h4>' +
+          '<ul class="footer-links">' +
+            '<li><a href="#">About us</a></li>' +
+            '<li><a href="#">Investor Relations</a></li>' +
+            '<li><a href="#">Terms &amp; conditions</a></li>' +
+            '<li><a href="#">Privacy policy</a></li>' +
+            '<li><a href="#">Anti-discrimination policy</a></li>' +
+            '<li><a href="#">Careers</a></li>' +
+            '<li><a href="#/admin">🔒 Admin Panel</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '<div class="footer-column">' +
+          '<h4 class="footer-heading">For customers</h4>' +
+          '<ul class="footer-links">' +
+            '<li><a href="#">Bharat Pro Expert reviews</a></li>' +
+            '<li><a href="#">Categories near you</a></li>' +
+            '<li><a href="#">Contact us</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '<div class="footer-column">' +
+          '<h4 class="footer-heading">For professionals</h4>' +
+          '<ul class="footer-links">' +
+            '<li><a href="#">Register as a professional</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '<div class="footer-column">' +
+          '<h4 class="footer-heading">Social links</h4>' +
+          '<div class="social-icons">' +
+            '<a href="#" class="social-icon" aria-label="X / Twitter"><span style="font-size:14px;font-weight:700">✕</span></a>' +
+            '<a href="#" class="social-icon" aria-label="Facebook"><span style="font-size:14px;font-weight:700">f</span></a>' +
+            '<a href="#" class="social-icon" aria-label="Instagram"><span style="font-size:14px;font-weight:700">📷</span></a>' +
+            '<a href="#" class="social-icon" aria-label="LinkedIn"><span style="font-size:14px;font-weight:700">in</span></a>' +
+          '</div>' +
+          '<div class="app-buttons">' +
+            '<a href="#" class="app-btn">' +
+              '<span style="font-size:20px;line-height:1"></span>' +
+              '<div class="app-btn-text">' +
+                '<span class="app-btn-sub">Download on the</span>' +
+                '<span class="app-btn-main">App Store</span>' +
+              '</div>' +
+            '</a>' +
+            '<a href="#" class="app-btn">' +
+              '<span style="font-size:18px;line-height:1">▶</span>' +
+              '<div class="app-btn-text">' +
+                '<span class="app-btn-sub">GET IT ON</span>' +
+                '<span class="app-btn-main">Google Play</span>' +
+              '</div>' +
+            '</a>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<hr class="footer-divider">' +
+      '<p class="footer-bottom-text disclaimer">* As on December 31, 2021</p>' +
+      '<p class="footer-bottom-text">' +
+        '© Copyright 2021 Bharat Pro Expert Home Services Limited (formerly known as Bharat Pro Expert Technologies India Limited) All rights reserved. | CIN: L74140DL2014PLC274413' +
+      '</p>' +
+    '</footer>';
   }
 
   function viewServices() {
