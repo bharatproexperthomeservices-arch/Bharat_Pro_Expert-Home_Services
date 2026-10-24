@@ -597,10 +597,20 @@
   }
 
   /* ---------- SUPER ADMIN PANEL STATE & FUNCTIONS ---------- */
-  var ADMIN_EMAIL = 'bharatproexperthomeservices@gmail.com';
   var ADMIN_PASS = 'bharatproexperthomeservices@9319953137';
   var LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes lockout on 1 failed attempt
   var adminTab = 'overview';
+  var adminCaptchaCode = '';
+
+  function generateCaptcha() {
+    var chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+    var code = '';
+    for (var i = 0; i < 5; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    adminCaptchaCode = code;
+    return code;
+  }
 
   function isAdminLoggedIn() {
     return load('bpe_admin_auth', false) === true;
@@ -616,6 +626,9 @@
       location.hash = '#/admin/dashboard';
       return '';
     }
+    if (!adminCaptchaCode) {
+      generateCaptcha();
+    }
     var lockoutUntil = getAdminLockoutUntil();
     var now = Date.now();
     var isLocked = lockoutUntil > now;
@@ -624,15 +637,22 @@
     return backBar('Super Admin Login', '#/') +
       '<div class="detail__block" style="max-width:440px;margin:24px auto">' +
         '<h2>🔒 Super Admin Authentication</h2>' +
-        '<p style="color:var(--text-sub);margin-bottom:16px">Enter Super Admin Email and Password to access system settings, services, and live operations.</p>' +
+        '<p style="color:var(--text-sub);margin-bottom:16px">Enter Super Admin Password and Security Capture Code to access system settings, services, and live operations.</p>' +
         (isLocked
           ? '<div style="background:#FF3B301A;border:1px solid #FF3B30;border-radius:8px;padding:12px;margin-bottom:16px;color:#FF3B30;font-size:14px;font-weight:600">' +
               '⛔ High Security Lockout Active! 1 failed login attempt detected. Login is locked for 15 minutes. Please try again in ' + remainingMinutes + ' minute(s).' +
             '</div>'
           : '') +
         '<form data-form="admin-login" novalidate>' +
-          field('Admin Email / User ID', 'admin.email', { type: 'email', ph: 'bharatproexperthomeservices@gmail.com', auto: true, ac: 'email' }) +
-          field('Admin Password', 'admin.pass', { type: 'password', ph: 'Enter Admin Password', ac: 'current-password' }) +
+          field('Admin Password', 'admin.pass', { type: 'password', ph: 'Enter Admin Password', auto: true, ac: 'current-password' }) +
+          '<div style="margin-bottom:16px">' +
+            '<label class="field__label">Security Capture Code</label>' +
+            '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">' +
+              '<div style="background:var(--bg-sub, #f0f0f0);border:2px dashed var(--primary, #007AFF);padding:10px 18px;font-family:monospace;font-size:22px;font-weight:bold;letter-spacing:6px;user-select:none;border-radius:8px;color:var(--text, #000)">' + esc(adminCaptchaCode) + '</div>' +
+              '<button type="button" class="btn btn--ghost btn--sm" data-act="refresh-captcha" title="Refresh CAPTCHA">🔄 Refresh</button>' +
+            '</div>' +
+          '</div>' +
+          field('Enter Capture Code', 'admin.captcha', { ph: 'Enter CAPTCHA Code', ac: 'off' }) +
           '<button type="submit" class="btn btn--primary btn--block"' + (isLocked ? ' disabled style="opacity:0.6;cursor:not-allowed"' : '') + '>Login to Super Admin Panel</button>' +
         '</form>' +
       '</div>';
@@ -1034,6 +1054,10 @@
       save('bpe_admin_auth', false);
       toast('Logged out of Super Admin Panel');
       location.hash = '#/admin';
+    },
+    'refresh-captcha': function () {
+      generateCaptcha();
+      refresh();
     }
   };
   function setLang(l) { S.lang = l; save('bpe_lang', l); applyTheme(); renderSheet(); refresh(); }
@@ -1127,10 +1151,17 @@
         return;
       }
 
-      var email = ((drafts.admin || {}).email || '').trim().toLowerCase();
       var pass = ((drafts.admin || {}).pass || '').trim();
+      var captchaInput = ((drafts.admin || {}).captcha || '').trim().toUpperCase();
 
-      if (email === ADMIN_EMAIL.toLowerCase() && pass === ADMIN_PASS) {
+      if (!captchaInput || captchaInput !== adminCaptchaCode) {
+        generateCaptcha();
+        toast('Invalid Security Capture Code! Please try again');
+        refresh();
+        return;
+      }
+
+      if (pass === ADMIN_PASS) {
         save('bpe_admin_auth', true);
         save('bpe_admin_lockout', 0);
         drafts.admin = {};

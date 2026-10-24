@@ -16,11 +16,12 @@ router.post("/auth/login", (req, res) => {
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPass = process.env.ADMIN_PASS;
 
-  if (adminEmail && adminPass && email.toLowerCase() === adminEmail.toLowerCase() && password === adminPass) {
+  const isEmailMatch = !email || !adminEmail || email.toLowerCase() === adminEmail.toLowerCase();
+  if (adminPass && password === adminPass && isEmailMatch) {
     return res.json({
       ok: true,
       token: "Bearer mock-super-admin-token-xyz",
-      user: { name: "Super Admin", email, role: "SUPER_ADMIN" }
+      user: { name: "Super Admin", email: email || adminEmail || "admin@bharatproexpert.com", role: "SUPER_ADMIN" }
     });
   }
   return res.status(401).json({ ok: false, error: "Invalid credentials" });
