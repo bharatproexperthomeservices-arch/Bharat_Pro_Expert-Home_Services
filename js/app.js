@@ -1,6 +1,8 @@
-/* Bharat Pro Expert — hash-router SPA (vanilla JS, no dependencies, no network).
+/* Bharat Pro Expert — hash-router SPA.
  * Structure: helpers -> state/storage -> i18n -> pricing -> view fns -> sheets -> actions -> router/boot.
  * All dynamic strings pass through esc() before hitting innerHTML. */
+import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from './firebase-config.js';
+
 (function () {
   'use strict';
 
@@ -1538,20 +1540,27 @@
     setlang: function (el) { setLang(el.dataset.v); },
     theme: function () { S.theme = isDark() ? 'light' : 'dark'; save('bpe_theme', S.theme); applyTheme(); refresh(); },
     login: function () { drafts.login = {}; drafts.errs = {}; location.hash = '#/login'; },
-    logout: function () { S.user = null; save('bpe_user', null); toast(t('loggedOut')); refresh(); },
-    'google-login': function () {
-      S.user = {
-        name: 'Bharat Pro User',
-        email: 'user@gmail.com',
-        loginType: 'google',
-        avatar: '🌐'
-      };
-      save('bpe_user', S.user);
-      drafts.login = {};
-      if (S.sheet) closeSheet();
-      toast(t('googleSuccess'));
-      if (current && current.name === 'checkout') refresh();
-      else location.hash = '#/account';
+    logout: function () {
+      firebaseLogout().catch(function () {});
+      S.user = null;
+      save('bpe_user', null);
+      toast(t('loggedOut'));
+      refresh();
+    },
+    'google-login': async function () {
+      toast('Connecting Google Sign-In...');
+      var res = await loginWithGoogle();
+      if (res.success) {
+        S.user = res.user;
+        save('bpe_user', S.user);
+        drafts.login = {};
+        if (S.sheet) closeSheet();
+        toast(t('googleSuccess'));
+        if (current && current.name === 'checkout') refresh();
+        else location.hash = '#/account';
+      } else {
+        toast(res.error || 'Google login failed');
+      }
     },
     'edit-phone': function () {
       drafts.login.step = 'phone';
@@ -1779,25 +1788,48 @@
         return;
       }
       delete drafts.errs['login.phone'];
-      drafts.login.otp = '';
-      drafts.login.step = 'otp';
-      if (S.sheet) renderSheet(); else refresh();
-      toast(t('otpSent'));
+      toast('Sending OTP via Firebase...');
+      sendPhoneOtp(drafts.login.phone).then(function (res) {
+        if (res.success) {
+          drafts.login.otp = '';
+          drafts.login.step = 'otp';
+          if (S.sheet) renderSheet(); else refresh();
+          toast(t('otpSent'));
+        } else {
+          toast(res.error || 'Failed to send OTP');
+        }
+      }).catch(function (err) {
+        toast('OTP sending failed: ' + (err.message || err));
+      });
     } else if (kind === 'login-otp') {
-      if (!/^\d{4}$/.test(drafts.login.otp || '')) {
+      if (!/^\d{6}$|^\d{4}$/.test(drafts.login.otp || '')) {
         drafts.errs['login.otp'] = t('errOtp');
         if (S.sheet) renderSheet(); else refresh();
         return;
       }
-      var enteredName = (drafts.login.name || '').trim();
-      var prevName = S.user && S.user.phone === drafts.login.phone ? S.user.name : '';
-      S.user = { phone: drafts.login.phone, name: enteredName || prevName || 'Bharat Pro Customer' };
-      save('bpe_user', S.user);
-      drafts.login = {}; drafts.errs = {}; drafts.co = {};
-      if (S.sheet) closeSheet();
-      toast(t('loggedIn'));
-      if (current && current.name === 'checkout') refresh();
-      else location.hash = '#/account';
+      toast('Verifying OTP...');
+      verifyPhoneOtp(drafts.login.otp).then(function (res) {
+        if (res.success) {
+          var enteredName = (drafts.login.name || '').trim();
+          var prevName = S.user && S.user.phone === drafts.login.phone ? S.user.name : '';
+          S.user = Object.assign({}, res.user, {
+            name: enteredName || res.user.name || prevName || 'Bharat Pro Customer',
+            phone: drafts.login.phone
+          });
+          save('bpe_user', S.user);
+          drafts.login = {}; drafts.errs = {}; drafts.co = {};
+          if (S.sheet) closeSheet();
+          toast(t('loggedIn'));
+          if (current && current.name === 'checkout') refresh();
+          else location.hash = '#/account';
+        } else {
+          drafts.errs['login.otp'] = res.error || t('errOtp');
+          if (S.sheet) renderSheet(); else refresh();
+          toast(res.error || 'OTP Verification failed');
+        }
+      }).catch(function (err) {
+        toast('Verification error: ' + (err.message || err));
+      });
     } else if (kind === 'checkout') {
       if (!S.user) { openSheet('login', { step: 'phone' }); return; }
       if (validateCheckout()) { placeOrder(); return; }
