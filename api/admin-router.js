@@ -27,75 +27,67 @@ router.post("/auth/login", (req, res) => {
   return res.status(401).json({ ok: false, error: "Invalid credentials" });
 });
 
-router.get("/dashboard/stats", authMiddleware, (req, res) => {
+router.get("/dashboard/stats", authMiddleware, (_req, res) => {
   res.json({
     ok: true,
+    message: "Admin panel functions and data permanently cleared.",
     stats: {
-      verifiedRevenue: 489500,
-      totalBookings: 142,
-      partnerApplications: 28,
-      activePartners: 64,
-      pendingKYC: 5,
-      openTickets: 2,
-      systemHealth: "100% Operational"
+      verifiedRevenue: 0,
+      totalBookings: 0,
+      partnerApplications: 0,
+      activePartners: 0
     }
   });
 });
 
-router.get("/website/:pageKey", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: `Draft content for ${req.params.pageKey}` });
+router.get("/website/:pageKey", authMiddleware, (_req, res) => {
+  res.json({ ok: true, message: "Content data cleared." });
 });
 
-router.put("/website/:pageKey/publish", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: `Published changes for ${req.params.pageKey} live!` });
+router.put("/website/:pageKey/publish", authMiddleware, (_req, res) => {
+  res.json({ ok: true, message: "No data to publish." });
 });
 
-router.get("/partners", authMiddleware, (req, res) => {
+router.get("/partners", authMiddleware, (_req, res) => {
   res.json({
     ok: true,
-    partners: [
-      { id: "p1", name: "Ramesh Kumar", phone: "9876543210", city: "Gurgaon", status: "approved", kycStatus: "verified" },
-      { id: "p2", name: "Suresh Singh", phone: "9876543211", city: "Delhi", status: "pending", kycStatus: "pending" }
-    ]
+    partners: []
   });
 });
 
-router.patch("/partners/:id/approve", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: `Partner ${req.params.id} approved successfully.` });
+router.patch("/partners/:id/approve", authMiddleware, (_req, res) => {
+  res.json({ ok: true, message: "Action cleared." });
 });
 
-router.patch("/partners/:id/kyc-verify", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: `Partner ${req.params.id} document verified successfully.` });
+router.patch("/partners/:id/kyc-verify", authMiddleware, (_req, res) => {
+  res.json({ ok: true, message: "Action cleared." });
 });
 
-router.post("/partners/:id/wallet-adjust", authMiddleware, (req, res) => {
-  const { amount, type, reason } = req.body || {};
-  res.json({ ok: true, message: `Partner ${req.params.id} wallet adjusted by ${type === 'credit' ? '+' : '-'}${amount}. Reason: ${reason || 'Admin Adjustment'}` });
+router.post("/partners/:id/wallet-adjust", authMiddleware, (_req, res) => {
+  res.json({ ok: true, message: "Action cleared." });
 });
 
-router.get("/bookings", authMiddleware, (req, res) => {
+router.get("/bookings", authMiddleware, (_req, res) => {
   res.json({
     ok: true,
     bookings: []
   });
 });
 
-router.patch("/bookings/:id/status", authMiddleware, (req, res) => {
-  const { status } = req.body || {};
-  res.json({ ok: true, message: `Booking ${req.params.id} status updated to ${status}` });
+router.patch("/bookings/:id/status", authMiddleware, (_req, res) => {
+  res.json({ ok: true, message: "Action cleared." });
 });
 
-router.patch("/bookings/:id/assign", authMiddleware, (req, res) => {
-  const { partnerId } = req.body || {};
-  res.json({ ok: true, message: `Partner ${partnerId || 'assigned'} linked to booking ${req.params.id}` });
+router.patch("/bookings/:id/assign", authMiddleware, (_req, res) => {
+  res.json({ ok: true, message: "Action cleared." });
 });
 
-router.post("/catalogue/services", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: "Custom service added to catalogue successfully" });
+router.post("/catalogue/services", authMiddleware, (_req, res) => {
+  res.json({ ok: true, message: "Catalogue management cleared." });
 });
 
-router.post("/coupons", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: "New coupon created successfully" });
+router.post("/coupons", authMiddleware, (_req, res) => {
+  res.json({ ok: true, message: "Coupon management cleared." });
 });
 
 export default router;
