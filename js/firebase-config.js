@@ -70,9 +70,15 @@ export async function loginWithGoogle() {
     };
   } catch (error) {
     console.error('Firebase Google Login Error:', error);
+    let errorMsg = error.message || 'Google sign-in failed. Please try again.';
+    if (error.code === 'auth/unauthorized-domain' || (error.message && error.message.includes('auth/unauthorized-domain'))) {
+      errorMsg = 'This domain is not authorized in Firebase Console. Please add this domain under Firebase > Authentication > Settings > Authorized Domains, or use Mobile OTP login.';
+    } else if (error.code === 'auth/popup-closed-by-user') {
+      errorMsg = 'Sign-in popup was closed before completing. Please try again.';
+    }
     return {
       success: false,
-      error: error.message || 'Google sign-in failed. Please try again.'
+      error: errorMsg
     };
   }
 }
