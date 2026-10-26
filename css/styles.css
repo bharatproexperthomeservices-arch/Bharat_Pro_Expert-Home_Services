@@ -183,8 +183,14 @@ button:disabled { cursor: not-allowed; }
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   transition: color .2s var(--ease);
+}
+.topnav__logo-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 6px;
 }
 .topnav__brand:hover {
   color: var(--blue);
@@ -486,19 +492,20 @@ textarea.input { min-height: 88px; resize: vertical; }
 }
 
 .auth-card__logo-badge {
-  width: 52px;
-  height: 52px;
-  background: linear-gradient(135deg, var(--blue), #5AC8FA);
-  color: #ffffff;
-  border-radius: 16px;
+  width: 56px;
+  height: 56px;
+  background: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 22px;
   margin-bottom: 12px;
+}
+.auth-card__logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
   box-shadow: 0 4px 14px color-mix(in srgb, var(--blue) 35%, transparent);
-  animation: badgePulse 3s infinite ease-in-out;
 }
 
 .auth-card__header h2 {
@@ -686,20 +693,20 @@ textarea.input { min-height: 88px; resize: vertical; }
 .brand-logo {
   width: 44px;
   height: 44px;
-  background-color: #111111;
-  color: #ffffff;
+  background-color: transparent;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 20px;
-  letter-spacing: -0.5px;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
-:root[data-theme="dark"] .brand-logo {
-  background-color: #007aff;
+.brand-logo__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 .brand-text-container {
