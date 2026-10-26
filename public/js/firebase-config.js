@@ -2,6 +2,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import {
   getAuth,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   RecaptchaVerifier,
@@ -84,10 +85,33 @@ function formatAuthError(error) {
 
 export async function loginWithGoogle() {
   try {
-    await signInWithRedirect(auth, googleProvider);
-    return { success: true, redirecting: true };
-  } catch (error) {
-    return formatAuthError(error);
+    const result = await signInWithPopup(auth, googleProvider);
+    if (result && result.user) {
+      const user = result.user;
+      return {
+        success: true,
+        user: {
+          uid: user.uid,
+          name: user.displayName || 'Google User',
+          email: user.email,
+          phone: user.phoneNumber || '',
+          avatar: user.photoURL || '🌐',
+          loginType: 'google'
+        }
+      };
+    }
+    return { success: false, error: 'Google sign-in was not completed.' };
+  } catch (popupError) {
+    console.warn('signInWithPopup failed or unavailable, falling back to redirect:', popupError);
+    if (popupError?.code === 'auth/unauthorized-domain' || popupError?.code === 'auth/popup-closed-by-user') {
+      return formatAuthError(popupError);
+    }
+    try {
+      await signInWithRedirect(auth, googleProvider);
+      return { success: true, redirecting: true };
+    } catch (redirectError) {
+      return formatAuthError(redirectError);
+    }
   }
 }
 
