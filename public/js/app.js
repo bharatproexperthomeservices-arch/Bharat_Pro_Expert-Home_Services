@@ -1,7 +1,7 @@
 /* Bharat Pro Expert — hash-router SPA.
  * Structure: helpers -> state/storage -> i18n -> pricing -> view fns -> sheets -> actions -> router/boot.
  * All dynamic strings pass through esc() before hitting innerHTML. */
-import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from './firebase-config.js';
+import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from './firebase-config.js';
 
 (function () {
   'use strict';
@@ -988,7 +988,7 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
       toast(t('loggedOut'));
       refresh();
     },
-    'google-login': async function (btnEl) {
+    'google-login': function (btnEl) {
       if (isGoogleLoginInProgress) return;
       isGoogleLoginInProgress = true;
       delete drafts.loginNotice;
@@ -998,33 +998,22 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
         btnEl.classList.add('is-loading');
       }
       if (S.sheet) renderSheet(); else refresh();
-      toast('Connecting Google Sign-In...');
+      toast('Redirecting to Google Sign-In...');
 
-      try {
-        var res = await loginWithGoogle();
-        if (res.success) {
-          S.user = res.user;
-          save('bpe_user', S.user);
-          drafts.login = {};
-          delete drafts.loginNotice;
-          if (S.sheet) closeSheet();
-          toast(t('googleSuccess'));
-          if (current && current.name === 'checkout') refresh();
-          else location.hash = '#/account';
-        } else {
+      loginWithGoogle().then(function (res) {
+        if (!res.success) {
+          isGoogleLoginInProgress = false;
           if (res.error) {
             drafts.loginNotice = res.error;
           }
           toast(res.error || 'Google sign-in failed');
           if (S.sheet) renderSheet(); else refresh();
         }
-      } catch (err) {
-        console.error('Google login action error:', err);
-        toast('Google sign-in failed. Please try Mobile OTP.');
-      } finally {
+      }).catch(function (err) {
         isGoogleLoginInProgress = false;
+        toast('Google sign-in failed: ' + (err.message || err));
         if (S.sheet) renderSheet(); else refresh();
-      }
+      });
     },
     'edit-phone': function () {
       drafts.login.step = 'phone';
@@ -1235,4 +1224,25 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
 
   applyTheme();
   render(false);
+
+  checkGoogleRedirectResult().then(function (res) {
+    if (res.success && res.user) {
+      S.user = res.user;
+      save('bpe_user', S.user);
+      drafts.login = {};
+      delete drafts.loginNotice;
+      if (S.sheet) closeSheet();
+      toast(t('googleSuccess'));
+      if (parseRoute().name === 'checkout') refresh();
+      else location.hash = '#/account';
+    } else if (!res.success && !res.noResult) {
+      if (res.error) {
+        drafts.loginNotice = res.error;
+      }
+      toast(res.error || 'Google sign-in failed');
+      refresh();
+    }
+  }).catch(function (err) {
+    console.error('Check redirect result error:', err);
+  });
 })();
