@@ -1,7 +1,7 @@
 /* Bharat Pro Expert — hash-router SPA.
  * Structure: helpers -> state/storage -> i18n -> pricing -> view fns -> sheets -> actions -> router/boot.
  * All dynamic strings pass through esc() before hitting innerHTML. */
-import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from './firebase-config.js';
+import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from './firebase-config.js';
 
 (function () {
   'use strict';
@@ -93,8 +93,8 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
       payment: 'Payment', cod: 'Pay after service', upi: 'UPI (pay on confirmation)', today: 'Today', tomorrow: 'Tomorrow',
       status: ['Confirmed', 'Expert assigned', 'On the way', 'Done'], cancelled: 'Cancelled', cancel: 'Cancel booking',
       reschedule: 'Reschedule', save: 'Save', close: 'Close', details: 'View details', noBookings: 'No bookings yet',
-      noBookingsSub: 'Your booked services will appear here.', sendOtp: 'Send OTP', verify: 'Verify & login', otp: 'Enter 4-digit OTP',
-      otpHint: 'Enter 4-digit code sent to your mobile', loginTitle: 'Welcome to Bharat Pro Expert', loginSub: 'Sign in to book trusted home services in seconds.',
+      noBookingsSub: 'Your booked services will appear here.', sendOtp: 'Send OTP', verify: 'Verify & login', otp: 'Enter 6-digit OTP',
+      otpHint: 'Enter 6-digit code sent to your mobile', loginTitle: 'Welcome to Bharat Pro Expert', loginSub: 'Sign in to book trusted home services in seconds.',
       loginReq: 'Please login to complete your booking.', welcome: 'Welcome', help: 'Help & FAQs', partner: 'Become a partner',
       googleLogin: 'Continue with Google', orDivider: 'OR CONTINUING WITH MOBILE', enterName: 'Full name (optional)', resendOtp: 'Resend OTP',
       resendIn: 'Resend OTP in', otpSent: 'OTP sent successfully!', googleSuccess: 'Logged in with Google!',
@@ -110,7 +110,7 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
       orderPlaced: 'Booking placed', fixErrors: 'Please fix the highlighted fields', menu: 'Menu', for: 'for', reviews: 'reviews',
       contactUs: 'Contact', quickLinks: 'Quick links', copied: 'Code applied. Use it in your cart.', rights: 'All rights reserved.',
       errName: 'Enter your name', errPhone: 'Enter a valid 10-digit mobile number', errHouse: 'Enter house / flat number',
-      errArea: 'Enter your area', errPin: 'Enter a valid 6-digit pincode', errSlot: 'Pick a date and time slot', errOtp: 'Enter 4 digits',
+      errArea: 'Enter your area', errPin: 'Enter a valid 6-digit pincode', errSlot: 'Pick a date and time slot', errOtp: 'Enter 6 digits',
       loggedOut: 'Logged out', loggedIn: 'Logged in', suggestions: 'Suggestions', searchFor: 'Search for', results: 'Results for',
       hello: 'Hello', guest: 'Guest', myBookings: 'My bookings', pastSlot: 'Slot passed', editPhone: 'Change mobile number'
     },
@@ -128,8 +128,8 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
       payment: 'भुगतान', cod: 'सेवा के बाद भुगतान', upi: 'UPI (पुष्टि पर भुगतान)', today: 'आज', tomorrow: 'कल',
       status: ['पक्की', 'एक्सपर्ट तय', 'रास्ते में', 'पूरा'], cancelled: 'रद्द', cancel: 'बुकिंग रद्द करें',
       reschedule: 'समय बदलें', save: 'सेव करें', close: 'बंद करें', details: 'विवरण देखें', noBookings: 'अभी कोई बुकिंग नहीं',
-      noBookingsSub: 'आपकी बुक की गई सेवाएँ यहाँ दिखेंगी।', sendOtp: 'OTP भेजें', verify: 'सत्यापित करें', otp: '4 अंकों का OTP डालें',
-      otpHint: 'अपने मोबाइल पर भेजा गया 4 अंकों का कोड डालें', loginTitle: 'भारत प्रो एक्सपर्ट में आपका स्वागत है', loginSub: 'विश्वसनीय होम सर्विस बुक करने के लिए लॉगिन करें।',
+      noBookingsSub: 'आपकी बुक की गई सेवाएँ यहाँ दिखेंगी।', sendOtp: 'OTP भेजें', verify: 'सत्यापित करें', otp: '6 अंकों का OTP डालें',
+      otpHint: 'अपने मोबाइल पर भेजा गया 6 अंकों का कोड डालें', loginTitle: 'भारत प्रो एक्सपर्ट में आपका स्वागत है', loginSub: 'विश्वसनीय होम सर्विस बुक करने के लिए लॉगिन करें।',
       loginReq: 'बुकिंग पूरी करने के लिए लॉगिन करें।', welcome: 'स्वागत', help: 'मदद और सवाल', partner: 'पार्टनर बनें',
       googleLogin: 'गूगल से लॉगिन करें', orDivider: 'या मोबाइल नंबर से जारी रखें', enterName: 'पूरा नाम (वैकल्पिक)', resendOtp: 'OTP फिर भेजें',
       resendIn: 'OTP फिर भेजें', otpSent: 'OTP सफलतापूर्वक भेजा गया!', googleSuccess: 'गूगल से लॉगिन सफल!',
@@ -145,7 +145,7 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
       orderPlaced: 'बुकिंग हो गई', fixErrors: 'कृपया लाल फील्ड ठीक करें', menu: 'मेनू', 'for': 'के लिए', reviews: 'रिव्यू',
       contactUs: 'संपर्क', quickLinks: 'त्वरित लिंक', copied: 'कोड लग गया। कार्ट में इस्तेमाल करें।', rights: 'सर्वाधिकार सुरक्षित।',
       errName: 'अपना नाम लिखें', errPhone: 'सही 10 अंकों का मोबाइल नंबर लिखें', errHouse: 'मकान / फ्लैट नंबर लिखें',
-      errArea: 'अपना इलाका लिखें', errPin: 'सही 6 अंकों का पिनकोड लिखें', errSlot: 'तारीख और समय चुनें', errOtp: '4 अंक डालें',
+      errArea: 'अपना इलाका लिखें', errPin: 'सही 6 अंकों का पिनकोड लिखें', errSlot: 'तारीख और समय चुनें', errOtp: '6 अंक डालें',
       loggedOut: 'लॉगआउट हो गए', loggedIn: 'लॉगिन सफल', suggestions: 'सुझाव', searchFor: 'खोजें', results: 'इनके नतीजे',
       hello: 'नमस्ते', guest: 'अतिथि', myBookings: 'मेरी बुकिंग', pastSlot: 'समय निकल गया', editPhone: 'नंबर बदलें'
     }
@@ -683,7 +683,7 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
           '<span>📱 +91 ' + esc(L.phone) + '</span>' +
           '<button type="button" class="btn-link" data-act="edit-phone">' + esc(t('editPhone')) + '</button>' +
         '</div>' +
-        field(t('otp'), 'login.otp', { inputmode: 'numeric', max: 4, ac: 'one-time-code', auto: true, ph: '• • • •' }) +
+        field(t('otp'), 'login.otp', { inputmode: 'numeric', max: 6, ac: 'one-time-code', auto: true, ph: '• • • • • •' }) +
         '<p class="card__meta" style="margin-bottom:12px;text-align:center">' + esc(t('otpHint')) + '</p>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
           '<button type="button" class="btn btn--ghost btn--sm" data-act="resend-otp">' + esc(t('resendOtp')) + '</button>' +
@@ -1031,7 +1031,17 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
       if (S.sheet) renderSheet(); else refresh();
     },
     'resend-otp': function () {
-      toast(t('otpSent'));
+      if (!drafts.login || !drafts.login.phone) return;
+      toast('Resending OTP...');
+      sendPhoneOtp(drafts.login.phone).then(function (res) {
+        if (res.success) {
+          toast(t('otpSent'));
+        } else {
+          toast(res.error || 'Failed to resend OTP');
+        }
+      }).catch(function (err) {
+        toast('OTP resend failed: ' + (err.message || err));
+      });
     },
     close: function () { closeSheet(); },
     'co-date': function (el) { drafts.co.date = el.dataset.v; if (slotPast(drafts.co.slot, drafts.co.date)) drafts.co.slot = ''; refresh(); },
@@ -1235,4 +1245,16 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
 
   applyTheme();
   render(false);
+
+  // Check for Google Login redirect result on app init
+  checkGoogleRedirectResult().then(function (res) {
+    if (res && res.success && res.user) {
+      S.user = res.user;
+      save('bpe_user', S.user);
+      toast(t('googleSuccess'));
+      refresh();
+    }
+  }).catch(function (err) {
+    console.error('Redirect auth check error:', err);
+  });
 })();

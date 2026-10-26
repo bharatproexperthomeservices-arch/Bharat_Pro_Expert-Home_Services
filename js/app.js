@@ -1,7 +1,7 @@
 /* Bharat Pro Expert — hash-router SPA.
  * Structure: helpers -> state/storage -> i18n -> pricing -> view fns -> sheets -> actions -> router/boot.
  * All dynamic strings pass through esc() before hitting innerHTML. */
-import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from './firebase-config.js';
+import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from './firebase-config.js';
 
 (function () {
   'use strict';
@@ -1245,4 +1245,16 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
 
   applyTheme();
   render(false);
+
+  // Check for Google Login redirect result on app init
+  checkGoogleRedirectResult().then(function (res) {
+    if (res && res.success && res.user) {
+      S.user = res.user;
+      save('bpe_user', S.user);
+      toast(t('googleSuccess'));
+      refresh();
+    }
+  }).catch(function (err) {
+    console.error('Redirect auth check error:', err);
+  });
 })();

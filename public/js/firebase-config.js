@@ -3,6 +3,8 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   signOut,
@@ -53,6 +55,29 @@ export function setupRecaptcha(containerId = 'recaptcha-container') {
   return recaptchaVerifier;
 }
 
+export async function checkGoogleRedirectResult() {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result && result.user) {
+      const user = result.user;
+      return {
+        success: true,
+        user: {
+          uid: user.uid,
+          name: user.displayName || 'Google User',
+          email: user.email,
+          phone: user.phoneNumber || '',
+          avatar: user.photoURL || '🌐',
+          loginType: 'google'
+        }
+      };
+    }
+  } catch (error) {
+    console.error('Firebase Redirect Result Error:', error);
+  }
+  return null;
+}
+
 export async function loginWithGoogle() {
   try {
     const result = await signInWithPopup(auth, googleProvider);
@@ -72,15 +97,30 @@ export async function loginWithGoogle() {
     console.error('Firebase Google Login Error:', error);
     const code = error?.code || '';
     const msg = error?.message || '';
+
+    // If popup was blocked or closed before completing, attempt redirect fallback seamlessly
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/popup-blocked') {
+      try {
+        await signInWithRedirect(auth, googleProvider);
+        return {
+          success: false,
+          redirecting: true,
+          error: 'Redirecting to Google Sign-In...'
+        };
+      } catch (redirectErr) {
+        console.error('Firebase Redirect Fallback Error:', redirectErr);
+      }
+    }
+
     let friendlyError = 'Google Sign-In failed. Please try again or use Mobile OTP.';
 
     if (code === 'auth/unauthorized-domain' || msg.includes('unauthorized-domain')) {
       const currentDomain = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : 'www.bharatproexpert.com';
       friendlyError = `Domain (${currentDomain}) is not authorized in Firebase Console -> Auth -> Authorized Domains list. Please add it or log in with Mobile OTP.`;
     } else if (code === 'auth/popup-blocked') {
-      friendlyError = 'Sign-in popup was blocked by your browser. Please allow popups for this site or use Mobile OTP below.';
+      friendlyError = 'Sign-in popup was blocked by your browser. Redirecting to Google Sign-In...';
     } else if (code === 'auth/popup-closed-by-user') {
-      friendlyError = 'Google sign-in window was closed before completing. Please try again.';
+      friendlyError = 'Google sign-in window was closed before completing. Redirecting to Google Sign-In...';
     } else if (code === 'auth/cancelled-popup-request') {
       friendlyError = 'Sign-in request was cancelled. Please try again.';
     } else if (code === 'auth/network-request-failed') {
