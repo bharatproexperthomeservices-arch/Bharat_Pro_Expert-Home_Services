@@ -30,15 +30,7 @@ router.post("/auth/login", (req, res) => {
 router.get("/dashboard/stats", authMiddleware, (req, res) => {
   res.json({
     ok: true,
-    stats: {
-      verifiedRevenue: 489500,
-      totalBookings: 142,
-      partnerApplications: 28,
-      activePartners: 64,
-      pendingKYC: 5,
-      openTickets: 2,
-      systemHealth: "100% Operational"
-    }
+    stats: {}
   });
 });
 
@@ -53,10 +45,7 @@ router.put("/website/:pageKey/publish", authMiddleware, (req, res) => {
 router.get("/partners", authMiddleware, (req, res) => {
   res.json({
     ok: true,
-    partners: [
-      { id: "p1", name: "Ramesh Kumar", phone: "9876543210", city: "Gurgaon", status: "approved", kycStatus: "verified" },
-      { id: "p2", name: "Suresh Singh", phone: "9876543211", city: "Delhi", status: "pending", kycStatus: "pending" }
-    ]
+    partners: []
   });
 });
 
