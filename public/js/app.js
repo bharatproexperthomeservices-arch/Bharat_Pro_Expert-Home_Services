@@ -369,7 +369,6 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
             '<li><a href="#">Privacy policy</a></li>' +
             '<li><a href="#">Anti-discrimination policy</a></li>' +
             '<li><a href="#">Careers</a></li>' +
-            '<li><a href="#/admin">🔒 Admin Panel</a></li>' +
           '</ul>' +
         '</div>' +
         '<div class="footer-column">' +
