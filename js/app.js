@@ -274,7 +274,7 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
     var u = S.user;
     var userLabel = u ? esc((u.name || u.phone || u.email || '').split(' ')[0]) : '';
     return '<header class="topbar">' +
-      '<a class="topnav__brand" href="#/" aria-label="Bharat Pro Expert home">' + esc(D.brand.name) + '</a>' +
+      '<a class="topnav__brand" href="#/" aria-label="Bharat Pro Expert home"><img src="icons/logo.png" alt="Logo" class="topnav__logo-img">' + esc(D.brand.name) + '</a>' +
       '<button type="button" class="topbar__loc" data-act="city" aria-label="' + esc(t('chooseCity')) + '">📍 ' + esc(S.city) + ' ▾</button>' +
       '<form class="topbar__search" data-form="search" role="search" style="position:relative" autocomplete="off">' +
         '<input class="input" type="search" name="q" id="q" value="' + esc(q) + '" placeholder="' + esc(t('search')) + '" aria-label="' + esc(t('search')) + '" autocomplete="off">' +
@@ -349,7 +349,7 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
   function footer() {
     return '<footer class="site-footer">' +
       '<div class="footer-brand">' +
-        '<div class="brand-logo">BP</div>' +
+        '<div class="brand-logo"><img src="icons/logo.png" alt="Bharat Pro Expert Logo" class="brand-logo__img"></div>' +
         '<div class="brand-text-container">' +
           '<span class="brand-title">Bharat Pro Expert Home services</span>' +
           '<span class="brand-subtitle">Expert Home services</span>' +
@@ -654,7 +654,7 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
 
     var h = '<div class="auth-card">' +
       '<div class="auth-card__header">' +
-        '<div class="auth-card__logo-badge"><span>BP</span></div>' +
+        '<div class="auth-card__logo-badge"><img src="icons/logo.png" alt="Bharat Pro Expert Logo" class="auth-card__logo-img"></div>' +
         '<h2>' + esc(t('loginTitle')) + '</h2>' +
         '<p>' + esc(t('loginSub')) + '</p>' +
       '</div>';
