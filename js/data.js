@@ -373,6 +373,13 @@
       city: 'Gurgaon'
     },
 
+    gstDetails: {
+      gstin: '06FCUPM9518L1ZM',
+      businessName: 'Bharat Pro Expert home services',
+      legalName: 'ANIL KUMAR',
+      address: 'Unit No. 309, 3rd Floor, Tower A, SAS Tower, Medicity, Sector 38, Gurugram, Haryana, 122001'
+    },
+
     cities: ['Gurgaon', 'Delhi', 'Noida', 'Patna', 'Jale (Darbhanga)', 'Darbhanga', 'Muzaffarpur', 'Gaya'],
 
     categories: [
@@ -424,8 +431,8 @@
     howItWorks: [
       { emoji: '🔍', title: 'Choose a cleaning', sub: 'Pick from 60+ cleaning services' },
       { emoji: '📅', title: 'Select date & time', sub: 'Book a slot that suits you' },
-      { emoji: '🧹', title: 'Experts arrive', sub: 'A trained team brings machines and chemicals' },
-      { emoji: '✅', title: 'Pay after service', sub: 'Pay only when you are happy' }
+      { emoji: '💳', title: '100% Online Payment', sub: 'Pay securely via UPI, Cards, or NetBanking' },
+      { emoji: '🧹', title: 'Experts arrive', sub: 'A trained team brings machines and chemicals' }
     ],
 
     trust: [
@@ -436,8 +443,8 @@
     ],
 
     faqs: [
-      { q: 'How do I book a cleaning?', a: 'Choose a service, add it to the cart, pick a date and time slot, enter your address and confirm. It takes under two minutes.' },
-      { q: 'When do I pay?', a: 'You pay after the cleaning is completed, in cash or UPI. No advance payment is required.' },
+      { q: 'How do I book a cleaning?', a: 'Choose a service, add it to the cart, pick a date and time slot, enter your address and pay online. It takes under two minutes.' },
+      { q: 'When do I pay?', a: 'All bookings require 100% online payment (UPI, Credit/Debit Cards, NetBanking) at the time of booking to confirm your slot.' },
       { q: 'What do I need to arrange?', a: 'Please keep water and a power point ready and tell your society guard about the visit. Our experts carry ID cards and bring the machines, tools and chemicals.' },
       { q: 'Are the chemicals safe for kids and pets?', a: 'We use eco-safe, skin-friendly products. Keep pets in another room until the surfaces dry.' },
       { q: 'How long does a deep cleaning take?', a: 'A 2 BHK apartment takes about 7 hours with a team of 2 to 4 experts. The exact time is shown on each service page.' },
