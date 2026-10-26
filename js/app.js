@@ -1,7 +1,7 @@
 /* Bharat Pro Expert — hash-router SPA.
  * Structure: helpers -> state/storage -> i18n -> pricing -> view fns -> sheets -> actions -> router/boot.
  * All dynamic strings pass through esc() before hitting innerHTML. */
-import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from './firebase-config.js';
+import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOtp, firebaseLogout, subscribeAuthState } from './firebase-config.js';
 
 (function () {
   'use strict';
@@ -67,7 +67,7 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
   if (!Array.isArray(S.cart)) S.cart = [];
   if (!Array.isArray(S.bookings)) S.bookings = [];
   // Form drafts live outside the DOM so re-renders never lose typed values.
-  var drafts = { co: {}, login: {}, partner: {}, errs: {} };
+  var drafts = { co: {}, login: {}, partner: {}, errs: {}, loginError: '' };
   var heroIdx = 0, heroTimer = null, tickTimer = null, tickSig, searchTimer = null, suppressGate = false;
 
   /* ---------- lookups ---------- */
@@ -655,6 +655,7 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     var L = drafts.login;
     var step = L.step || 'phone';
     var nameVal = L.name || '';
+    var loginErr = drafts.loginError || '';
 
     var h = '<div class="auth-card">' +
       '<div class="auth-card__header">' +
@@ -663,9 +664,13 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
         '<p>' + esc(t('loginSub')) + '</p>' +
       '</div>';
 
-    if (drafts.loginNotice) {
-      h += '<div class="notice notice--warning" style="margin-bottom:14px;padding:10px 12px;background:#FFF3CD;color:#664D03;border:1px solid #FFECB5;border-radius:8px;font-size:13px;line-height:1.4">' +
-        '⚠️ <span>' + esc(drafts.loginNotice) + '</span>' +
+    if (loginErr) {
+      h += '<div class="auth-error-banner" role="alert" style="margin-bottom:14px;padding:12px 14px;background:#FF3B301A;color:#FF3B30;border:1px solid #FF3B30;border-radius:10px;font-size:13px;line-height:1.4;font-weight:500;display:flex;align-items:flex-start;gap:8px">' +
+        '<span style="font-size:16px">⚠️</span>' +
+        '<div>' +
+          '<strong>Login Error:</strong>' +
+          '<div>' + esc(loginErr) + '</div>' +
+        '</div>' +
       '</div>';
     }
 
@@ -678,6 +683,8 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     h += '<div class="auth-divider"><span>' + esc(t('orDivider')) + '</span></div>';
 
     if (step === 'otp') {
+      var verifyDisabled = drafts.verifyLoading ? ' disabled' : '';
+      var verifyText = drafts.verifyLoading ? 'Verifying OTP...' : t('verify');
       h += '<form data-form="login-otp" novalidate class="auth-form-animated">' +
         '<div class="phone-display-badge">' +
           '<span>📱 +91 ' + esc(L.phone) + '</span>' +
@@ -688,13 +695,15 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
           '<button type="button" class="btn btn--ghost btn--sm" data-act="resend-otp">' + esc(t('resendOtp')) + '</button>' +
         '</div>' +
-        '<button type="submit" class="btn btn--primary btn--block btn--animated">' + esc(t('verify')) + '</button>' +
+        '<button type="submit" class="btn btn--primary btn--block btn--animated"' + verifyDisabled + '>' + esc(verifyText) + '</button>' +
       '</form>';
     } else {
+      var otpDisabled = drafts.otpLoading ? ' disabled' : '';
+      var otpText = drafts.otpLoading ? 'Sending OTP...' : t('sendOtp');
       h += '<form data-form="login-phone" novalidate class="auth-form-animated">' +
         field(t('enterName'), 'login.name', { ac: 'name', ph: 'e.g. Rahul Sharma', value: nameVal }) +
         field(t('phone'), 'login.phone', { type: 'tel', inputmode: 'numeric', max: 10, ac: 'tel-national', auto: true, ph: '9876543210' }) +
-        '<button type="submit" class="btn btn--primary btn--block btn--animated" style="margin-top:12px">' + esc(t('sendOtp')) + '</button>' +
+        '<button type="submit" class="btn btn--primary btn--block btn--animated" style="margin-top:12px"' + otpDisabled + '>' + esc(otpText) + '</button>' +
       '</form>';
     }
 
@@ -979,11 +988,13 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     lang: function () { setLang(isHi() ? 'en' : 'hi'); },
     setlang: function (el) { setLang(el.dataset.v); },
     theme: function () { S.theme = isDark() ? 'light' : 'dark'; save('bpe_theme', S.theme); applyTheme(); refresh(); },
-    login: function () { drafts.login = {}; drafts.errs = {}; delete drafts.loginNotice; location.hash = '#/login'; },
+    login: function () { drafts.login = {}; drafts.errs = {}; delete drafts.loginError; location.hash = '#/login'; },
     logout: function () {
-      firebaseLogout().catch(function () {});
+      firebaseLogout().catch(function (e) {
+        console.error("Auth Step error on logout:", e);
+      });
       S.user = null;
-      delete drafts.loginNotice;
+      delete drafts.loginError;
       save('bpe_user', null);
       toast(t('loggedOut'));
       refresh();
@@ -991,45 +1002,68 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     'google-login': function (btnEl) {
       if (isGoogleLoginInProgress) return;
       isGoogleLoginInProgress = true;
-      delete drafts.loginNotice;
+      delete drafts.loginError;
 
       if (btnEl && btnEl.setAttribute) {
         btnEl.setAttribute('disabled', 'disabled');
         btnEl.classList.add('is-loading');
       }
       if (S.sheet) renderSheet(); else refresh();
-      toast('Redirecting to Google Sign-In...');
+      toast('Connecting Google Sign-In...');
 
       loginWithGoogle().then(function (res) {
-        if (!res.success) {
-          isGoogleLoginInProgress = false;
-          if (res.error) {
-            drafts.loginNotice = res.error;
-          }
+        isGoogleLoginInProgress = false;
+        if (res.success && res.user) {
+          console.log("Auth Step 1 complete: Google Sign-In success", res.user.uid);
+          S.user = res.user;
+          save('bpe_user', S.user);
+          drafts.login = {};
+          delete drafts.loginError;
+          if (S.sheet) closeSheet();
+          toast(t('googleSuccess'));
+          if (parseRoute().name === 'checkout') refresh();
+          else location.hash = '#/account';
+        } else if (res.success && res.redirecting) {
+          console.log("Auth Step 1: Redirecting browser for Google auth...");
+          toast('Redirecting to Google Sign-In...');
+        } else {
+          console.error("Auth Step 1 error: Google login failed with error:", res.error);
+          drafts.loginError = res.error || 'Google Sign-In failed.';
           toast(res.error || 'Google sign-in failed');
           if (S.sheet) renderSheet(); else refresh();
         }
       }).catch(function (err) {
         isGoogleLoginInProgress = false;
-        toast('Google sign-in failed: ' + (err.message || err));
+        console.error("Auth Step 1 exception in google-login action:", err);
+        drafts.loginError = 'Google Sign-In failed: ' + (err.message || err);
+        toast('Google sign-in failed');
         if (S.sheet) renderSheet(); else refresh();
       });
     },
     'edit-phone': function () {
       drafts.login.step = 'phone';
+      delete drafts.loginError;
       if (S.sheet) renderSheet(); else refresh();
     },
     'resend-otp': function () {
       if (!drafts.login || !drafts.login.phone) return;
+      delete drafts.loginError;
       toast('Resending OTP...');
       sendPhoneOtp(drafts.login.phone).then(function (res) {
         if (res.success) {
+          console.log("Auth Step 3 complete: OTP resent successfully");
           toast(t('otpSent'));
         } else {
+          console.error("Auth Step 3 error resending OTP:", res.error);
+          drafts.loginError = res.error || 'Failed to resend OTP';
           toast(res.error || 'Failed to resend OTP');
+          if (S.sheet) renderSheet(); else refresh();
         }
       }).catch(function (err) {
-        toast('OTP resend failed: ' + (err.message || err));
+        console.error("Auth Step 3 exception resending OTP:", err);
+        drafts.loginError = 'OTP resend failed: ' + (err.message || err);
+        toast('OTP resend failed');
+        if (S.sheet) renderSheet(); else refresh();
       });
     },
     close: function () { closeSheet(); },
@@ -1103,6 +1137,7 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       if (!drafts[p[0]]) drafts[p[0]] = {};
       drafts[p[0]][p[1]] = v;
       if (drafts.errs[el.dataset.model]) { delete drafts.errs[el.dataset.model]; var er = el.parentNode.querySelector('.field__err'); if (er) er.remove(); el.removeAttribute('aria-invalid'); }
+      if (drafts.loginError) { delete drafts.loginError; if (S.sheet) renderSheet(); else refresh(); }
     } else if (el.id === 'q') {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(function () { renderSuggestions(el.value); }, 180); // debounce
@@ -1123,34 +1158,54 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     } else if (kind === 'coupon') {
       applyCoupon(f.elements.code.value);
     } else if (kind === 'login-phone') {
+      delete drafts.loginError;
       if (!/^[6-9]\d{9}$/.test(drafts.login.phone || '')) {
         drafts.errs['login.phone'] = t('errPhone');
+        drafts.loginError = t('errPhone');
         if (S.sheet) renderSheet(); else refresh();
         return;
       }
       delete drafts.errs['login.phone'];
+      drafts.otpLoading = true;
+      if (S.sheet) renderSheet(); else refresh();
       toast('Sending OTP via Firebase...');
       sendPhoneOtp(drafts.login.phone).then(function (res) {
+        drafts.otpLoading = false;
         if (res.success) {
+          console.log("Auth Step 3 complete: OTP sent successfully");
           drafts.login.otp = '';
           drafts.login.step = 'otp';
+          delete drafts.loginError;
           if (S.sheet) renderSheet(); else refresh();
           toast(t('otpSent'));
         } else {
+          console.error("Auth Step 3 error sending OTP:", res.error);
+          drafts.loginError = res.error || 'Failed to send OTP';
+          if (S.sheet) renderSheet(); else refresh();
           toast(res.error || 'Failed to send OTP');
         }
       }).catch(function (err) {
-        toast('OTP sending failed: ' + (err.message || err));
+        drafts.otpLoading = false;
+        console.error("Auth Step 3 exception sending OTP:", err);
+        drafts.loginError = 'OTP sending failed: ' + (err.message || err);
+        if (S.sheet) renderSheet(); else refresh();
+        toast('OTP sending failed');
       });
     } else if (kind === 'login-otp') {
-      if (!/^\d{6}$|^\d{4}$/.test(drafts.login.otp || '')) {
+      delete drafts.loginError;
+      if (!/^\d{6}$/.test(drafts.login.otp || '')) {
         drafts.errs['login.otp'] = t('errOtp');
+        drafts.loginError = t('errOtp');
         if (S.sheet) renderSheet(); else refresh();
         return;
       }
+      drafts.verifyLoading = true;
+      if (S.sheet) renderSheet(); else refresh();
       toast('Verifying OTP...');
       verifyPhoneOtp(drafts.login.otp).then(function (res) {
+        drafts.verifyLoading = false;
         if (res.success) {
+          console.log("Auth Step 3 complete: OTP verified successfully");
           var enteredName = (drafts.login.name || '').trim();
           var prevName = S.user && S.user.phone === drafts.login.phone ? S.user.name : '';
           S.user = Object.assign({}, res.user, {
@@ -1158,18 +1213,24 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
             phone: drafts.login.phone
           });
           save('bpe_user', S.user);
-          drafts.login = {}; drafts.errs = {}; drafts.co = {};
+          drafts.login = {}; drafts.errs = {}; drafts.co = {}; delete drafts.loginError;
           if (S.sheet) closeSheet();
           toast(t('loggedIn'));
           if (current && current.name === 'checkout') refresh();
           else location.hash = '#/account';
         } else {
+          console.error("Auth Step 3 error verifying OTP:", res.error);
           drafts.errs['login.otp'] = res.error || t('errOtp');
+          drafts.loginError = res.error || 'OTP verification failed';
           if (S.sheet) renderSheet(); else refresh();
           toast(res.error || 'OTP Verification failed');
         }
       }).catch(function (err) {
-        toast('Verification error: ' + (err.message || err));
+        drafts.verifyLoading = false;
+        console.error("Auth Step 3 exception verifying OTP:", err);
+        drafts.loginError = 'Verification error: ' + (err.message || err);
+        if (S.sheet) renderSheet(); else refresh();
+        toast('Verification error');
       });
     } else if (kind === 'checkout') {
       if (!S.user) { openSheet('login', { step: 'phone' }); return; }
@@ -1235,24 +1296,51 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
   applyTheme();
   render(false);
 
+  // Subscribe to Firebase auth state changes to auto-sync user state
+  try {
+    subscribeAuthState(function (err, userObj) {
+      if (err) {
+        console.error("Auth Step 2 error in auth listener:", err);
+        return;
+      }
+      if (userObj) {
+        console.log("Auth Step 2 complete: Firebase Auth state synced for UID:", userObj.uid);
+        var currentStored = load('bpe_user', null);
+        if (!currentStored || currentStored.uid !== userObj.uid || !currentStored.phone) {
+          S.user = Object.assign({}, currentStored || {}, userObj, {
+            name: (currentStored && currentStored.name) || userObj.name || 'Bharat Pro Customer',
+            phone: (currentStored && currentStored.phone) || userObj.phone || ''
+          });
+          save('bpe_user', S.user);
+          refresh();
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Auth Step 2 error initializing subscribeAuthState:", err);
+  }
+
+  // Check Google Sign-In redirect result on app initialization
   checkGoogleRedirectResult().then(function (res) {
     if (res.success && res.user) {
+      console.log("Auth Step 1 complete: Google redirect auth processed successfully", res.user.uid);
       S.user = res.user;
       save('bpe_user', S.user);
       drafts.login = {};
-      delete drafts.loginNotice;
+      delete drafts.loginError;
       if (S.sheet) closeSheet();
       toast(t('googleSuccess'));
       if (parseRoute().name === 'checkout') refresh();
       else location.hash = '#/account';
     } else if (!res.success && !res.noResult) {
+      console.error("Auth Step 1 error in Google redirect result:", res.error);
       if (res.error) {
-        drafts.loginNotice = res.error;
+        drafts.loginError = res.error;
       }
       toast(res.error || 'Google sign-in failed');
       refresh();
     }
   }).catch(function (err) {
-    console.error('Check redirect result error:', err);
+    console.error('Auth Step 1 error checking redirect result:', err);
   });
 })();
