@@ -26,6 +26,7 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
     }
   } catch (e) { /* storage or cache error */ }
 
+  var isGoogleLoginInProgress = false;
   var D = window.BPE_DATA;
   if (!D || !Array.isArray(D.categories) || D.categories.length === 0 || !Array.isArray(D.services) || D.services.length === 0) {
     if (window.BPE_DATA) {
@@ -662,10 +663,16 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
         '<p>' + esc(t('loginSub')) + '</p>' +
       '</div>';
 
+    if (drafts.loginNotice) {
+      h += '<div class="notice notice--warning" style="margin-bottom:14px;padding:10px 12px;background:#FFF3CD;color:#664D03;border:1px solid #FFECB5;border-radius:8px;font-size:13px;line-height:1.4">' +
+        '⚠️ <span>' + esc(drafts.loginNotice) + '</span>' +
+      '</div>';
+    }
+
     // Google Sign-In Button
-    h += '<button type="button" class="btn-google" data-act="google-login">' +
+    h += '<button type="button" class="btn-google' + (isGoogleLoginInProgress ? ' is-loading' : '') + '" data-act="google-login"' + (isGoogleLoginInProgress ? ' disabled' : '') + '>' +
       renderGoogleSvg() +
-      '<span>' + esc(t('googleLogin')) + '</span>' +
+      '<span>' + esc(isGoogleLoginInProgress ? 'Connecting Google...' : t('googleLogin')) + '</span>' +
     '</button>';
 
     h += '<div class="auth-divider"><span>' + esc(t('orDivider')) + '</span></div>';
@@ -972,27 +979,51 @@ import { loginWithGoogle, sendPhoneOtp, verifyPhoneOtp, firebaseLogout } from '.
     lang: function () { setLang(isHi() ? 'en' : 'hi'); },
     setlang: function (el) { setLang(el.dataset.v); },
     theme: function () { S.theme = isDark() ? 'light' : 'dark'; save('bpe_theme', S.theme); applyTheme(); refresh(); },
-    login: function () { drafts.login = {}; drafts.errs = {}; location.hash = '#/login'; },
+    login: function () { drafts.login = {}; drafts.errs = {}; delete drafts.loginNotice; location.hash = '#/login'; },
     logout: function () {
       firebaseLogout().catch(function () {});
       S.user = null;
+      delete drafts.loginNotice;
       save('bpe_user', null);
       toast(t('loggedOut'));
       refresh();
     },
-    'google-login': async function () {
+    'google-login': async function (btnEl) {
+      if (isGoogleLoginInProgress) return;
+      isGoogleLoginInProgress = true;
+      delete drafts.loginNotice;
+
+      if (btnEl && btnEl.setAttribute) {
+        btnEl.setAttribute('disabled', 'disabled');
+        btnEl.classList.add('is-loading');
+      }
+      if (S.sheet) renderSheet(); else refresh();
       toast('Connecting Google Sign-In...');
-      var res = await loginWithGoogle();
-      if (res.success) {
-        S.user = res.user;
-        save('bpe_user', S.user);
-        drafts.login = {};
-        if (S.sheet) closeSheet();
-        toast(t('googleSuccess'));
-        if (current && current.name === 'checkout') refresh();
-        else location.hash = '#/account';
-      } else {
-        toast(res.error || 'Google login failed');
+
+      try {
+        var res = await loginWithGoogle();
+        if (res.success) {
+          S.user = res.user;
+          save('bpe_user', S.user);
+          drafts.login = {};
+          delete drafts.loginNotice;
+          if (S.sheet) closeSheet();
+          toast(t('googleSuccess'));
+          if (current && current.name === 'checkout') refresh();
+          else location.hash = '#/account';
+        } else {
+          if (res.error) {
+            drafts.loginNotice = res.error;
+          }
+          toast(res.error || 'Google sign-in failed');
+          if (S.sheet) renderSheet(); else refresh();
+        }
+      } catch (err) {
+        console.error('Google login action error:', err);
+        toast('Google sign-in failed. Please try Mobile OTP.');
+      } finally {
+        isGoogleLoginInProgress = false;
+        if (S.sheet) renderSheet(); else refresh();
       }
     },
     'edit-phone': function () {

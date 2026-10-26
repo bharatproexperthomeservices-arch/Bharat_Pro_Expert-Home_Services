@@ -70,9 +70,29 @@ export async function loginWithGoogle() {
     };
   } catch (error) {
     console.error('Firebase Google Login Error:', error);
+    const code = error?.code || '';
+    const msg = error?.message || '';
+    let friendlyError = 'Google Sign-In failed. Please try again or use Mobile OTP.';
+
+    if (code === 'auth/unauthorized-domain' || msg.includes('unauthorized-domain')) {
+      const currentDomain = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : 'www.bharatproexpert.com';
+      friendlyError = `Domain (${currentDomain}) is not authorized in Firebase Console -> Auth -> Authorized Domains list. Please add it or log in with Mobile OTP.`;
+    } else if (code === 'auth/popup-blocked') {
+      friendlyError = 'Sign-in popup was blocked by your browser. Please allow popups for this site or use Mobile OTP below.';
+    } else if (code === 'auth/popup-closed-by-user') {
+      friendlyError = 'Google sign-in window was closed before completing. Please try again.';
+    } else if (code === 'auth/cancelled-popup-request') {
+      friendlyError = 'Sign-in request was cancelled. Please try again.';
+    } else if (code === 'auth/network-request-failed') {
+      friendlyError = 'Network error during Google Sign-In. Please check your internet connection and retry.';
+    } else if (msg) {
+      friendlyError = msg.replace(/^Firebase:\s*/, '').replace(/\(auth\/[^\)]+\)\.?/, '').trim() || friendlyError;
+    }
+
     return {
       success: false,
-      error: error.message || 'Google sign-in failed. Please try again.'
+      error: friendlyError,
+      code: code
     };
   }
 }
