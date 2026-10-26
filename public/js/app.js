@@ -998,10 +998,21 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
         btnEl.classList.add('is-loading');
       }
       if (S.sheet) renderSheet(); else refresh();
-      toast('Redirecting to Google Sign-In...');
+      toast('Connecting to Google...');
 
       loginWithGoogle().then(function (res) {
-        if (!res.success) {
+        if (res.success && res.user) {
+          isGoogleLoginInProgress = false;
+          S.user = res.user;
+          save('bpe_user', S.user);
+          toast(t('welcome') + ', ' + S.user.name + '!');
+          if (S.sheet) closeSheet();
+          if (location.hash === '#/login') {
+            location.hash = '#/';
+          } else {
+            refresh();
+          }
+        } else if (!res.success) {
           isGoogleLoginInProgress = false;
           if (res.error) {
             drafts.loginNotice = res.error;
