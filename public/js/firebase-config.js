@@ -77,6 +77,8 @@ function formatAuthError(error) {
   if (code === 'auth/unauthorized-domain' || msg.includes('unauthorized-domain')) {
     const currentDomain = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : 'www.bharatproexpert.com';
     friendlyError = `Domain (${currentDomain}) is not authorized in Firebase Console -> Auth -> Authorized Domains list. Please add it or log in with Mobile OTP.`;
+  } else if (code === 'auth/invalid-credential' || msg.includes('invalid-credential')) {
+    friendlyError = 'Invalid authentication credential or domain authorization. Please try again or log in with Mobile OTP.';
   } else if (code === 'auth/popup-blocked') {
     friendlyError = 'Sign-in popup was blocked by your browser. Please allow popups for this site or use Mobile OTP.';
   } else if (code === 'auth/popup-closed-by-user') {
