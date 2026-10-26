@@ -748,7 +748,8 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
 
   /* ---------- SUPER ADMIN PANEL STATE & FUNCTIONS ---------- */
   var ADMIN_PASS = 'bharatproexperthomeservices@9319953137';
-  var LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes lockout on 1 failed attempt
+  var LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes lockout on 5 failed attempts
+  var MAX_ADMIN_ATTEMPTS = 5;
   var adminCaptchaCode = '';
 
   function generateCaptcha() {
@@ -781,7 +782,12 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     var lockoutUntil = getAdminLockoutUntil();
     var now = Date.now();
     var isLocked = lockoutUntil > now;
+    if (!isLocked && lockoutUntil > 0) {
+      save('bpe_admin_lockout', 0);
+      save('bpe_admin_attempts', 0);
+    }
     var remainingMinutes = isLocked ? Math.ceil((lockoutUntil - now) / 60000) : 0;
+    var attempts = load('bpe_admin_attempts', 0);
 
     return backBar('Super Admin Login', '#/') +
       '<div class="detail__block" style="max-width:440px;margin:24px auto">' +
@@ -789,9 +795,13 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
         '<p style="color:var(--text-sub);margin-bottom:16px">Enter Super Admin Password and Security Capture Code to access system settings.</p>' +
         (isLocked
           ? '<div style="background:#FF3B301A;border:1px solid #FF3B30;border-radius:8px;padding:12px;margin-bottom:16px;color:#FF3B30;font-size:14px;font-weight:600">' +
-              '⛔ High Security Lockout Active! 1 failed login attempt detected. Login is locked for 15 minutes. Please try again in ' + remainingMinutes + ' minute(s).' +
+              '⛔ High Security Lockout Active! 5 failed login attempts detected. Login is locked for 15 minutes. Please try again in ' + remainingMinutes + ' minute(s).' +
             '</div>'
-          : '') +
+          : (attempts > 0
+              ? '<div style="background:#FF95001A;border:1px solid #FF9500;border-radius:8px;padding:10px;margin-bottom:16px;color:#FF9500;font-size:13px;font-weight:600">' +
+                  '⚠️ Warning: ' + attempts + ' of ' + MAX_ADMIN_ATTEMPTS + ' failed login attempt(s) recorded.' +
+                '</div>'
+              : '')) +
         '<form data-form="admin-login" novalidate>' +
           field('Admin Password', 'admin.pass', { type: 'password', ph: 'Enter Admin Password', auto: true, ac: 'current-password' }) +
           '<div style="margin-bottom:16px">' +
@@ -1255,6 +1265,9 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
         toast('Login locked due to failed attempt. Try again in ' + mins + ' min');
         refresh();
         return;
+      } else if (lockoutUntil > 0) {
+        save('bpe_admin_lockout', 0);
+        save('bpe_admin_attempts', 0);
       }
 
       var pass = ((drafts.admin || {}).pass || '').trim();
@@ -1270,13 +1283,22 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       if (pass === ADMIN_PASS) {
         save('bpe_admin_auth', true);
         save('bpe_admin_lockout', 0);
+        save('bpe_admin_attempts', 0);
         drafts.admin = {};
         toast('Welcome Super Admin');
         refresh();
       } else {
-        var newLockout = Date.now() + LOCKOUT_DURATION_MS;
-        save('bpe_admin_lockout', newLockout);
-        toast('Invalid Admin credentials! Access locked for 15 minutes');
+        var attempts = load('bpe_admin_attempts', 0) + 1;
+        save('bpe_admin_attempts', attempts);
+        generateCaptcha();
+
+        if (attempts >= MAX_ADMIN_ATTEMPTS) {
+          var newLockout = Date.now() + LOCKOUT_DURATION_MS;
+          save('bpe_admin_lockout', newLockout);
+          toast('5 failed login attempts! Access locked for 15 minutes');
+        } else {
+          toast('Invalid Admin credentials! Attempt ' + attempts + ' of ' + MAX_ADMIN_ATTEMPTS);
+        }
         refresh();
       }
     }
