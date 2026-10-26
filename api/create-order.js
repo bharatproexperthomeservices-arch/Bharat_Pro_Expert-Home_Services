@@ -62,11 +62,12 @@ function calculateQuote(body) {
   }
   const addonsPrice = normalizedAddonIds.reduce((sum, id) => sum + ADDON_PRICES[id].price, 0);
   const subtotal = service.price + addonsPrice;
-  const gst = Math.round(subtotal * GST_RATE);
   const convenienceFee = CONVENIENCE_FEE_INR;
   const couponCode = typeof body?.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
   const discount = COUPON_CODES.has(couponCode) ? Math.round(subtotal * 0.10) : 0;
-  const total = subtotal + gst + convenienceFee - discount;
+  const taxableAmount = Math.max(0, subtotal + convenienceFee - discount);
+  const gst = Math.round(taxableAmount * GST_RATE);
+  const total = taxableAmount + gst;
 
   if (!Number.isSafeInteger(total) || total <= 0 || total > 500000) {
     return { error: "Calculated checkout total is invalid. Please contact support.", code: "INVALID_SERVER_TOTAL" };
@@ -98,6 +99,57 @@ export default async function handler(req, res) {
     return json(res, 200, { quote, currency: "INR", paymentMethod: "ONLINE" });
   }
 
+  const razorpayKeyId = typeof process.env.RAZORPAY_KEY_ID === "string" ? process.env.RAZORPAY_KEY_ID.trim() : "";
+  const razorpayKeySecret = typeof process.env.RAZORPAY_KEY_SECRET === "string" ? process.env.RAZORPAY_KEY_SECRET.trim() : "";
+
+  // If Razorpay is configured or requested, create Razorpay order
+  if (req.body?.gateway === "razorpay" || (razorpayKeyId && razorpayKeySecret && !process.env.CASHFREE_APP_ID)) {
+    if (!razorpayKeyId || !razorpayKeySecret) {
+      return json(res, 503, {
+        error: "Razorpay is not configured on this deployment.",
+        code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
+        missingVariables: [!razorpayKeyId && "RAZORPAY_KEY_ID", !razorpayKeySecret && "RAZORPAY_KEY_SECRET"].filter(Boolean)
+      });
+    }
+
+    try {
+      const authHeader = "Basic " + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString("base64");
+      const bookingId = typeof req.body?.bookingId === "string" ? req.body.bookingId.slice(0, 100) : `bpe_${Date.now()}`;
+      const rzpResponse = await fetch("https://api.razorpay.com/v1/orders", {
+        method: "POST",
+        headers: {
+          "Authorization": authHeader,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          amount: quote.total * 100, // amount in paise
+          currency: "INR",
+          receipt: bookingId.slice(0, 40),
+          notes: {
+            bookingId: bookingId,
+            company: "Bharat Pro Expert home services"
+          }
+        })
+      });
+      const rzpOrder = await rzpResponse.json().catch(() => ({}));
+      if (!rzpResponse.ok || !rzpOrder.id) {
+        console.error("Razorpay order creation failed:", rzpResponse.status, rzpOrder);
+        return json(res, 502, { error: "Razorpay order creation failed. Please check server logs.", code: "RAZORPAY_ORDER_CREATION_FAILED" });
+      }
+      return json(res, 201, {
+        gateway: "razorpay",
+        key_id: razorpayKeyId,
+        order_id: rzpOrder.id,
+        amount: quote.total * 100,
+        currency: "INR",
+        quote
+      });
+    } catch (err) {
+      console.error("Razorpay network error:", err?.message);
+      return json(res, 502, { error: "Unable to reach Razorpay. Please retry in a moment.", code: "RAZORPAY_NETWORK_ERROR" });
+    }
+  }
+
   // Cashfree credentials are server-only; never expose them through Vite variables.
   const clientId = typeof process.env.CASHFREE_APP_ID === "string" ? process.env.CASHFREE_APP_ID.trim() : "";
   const clientSecret = typeof process.env.CASHFREE_SECRET_KEY === "string" ? process.env.CASHFREE_SECRET_KEY.trim() : "";
@@ -105,11 +157,11 @@ export default async function handler(req, res) {
   if (!clientId) missingVariables.push("CASHFREE_APP_ID");
   if (!clientSecret) missingVariables.push("CASHFREE_SECRET_KEY");
   if (missingVariables.length) {
-    console.error("Cashfree order endpoint missing environment variables:", missingVariables.join(", "));
+    console.error("Payment order endpoint missing environment variables:", missingVariables.join(", "));
     return json(res, 503, {
-      error: "Cashfree is not configured on this deployment. Add the listed server environment variables and redeploy.",
+      error: "Online payment gateway is not configured on this deployment. Add RAZORPAY or CASHFREE environment variables and redeploy.",
       code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
-      missingVariables
+      missingVariables: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", ...missingVariables]
     });
   }
 

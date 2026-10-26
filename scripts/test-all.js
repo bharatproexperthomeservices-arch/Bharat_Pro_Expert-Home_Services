@@ -55,7 +55,8 @@ async function runTests() {
       },
       { mode: "quote", serviceId: "deep-1bhk", addons: [] }
     );
-    if (quote.status !== 200 || !quote.body.quote || quote.body.quote.total !== 3588) {
+    // Base price = 2999, convenience fee = 49, taxable = 3048, 5% GST on 3048 = 152. Total = 3200.
+    if (quote.status !== 200 || !quote.body.quote || quote.body.quote.total !== 3200) {
       throw new Error("Create order quote failed: " + JSON.stringify(quote));
     }
     console.log("✅ POST /api/create-order (quote) passed.");
