@@ -55,7 +55,8 @@ async function runTests() {
       },
       { mode: "quote", serviceId: "deep-1bhk", addons: [] }
     );
-    if (quote.status !== 200 || !quote.body.quote || quote.body.quote.total !== 3588) {
+    // deep-1bhk price: 2999, GST 5%: 150, fee: 49 -> Total: 3198
+    if (quote.status !== 200 || !quote.body.quote || quote.body.quote.total !== 3198) {
       throw new Error("Create order quote failed: " + JSON.stringify(quote));
     }
     console.log("✅ POST /api/create-order (quote) passed.");

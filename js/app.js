@@ -84,13 +84,13 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       search: 'Search services', seeAll: 'See all', add: 'Add', added: 'Added to cart', viewCart: 'View cart', items: 'items', item: 'item',
       howItWorks: 'How it works', whyUs: 'Why Bharat Pro Expert', loved: 'Loved by customers', allServices: 'All services',
       subtotal: 'Subtotal', discount: 'Coupon discount', fee: 'Visit & convenience fee', free: 'FREE', total: 'Total to pay',
-      feeNote: 'Visit fee of ₹49 is waived on orders above ₹499. No GST.', checkout: 'Proceed to checkout',
+      feeNote: 'Visit fee of ₹49 is waived on orders above ₹499. Includes 5% GST.', checkout: 'Proceed to checkout',
       emptyCart: 'Your cart is empty', emptyCartSub: 'Add a service to get started.', browse: 'Browse services',
       coupon: 'Coupon code', apply: 'Apply', remove: 'Remove', couponOn: 'Coupon applied', couponBad: 'Invalid coupon code',
       couponMin: 'Add more services to use this coupon', lang: 'Language', dark: 'Dark mode', city: 'City', chooseCity: 'Choose your city',
       placeOrder: 'Confirm booking', address: 'Service address', name: 'Full name', phone: 'Mobile number', house: 'House / flat no.',
       area: 'Area / locality', pincode: 'Pincode', landmark: 'Landmark (optional)', pickDate: 'Pick a date', pickSlot: 'Pick a time slot',
-      payment: 'Payment', cod: 'Pay after service', upi: 'UPI (pay on confirmation)', today: 'Today', tomorrow: 'Tomorrow',
+      payment: 'Payment', online: 'Online Payment (Razorpay / UPI / Cards)', today: 'Today', tomorrow: 'Tomorrow',
       status: ['Confirmed', 'Expert assigned', 'On the way', 'Done'], cancelled: 'Cancelled', cancel: 'Cancel booking',
       reschedule: 'Reschedule', save: 'Save', close: 'Close', details: 'View details', noBookings: 'No bookings yet',
       noBookingsSub: 'Your booked services will appear here.', sendOtp: 'Send OTP', verify: 'Verify & login', otp: 'Enter 6-digit OTP',
@@ -119,13 +119,13 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       search: 'सेवा खोजें', seeAll: 'सभी देखें', add: 'जोड़ें', added: 'कार्ट में जोड़ा गया', viewCart: 'कार्ट देखें', items: 'आइटम', item: 'आइटम',
       howItWorks: 'यह कैसे काम करता है', whyUs: 'भारत प्रो एक्सपर्ट क्यों', loved: 'ग्राहकों की पसंद', allServices: 'सभी सेवाएँ',
       subtotal: 'उप-योग', discount: 'कूपन छूट', fee: 'विज़िट और कन्वीनियंस शुल्क', free: 'मुफ्त', total: 'कुल देय',
-      feeNote: '₹499 से अधिक के ऑर्डर पर ₹49 शुल्क माफ़। कोई GST नहीं।', checkout: 'चेकआउट करें',
+      feeNote: '₹499 से अधिक के ऑर्डर पर ₹49 शुल्क माफ़। 5% GST शामिल।', checkout: 'चेकआउट करें',
       emptyCart: 'आपका कार्ट खाली है', emptyCartSub: 'शुरू करने के लिए कोई सेवा जोड़ें।', browse: 'सेवाएँ देखें',
       coupon: 'कूपन कोड', apply: 'लागू करें', remove: 'हटाएँ', couponOn: 'कूपन लग गया', couponBad: 'गलत कूपन कोड',
       couponMin: 'इस कूपन के लिए और सेवाएँ जोड़ें', lang: 'भाषा', dark: 'डार्क मोड', city: 'शहर', chooseCity: 'अपना शहर चुनें',
       placeOrder: 'बुकिंग पक्की करें', address: 'सेवा का पता', name: 'पूरा नाम', phone: 'मोबाइल नंबर', house: 'मकान / फ्लैट नंबर',
       area: 'इलाका / मोहल्ला', pincode: 'पिनकोड', landmark: 'लैंडमार्क (वैकल्पिक)', pickDate: 'तारीख चुनें', pickSlot: 'समय चुनें',
-      payment: 'भुगतान', cod: 'सेवा के बाद भुगतान', upi: 'UPI (पुष्टि पर भुगतान)', today: 'आज', tomorrow: 'कल',
+      payment: 'भुगतान', online: 'ऑनलाइन भुगतान (Razorpay / UPI / कार्ड)', today: 'आज', tomorrow: 'कल',
       status: ['पक्की', 'एक्सपर्ट तय', 'रास्ते में', 'पूरा'], cancelled: 'रद्द', cancel: 'बुकिंग रद्द करें',
       reschedule: 'समय बदलें', save: 'सेव करें', close: 'बंद करें', details: 'विवरण देखें', noBookings: 'अभी कोई बुकिंग नहीं',
       noBookingsSub: 'आपकी बुक की गई सेवाएँ यहाँ दिखेंगी।', sendOtp: 'OTP भेजें', verify: 'सत्यापित करें', otp: '6 अंकों का OTP डालें',
@@ -164,9 +164,17 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     for (var i = 0; i < list.length; i++) if (list[i].code === code) return list[i];
     return null;
   }
-  // Returns {subtotal, discount, fee, total, couponErr}
+  var BPE_GST_DETAILS = {
+    gstin: '06FCUPM9518L1ZM',
+    businessName: 'Bharat Pro Expert home services',
+    legalName: 'ANIL KUMAR',
+    address: 'Unit No. 309, 3rd Floor, Tower A, SAS Tower, Medicity, Sector 38, Gurugram, Haryana, 122001'
+  };
+
+  // Returns {subtotal, gst, discount, fee, total, couponErr}
   function calc() {
     var subtotal = S.cart.reduce(function (n, l) { var s = svc(l.id); return n + (s ? s.price * l.qty : 0); }, 0);
+    var gst = Math.round(subtotal * 0.05); // 5% GST
     var discount = 0, couponErr = '';
     var c = S.coupon ? findCoupon(S.coupon) : null;
     if (c) {
@@ -175,7 +183,7 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       else discount = Math.min(Math.round(subtotal * c.value / 100), 150); // BPE10 cap
     }
     var fee = subtotal > 0 && subtotal <= 499 ? 49 : 0; // waived above 499
-    return { subtotal: subtotal, discount: discount, fee: fee, total: Math.max(0, subtotal - discount + fee), couponErr: couponErr };
+    return { subtotal: subtotal, gst: gst, discount: discount, fee: fee, total: Math.max(0, subtotal + gst - discount + fee), couponErr: couponErr };
   }
   function persistCart() { save('bpe_cart', S.cart); }
   function setQty(id, q) {
@@ -518,11 +526,20 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     return h;
   }
   function summary(c) {
-    return '<div class="summary"><div class="summary__row"><span>' + esc(t('subtotal')) + '</span><span>' + inr(c.subtotal) + '</span></div>' +
+    var gstVal = c.gst != null ? c.gst : Math.round(c.subtotal * 0.05);
+    return '<div class="summary">' +
+      '<div class="summary__row"><span>Taxable Amount</span><span>' + inr(c.subtotal) + '</span></div>' +
+      '<div class="summary__row"><span>GST (5%)</span><span>' + inr(gstVal) + '</span></div>' +
       (c.discount ? '<div class="summary__row"><span>' + esc(t('discount')) + '</span><span>−' + inr(c.discount) + '</span></div>' : '') +
       '<div class="summary__row"><span>' + esc(t('fee')) + '</span><span>' + (c.fee ? inr(c.fee) : '<strong>' + esc(t('free')) + '</strong>') + '</span></div>' +
-      '<div class="summary__row summary__total"><span>' + esc(t('total')) + '</span><span>' + inr(c.total) + '</span></div>' +
-      '<small>' + esc(t('feeNote')) + '</small></div>';
+      '<div class="summary__row summary__total"><span>Total Payable Amount</span><span>' + inr(c.total) + '</span></div>' +
+      '<small style="display:block;margin-top:10px;line-height:1.4;color:var(--text-sub)">' +
+        '<strong>GSTIN:</strong> ' + esc(BPE_GST_DETAILS.gstin) + '<br>' +
+        '<strong>Business Name:</strong> ' + esc(BPE_GST_DETAILS.businessName) + '<br>' +
+        '<strong>Legal Name:</strong> ' + esc(BPE_GST_DETAILS.legalName) + '<br>' +
+        '<strong>Address:</strong> ' + esc(BPE_GST_DETAILS.address) +
+      '</small>' +
+      '</div>';
   }
 
   /* form field builder bound to a draft model path like "co.name" */
@@ -554,7 +571,7 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     if (co.name == null) co.name = S.user.name || '';
     if (co.phone == null) co.phone = S.user.phone || '';
     if (!co.date) co.date = dateChips()[0].iso;
-    if (!co.pay) co.pay = 'cod';
+    co.pay = 'online';
     var c = calc();
     return backBar(t('checkout'), '#/cart') +
       '<form class="detail__block" data-form="checkout" novalidate><h2>' + esc(t('address')) + '</h2>' +
@@ -564,8 +581,8 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       '<h2>' + esc(t('pickDate')) + ' / ' + esc(t('pickSlot')) + '</h2>' + chipsHtml(co.date, co.slot, 'co-date', 'co-slot') +
       (drafts.errs['co.slot'] ? '<div class="field__err" role="alert">' + esc(drafts.errs['co.slot']) + '</div>' : '') +
       '<h2>' + esc(t('payment')) + '</h2><div class="chips" role="radiogroup" aria-label="' + esc(t('payment')) + '">' +
-      [['cod', t('cod')], ['upi', t('upi')]].map(function (p) {
-        return '<button type="button" class="chip' + (co.pay === p[0] ? ' is-active' : '') + '" role="radio" aria-checked="' + (co.pay === p[0]) + '" data-act="co-pay" data-v="' + p[0] + '">' + esc(p[1]) + '</button>';
+      [['online', t('online')]].map(function (p) {
+        return '<button type="button" class="chip is-active" role="radio" aria-checked="true" data-act="co-pay" data-v="' + p[0] + '">' + esc(p[1]) + '</button>';
       }).join('') + '</div>' + summary(c) +
       '<button type="submit" class="btn btn--primary btn--block">' + esc(t('placeOrder')) + ' · ' + inr(c.total) + '</button></form>';
   }
@@ -585,8 +602,105 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     var co = drafts.co, c = calc();
     var id;
     do { id = 'BPE' + ('' + Math.floor(Math.random() * 1000000)).padStart(6, '0'); } while (getBooking(id));
+    var serverBookingId = 'bpe_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
+
+    var firstItem = S.cart[0] ? svc(S.cart[0].id) : null;
+    var serviceId = firstItem ? firstItem.id : 'deep-1bhk';
+    var addonIds = S.cart.slice(1).map(function (l) { return l.id; });
+
+    toast('Initiating payment checkout...');
+
+    var orderPayload = {
+      bookingId: serverBookingId,
+      serviceId: serviceId,
+      addons: addonIds,
+      couponCode: S.coupon || '',
+      clientTotal: c.total,
+      customerName: co.name.trim(),
+      customerPhone: co.phone.trim(),
+      customerEmail: (S.user && S.user.email) ? S.user.email : ''
+    };
+
+    fetch('/api/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderPayload)
+    }).then(function (res) {
+      return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data }; });
+    }).then(function (res) {
+      if (!res.ok) {
+        toast('Order creation error: ' + (res.data.error || 'Payment gateway failed.'));
+        return;
+      }
+
+      var gatewayData = res.data;
+      if (gatewayData.gateway === 'razorpay') {
+        if (typeof window.Razorpay === 'undefined') {
+          toast('Razorpay SDK failed to load. Please refresh.');
+          return;
+        }
+
+        var rzpOptions = {
+          key: gatewayData.key_id,
+          amount: gatewayData.amount,
+          currency: gatewayData.currency,
+          name: BPE_GST_DETAILS.businessName,
+          description: 'Booking ' + id,
+          order_id: gatewayData.order_id,
+          prefill: {
+            name: co.name.trim(),
+            contact: co.phone.trim(),
+            email: (S.user && S.user.email) ? S.user.email : ''
+          },
+          theme: { color: '#007AFF' },
+          handler: function (response) {
+            toast('Verifying payment signature...');
+            fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                gateway: 'razorpay',
+                bookingId: serverBookingId,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            }).then(function (vRes) {
+              return vRes.json();
+            }).then(function (vData) {
+              if (vData.verified) {
+                finalizeBooking(id, co, c, vData.payment_id);
+              } else {
+                toast('Payment verification failed: ' + (vData.error || 'Invalid signature'));
+              }
+            }).catch(function (err) {
+              toast('Payment verification network error');
+            });
+          },
+          modal: {
+            ondismiss: function () {
+              toast('Payment cancelled. Booking was not generated.');
+            }
+          }
+        };
+
+        var rzp = new window.Razorpay(rzpOptions);
+        rzp.on('payment.failed', function (resp) {
+          toast('Payment failed: ' + (resp.error.description || 'Transaction unsuccessful'));
+        });
+        rzp.open();
+      } else {
+        toast('Online payment order created: ' + gatewayData.order_id);
+      }
+    }).catch(function (err) {
+      toast('Failed to reach payment gateway. Try again.');
+    });
+  }
+
+  function finalizeBooking(id, co, c, paymentId) {
     var b = {
-      id: id, created: Date.now(), cancelled: false, date: co.date, slot: co.slot, pay: co.pay,
+      id: id, created: Date.now(), cancelled: false, date: co.date, slot: co.slot, pay: 'online',
+      paymentId: paymentId || '',
       items: S.cart.map(function (l) { var s = svc(l.id) || {}; return { id: l.id, name: s.name || l.id, nameHi: s.nameHi, emoji: s.emoji, price: s.price || 0, qty: l.qty }; }),
       pricing: c, coupon: S.coupon && !c.couponErr ? S.coupon : null,
       address: { name: co.name.trim(), phone: co.phone.trim(), house: co.house.trim(), area: co.area.trim(), pincode: co.pincode.trim(), landmark: (co.landmark || '').trim(), city: S.city }
@@ -620,7 +734,9 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     var b = getBooking(id); if (!b) return viewNotFound();
     var a = b.address;
     return '<div class="empty"><div aria-hidden="true" style="font-size:48px">' + (b.cancelled ? '❌' : '🎉') + '</div><h1>' + esc(b.cancelled ? t('cancelled') : t('thanks')) + '</h1><p>' + esc(t('thanksSub')) + '</p></div>' +
-      '<div class="detail__block"><p>' + esc(t('bookingId')) + ': <strong>' + esc(b.id) + '</strong></p><p>📅 ' + fmtDate(b.date) + ', ' + esc(b.slot) + '</p>' +
+      '<div class="detail__block"><p>' + esc(t('bookingId')) + ': <strong>' + esc(b.id) + '</strong></p>' +
+      (b.paymentId ? '<p>💳 Payment Txn ID: <strong>' + esc(b.paymentId) + '</strong></p>' : '') +
+      '<p>📅 ' + fmtDate(b.date) + ', ' + esc(b.slot) + '</p>' +
       '<p>📍 ' + esc(a.house + ', ' + a.area + (a.landmark ? ' (' + a.landmark + ')' : '') + ', ' + a.city + ' ' + a.pincode) + '</p><p>📞 ' + esc(a.name) + ', ' + esc(a.phone) + '</p></div>' +
       timeline(b) + bookingItems(b) + summary(b.pricing) + bookingActions(b) +
       '<a class="btn btn--ghost btn--block" href="#/bookings">' + esc(t('myBookings')) + '</a>';
