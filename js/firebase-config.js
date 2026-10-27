@@ -13,8 +13,22 @@ import {
 import {
   getFirestore,
   collection,
-  addDoc
+  doc,
+  addDoc,
+  setDoc,
+  getDocs,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 const firebaseConfig = {
   apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "AIzaSyB1GbzmsTs4Uspa4m8h-zYCNbqupfI-L9s",
@@ -29,6 +43,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
@@ -107,7 +122,6 @@ function formatAuthError(error) {
 export async function loginWithGoogle() {
   console.log("Auth Step 1: Initiating Google Sign-In...");
   try {
-    // Attempt signInWithPopup first (fast, prevents redirect delays and third-party iframe cookie issues)
     const result = await signInWithPopup(auth, googleProvider);
     if (result && result.user) {
       const user = result.user;
@@ -127,7 +141,6 @@ export async function loginWithGoogle() {
     return formatAuthError(new Error("No user returned from Google popup"));
   } catch (error) {
     console.warn("Auth Step 1 popup attempt result:", error?.code, error?.message);
-    // If popup was blocked or closed, fall back gracefully if blocked or attempt redirect
     if (error?.code === 'auth/popup-blocked') {
       console.log("Auth Step 1: Popup blocked, falling back to signInWithRedirect...");
       try {
@@ -319,4 +332,142 @@ export async function saveBookingToFirestore(bookingData) {
   }
 }
 
-export { auth, db, collection, addDoc, onAuthStateChanged };
+// Real-Time CMS Subscribers & Auto-Seeding Logic
+export function subscribeCMS(onUpdate) {
+  let isSeeding = false;
+
+  async function checkAndSeedIfEmpty() {
+    if (isSeeding) return;
+    isSeeding = true;
+    try {
+      const catSnap = await getDocs(collection(db, "categories"));
+      if (catSnap.empty && window.BPE_DATA) {
+        console.log("Firestore CMS: Seeding initial data from BPE_DATA...");
+        const D = window.BPE_DATA;
+
+        if (D.brand) {
+          await setDoc(doc(db, "site_settings", "main"), {
+            brand: D.brand || {},
+            promo: D.promo || {},
+            cities: D.cities || [],
+            howItWorks: D.howItWorks || [],
+            trust: D.trust || [],
+            faqs: D.faqs || [],
+            testimonials: D.testimonials || [],
+            updatedAt: new Date()
+          });
+        }
+
+        if (Array.isArray(D.heroSlides)) {
+          for (const s of D.heroSlides) {
+            await setDoc(doc(db, "sliders", s.id), s);
+          }
+        }
+
+        if (Array.isArray(D.categories)) {
+          for (const c of D.categories) {
+            await setDoc(doc(db, "categories", c.id), c);
+          }
+        }
+
+        if (Array.isArray(D.services)) {
+          for (const s of D.services) {
+            await setDoc(doc(db, "services", s.id), s);
+          }
+        }
+        console.log("Firestore CMS: Auto-seeding complete!");
+      }
+    } catch (err) {
+      console.warn("Firestore CMS auto-seeding check error:", err);
+    } finally {
+      isSeeding = false;
+    }
+  }
+
+  checkAndSeedIfEmpty();
+
+  const unsubSettings = onSnapshot(collection(db, "site_settings"), (snapshot) => {
+    snapshot.forEach((docSnap) => {
+      if (docSnap.id === "main" && window.BPE_DATA) {
+        const data = docSnap.data();
+        if (data.brand) window.BPE_DATA.brand = Object.assign({}, window.BPE_DATA.brand, data.brand);
+        if (data.promo) window.BPE_DATA.promo = Object.assign({}, window.BPE_DATA.promo, data.promo);
+        if (data.cities) window.BPE_DATA.cities = data.cities;
+        if (data.howItWorks) window.BPE_DATA.howItWorks = data.howItWorks;
+        if (data.trust) window.BPE_DATA.trust = data.trust;
+        if (data.faqs) window.BPE_DATA.faqs = data.faqs;
+        if (data.testimonials) window.BPE_DATA.testimonials = data.testimonials;
+      }
+    });
+    if (onUpdate) onUpdate("site_settings");
+  }, (err) => console.warn("site_settings listener error:", err));
+
+  const unsubSliders = onSnapshot(collection(db, "sliders"), (snapshot) => {
+    if (!snapshot.empty && window.BPE_DATA) {
+      const slidersList = [];
+      snapshot.forEach((docSnap) => {
+        slidersList.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      if (slidersList.length > 0) {
+        window.BPE_DATA.heroSlides = slidersList;
+      }
+    }
+    if (onUpdate) onUpdate("sliders");
+  }, (err) => console.warn("sliders listener error:", err));
+
+  const unsubCategories = onSnapshot(collection(db, "categories"), (snapshot) => {
+    if (!snapshot.empty && window.BPE_DATA) {
+      const catList = [];
+      snapshot.forEach((docSnap) => {
+        catList.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      if (catList.length > 0) {
+        window.BPE_DATA.categories = catList;
+      }
+    }
+    if (onUpdate) onUpdate("categories");
+  }, (err) => console.warn("categories listener error:", err));
+
+  const unsubServices = onSnapshot(collection(db, "services"), (snapshot) => {
+    if (!snapshot.empty && window.BPE_DATA) {
+      const svcList = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const catId = data.categoryId || data.cat;
+        svcList.push({ id: docSnap.id, ...data, cat: catId });
+      });
+      if (svcList.length > 0) {
+        window.BPE_DATA.services = svcList;
+      }
+    }
+    if (onUpdate) onUpdate("services");
+  }, (err) => console.warn("services listener error:", err));
+
+  return () => {
+    unsubSettings();
+    unsubSliders();
+    unsubCategories();
+    unsubServices();
+  };
+}
+
+export {
+  auth,
+  db,
+  storage,
+  collection,
+  doc,
+  addDoc,
+  setDoc,
+  getDocs,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+  onAuthStateChanged
+};
