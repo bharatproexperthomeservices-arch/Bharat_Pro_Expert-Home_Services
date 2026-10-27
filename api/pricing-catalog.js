@@ -1056,4 +1056,11 @@ export const COUPON_CODES = new Set([
 ]);
 
 export const CONVENIENCE_FEE_INR = 49;
-export const GST_RATE = 0.18;
+export const GST_RATE = 0.05;
+
+export const BUSINESS_GST_DETAILS = {
+  gstin: "06FCUPM9518L1ZM",
+  businessName: "Bharat Pro Expert home services",
+  legalName: "ANIL KUMAR",
+  address: "Unit No. 309, 3rd Floor, Tower A, SAS Tower, Medicity, Sector 38, Gurugram, Haryana, 122001"
+};

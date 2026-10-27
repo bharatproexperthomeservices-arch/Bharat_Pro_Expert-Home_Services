@@ -1,4 +1,5 @@
-import { ADDON_PRICES, CONVENIENCE_FEE_INR, COUPON_CODES, GST_RATE, SERVICE_PRICES } from "./pricing-catalog.js";
+import Razorpay from "razorpay";
+import { ADDON_PRICES, BUSINESS_GST_DETAILS, CONVENIENCE_FEE_INR, COUPON_CODES, GST_RATE, SERVICE_PRICES } from "./pricing-catalog.js";
 
 function json(res, status, body) {
   return res.status(status).json(body);
@@ -71,7 +72,20 @@ function calculateQuote(body) {
   if (!Number.isSafeInteger(total) || total <= 0 || total > 500000) {
     return { error: "Calculated checkout total is invalid. Please contact support.", code: "INVALID_SERVER_TOTAL" };
   }
-  return { quote: { serviceId, basePrice: service.price, addonsPrice, subtotal, gst, convenienceFee, discount, couponCode: discount ? couponCode : null, total } };
+  return {
+    quote: {
+      serviceId,
+      basePrice: service.price,
+      addonsPrice,
+      subtotal,
+      gst,
+      convenienceFee,
+      discount,
+      couponCode: discount ? couponCode : null,
+      total,
+      businessGst: BUSINESS_GST_DETAILS
+    }
+  };
 }
 
 export default async function handler(req, res) {
@@ -98,18 +112,21 @@ export default async function handler(req, res) {
     return json(res, 200, { quote, currency: "INR", paymentMethod: "ONLINE" });
   }
 
-  // Cashfree credentials are server-only; never expose them through Vite variables.
-  const clientId = typeof process.env.CASHFREE_APP_ID === "string" ? process.env.CASHFREE_APP_ID.trim() : "";
-  const clientSecret = typeof process.env.CASHFREE_SECRET_KEY === "string" ? process.env.CASHFREE_SECRET_KEY.trim() : "";
-  const missingVariables = [];
-  if (!clientId) missingVariables.push("CASHFREE_APP_ID");
-  if (!clientSecret) missingVariables.push("CASHFREE_SECRET_KEY");
-  if (missingVariables.length) {
-    console.error("Cashfree order endpoint missing environment variables:", missingVariables.join(", "));
+  // Credentials lookup for Razorpay and Cashfree
+  const razorpayKeyId = typeof process.env.RAZORPAY_KEY_ID === "string" ? process.env.RAZORPAY_KEY_ID.trim() : "";
+  const razorpayKeySecret = typeof process.env.RAZORPAY_KEY_SECRET === "string" ? process.env.RAZORPAY_KEY_SECRET.trim() : "";
+  const cashfreeAppId = typeof process.env.CASHFREE_APP_ID === "string" ? process.env.CASHFREE_APP_ID.trim() : "";
+  const cashfreeSecretKey = typeof process.env.CASHFREE_SECRET_KEY === "string" ? process.env.CASHFREE_SECRET_KEY.trim() : "";
+
+  const hasRazorpay = Boolean(razorpayKeyId && razorpayKeySecret);
+  const hasCashfree = Boolean(cashfreeAppId && cashfreeSecretKey);
+
+  if (!hasRazorpay && !hasCashfree) {
+    console.error("No payment gateway configured (Razorpay or Cashfree).");
     return json(res, 503, {
-      error: "Cashfree is not configured on this deployment. Add the listed server environment variables and redeploy.",
+      error: "Payment gateway is not configured on this deployment. Please contact administrator.",
       code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
-      missingVariables
+      missingVariables: ["RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET or CASHFREE_APP_ID/CASHFREE_SECRET_KEY"]
     });
   }
 
@@ -129,6 +146,44 @@ export default async function handler(req, res) {
     return json(res, 400, { error: "Enter a valid customer name and 10-digit phone number.", code: "INVALID_CUSTOMER_DETAILS" });
   }
 
+  // Priority: Razorpay first if available, else Cashfree
+  if (hasRazorpay) {
+    try {
+      const razorpay = new Razorpay({
+        key_id: razorpayKeyId,
+        key_secret: razorpayKeySecret
+      });
+
+      const orderOptions = {
+        amount: quote.total * 100, // in paise
+        currency: "INR",
+        receipt: bookingId.slice(0, 40),
+        notes: {
+          bookingId,
+          customerName,
+          customerPhone,
+          gstin: BUSINESS_GST_DETAILS.gstin,
+          businessName: BUSINESS_GST_DETAILS.businessName
+        }
+      };
+
+      const order = await razorpay.orders.create(orderOptions);
+      return json(res, 201, {
+        gateway: "razorpay",
+        order_id: order.id,
+        key_id: razorpayKeyId,
+        amount: quote.total * 100,
+        currency: "INR",
+        quote,
+        businessGst: BUSINESS_GST_DETAILS
+      });
+    } catch (error) {
+      console.error("Razorpay order creation failed:", error?.message || error);
+      return json(res, 502, { error: "Razorpay order creation failed.", code: "RAZORPAY_ORDER_CREATION_FAILED" });
+    }
+  }
+
+  // Cashfree Order Creation
   const isProduction = process.env.CASHFREE_ENV === "production";
   const apiBase = isProduction ? "https://api.cashfree.com/pg" : "https://sandbox.cashfree.com/pg";
   const appBaseUrl = (process.env.PUBLIC_APP_URL || process.env.FRONTEND_ORIGIN || "").split(",")[0].trim().replace(/\/$/, "");
@@ -146,15 +201,15 @@ export default async function handler(req, res) {
     order_meta: {
       return_url: appBaseUrl ? `${appBaseUrl}/?cashfree_order_id={order_id}&booking_id=${encodeURIComponent(bookingId)}` : undefined
     },
-    order_note: `Bharat Pro Expert booking ${bookingId}`
+    order_note: `Bharat Pro Expert GSTIN:${BUSINESS_GST_DETAILS.gstin} booking ${bookingId}`
   };
 
   try {
     const response = await fetch(`${apiBase}/orders`, {
       method: "POST",
       headers: {
-        "x-client-id": clientId,
-        "x-client-secret": clientSecret,
+        "x-client-id": cashfreeAppId,
+        "x-client-secret": cashfreeSecretKey,
         "x-api-version": "2025-01-01",
         "Content-Type": "application/json",
         "Accept": "application/json"
@@ -168,11 +223,13 @@ export default async function handler(req, res) {
       return json(res, 502, { error: "Cashfree could not create the payment order. Check server logs and Cashfree credentials, then retry.", code: "CASHFREE_ORDER_CREATION_FAILED" });
     }
     return json(res, 201, {
+      gateway: "cashfree",
       order_id: order.order_id,
       payment_session_id: order.payment_session_id,
       amount: quote.total * 100,
       currency: "INR",
       quote,
+      businessGst: BUSINESS_GST_DETAILS,
       environment: isProduction ? "production" : "sandbox"
     });
   } catch (error) {
