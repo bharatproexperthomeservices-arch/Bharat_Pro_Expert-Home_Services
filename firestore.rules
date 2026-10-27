@@ -5,5 +5,17 @@ service cloud.firestore {
       allow create: if true;
       allow read, update, delete: if false;
     }
+    match /site_settings/{document=**} {
+      allow read: if true;
+    }
+    match /sliders/{document=**} {
+      allow read: if true;
+    }
+    match /categories/{document=**} {
+      allow read: if true;
+    }
+    match /services/{document=**} {
+      allow read: if true;
+    }
   }
 }

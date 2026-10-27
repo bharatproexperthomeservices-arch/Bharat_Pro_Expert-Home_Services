@@ -1,7 +1,16 @@
 /* Bharat Pro Expert — hash-router SPA.
  * Structure: helpers -> state/storage -> i18n -> pricing -> view fns -> sheets -> actions -> router/boot.
  * All dynamic strings pass through esc() before hitting innerHTML. */
-import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOtp, firebaseLogout, subscribeAuthState, saveBookingToFirestore } from './firebase-config.js';
+import {
+  loginWithGoogle,
+  checkGoogleRedirectResult,
+  sendPhoneOtp,
+  verifyPhoneOtp,
+  firebaseLogout,
+  subscribeAuthState,
+  saveBookingToFirestore,
+  subscribeCMS
+} from './firebase-config.js';
 
 (function () {
   'use strict';
@@ -57,7 +66,7 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     cart: load('bpe_cart', []),            // [{id, qty}]
     bookings: load('bpe_bookings', []),
     user: load('bpe_user', null),          // {phone, name}
-    city: load('bpe_city', D.brand.city),
+    city: load('bpe_city', (D.brand && D.brand.city) || 'Gurgaon'),
     lang: load('bpe_lang', 'en'),
     theme: load('bpe_theme', null),        // 'dark' | 'light' | null (system)
     coupon: load('bpe_coupon', null),      // code string
@@ -66,14 +75,18 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
   };
   if (!Array.isArray(S.cart)) S.cart = [];
   if (!Array.isArray(S.bookings)) S.bookings = [];
-  // Form drafts live outside the DOM so re-renders never lose typed values.
   var drafts = { co: {}, login: {}, partner: {}, errs: {}, loginError: '' };
   var heroIdx = 0, heroTimer = null, tickTimer = null, tickSig, searchTimer = null, suppressGate = false;
 
   /* ---------- lookups ---------- */
   var svcMap = {}, catMap = {};
-  D.services.forEach(function (s) { svcMap[s.id] = s; });
-  D.categories.forEach(function (c) { catMap[c.id] = c; });
+  function rebuildLookups() {
+    svcMap = {}; catMap = {};
+    (D.services || []).forEach(function (s) { svcMap[s.id] = s; });
+    (D.categories || []).forEach(function (c) { catMap[c.id] = c; });
+  }
+  rebuildLookups();
+
   function svc(id) { return svcMap[id]; }
   function cat(id) { return catMap[id] || { id: id, name: id, nameHi: id, emoji: '✨', g1: '#007AFF', g2: '#5AC8FA' }; }
 
@@ -171,7 +184,6 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     address: 'Unit No. 309, 3rd Floor, Tower A, SAS Tower, Medicity, Sector 38, Gurugram, Haryana, 122001'
   };
 
-  // Returns {subtotal, gst, discount, fee, total, couponErr}
   function calc() {
     var subtotal = S.cart.reduce(function (n, l) { var s = svc(l.id); return n + (s ? s.price * l.qty : 0); }, 0);
     var gst = Math.round(subtotal * 0.05); // 5% GST
@@ -180,9 +192,9 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     if (c) {
       if (subtotal < (c.min || 0)) couponErr = 'couponMin';
       else if (c.type === 'flat') discount = Math.min(c.value, subtotal);
-      else discount = Math.min(Math.round(subtotal * c.value / 100), 150); // BPE10 cap
+      else discount = Math.min(Math.round(subtotal * c.value / 100), 150);
     }
-    var fee = subtotal > 0 && subtotal <= 499 ? 49 : 0; // waived above 499
+    var fee = subtotal > 0 && subtotal <= 499 ? 49 : 0;
     return { subtotal: subtotal, gst: gst, discount: discount, fee: fee, total: Math.max(0, subtotal + gst - discount + fee), couponErr: couponErr };
   }
   function persistCart() { save('bpe_cart', S.cart); }
@@ -219,17 +231,18 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     return h <= new Date().getHours();
   }
   function chipsHtml(selDate, selSlot, actDate, actSlot) {
+    var slotsList = D.slots || ['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'];
     return '<div class="chips" role="group" aria-label="' + esc(t('pickDate')) + '">' + dateChips().map(function (d) {
       return '<button type="button" class="chip' + (d.iso === selDate ? ' is-active' : '') + '" data-act="' + actDate + '" data-v="' + d.iso + '" aria-pressed="' + (d.iso === selDate) + '">' + esc(d.label) + ' <small>' + esc(d.sub) + '</small></button>';
     }).join('') + '</div>' +
-    '<div class="chips" role="group" aria-label="' + esc(t('pickSlot')) + '">' + D.slots.map(function (s) {
+    '<div class="chips" role="group" aria-label="' + esc(t('pickSlot')) + '">' + slotsList.map(function (s) {
       var past = slotPast(s, selDate);
       return '<button type="button" class="chip' + (s === selSlot ? ' is-active' : '') + '" data-act="' + actSlot + '" data-v="' + esc(s) + '"' + (past ? ' disabled title="' + esc(t('pastSlot')) + '"' : '') + ' aria-pressed="' + (s === selSlot) + '">' + esc(s) + '</button>';
     }).join('') + '</div>';
   }
 
   /* ---------- bookings ---------- */
-  var STEP_MS = 15000; // simulated: each status step takes 15s
+  var STEP_MS = 15000;
   function stageOf(b) {
     if (b.cancelled) return -1;
     return Math.min(3, Math.floor((Date.now() - b.created) / STEP_MS));
@@ -239,9 +252,9 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
 
   /* ---------- UI atoms ---------- */
   function stars(r) {
-    return '<span class="stars" aria-label="' + esc(r) + ' out of 5">★ ' + esc(Number(r).toFixed(1)) + '</span>';
+    return '<span class="stars" aria-label="' + esc(r) + ' out of 5">★ ' + esc(Number(r || 5).toFixed(1)) + '</span>';
   }
-  function gradient(c) { return 'background:linear-gradient(135deg,' + esc(c.g1) + ',' + esc(c.g2) + ')'; }
+  function gradient(c) { return 'background:linear-gradient(135deg,' + esc(c.g1 || '#007AFF') + ',' + esc(c.g2 || '#5AC8FA') + ')'; }
   function addControl(s) {
     var q = qtyOf(s.id);
     if (!q) return '<button type="button" class="card__add btn btn--sm" data-act="add" data-id="' + esc(s.id) + '" aria-label="' + esc(t('add') + ' ' + s.name) + '">' + esc(t('add')) + '</button>';
@@ -252,10 +265,13 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
   }
   function card(s) {
     var c = cat(s.cat);
+    var imgSrc = s.photo || s.imageUrl || s.image;
+    var mediaHtml = imgSrc ? '<img src="' + esc(imgSrc) + '" alt="' + esc(nm(s)) + '" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">'
+                           : '<span aria-hidden="true" style="font-size:44px">' + esc(s.emoji || c.emoji || '✨') + '</span>';
     return '<article class="card" data-go="#/s/' + esc(s.id) + '" tabindex="0" role="link" aria-label="' + esc(nm(s)) + '">' +
-      '<div class="card__img" style="' + gradient(c) + '"><span aria-hidden="true" style="font-size:44px">' + esc(s.emoji || c.emoji) + '</span>' + (s.tag ? '<span class="card__tag">' + esc(s.tag) + '</span>' : '') + '</div>' +
+      '<div class="card__img" style="' + gradient(c) + '">' + mediaHtml + (s.tag ? '<span class="card__tag">' + esc(s.tag) + '</span>' : '') + '</div>' +
       '<h3 class="card__name">' + esc(nm(s)) + '</h3>' +
-      '<div class="card__meta"><span class="card__rating">★ ' + esc(Number(s.rating).toFixed(1)) + '</span> (' + esc(s.reviews) + ') · ' + esc(s.duration) + ' ' + esc(t('min')) + '</div>' +
+      '<div class="card__meta"><span class="card__rating">★ ' + esc(Number(s.rating || 5).toFixed(1)) + '</span> (' + esc(s.reviews || 0) + ') · ' + esc(s.duration || 30) + ' ' + esc(t('min')) + '</div>' +
       '<div class="card__meta"><span class="card__price">' + inr(s.price) + '</span> ' + (s.mrp > s.price ? '<s class="card__mrp">' + inr(s.mrp) + '</s>' : '') + addControl(s) + '</div>' +
       '</article>';
   }
@@ -277,14 +293,15 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 2400);
   }
 
-  /* ---------- shell: topbar, tabbar, cart bar ---------- */
+  /* ---------- shell ---------- */
   function topbar(route) {
     if (route.name === 'admin') return '';
     var q = route.name === 'search' ? route.q : '';
     var u = S.user;
     var userLabel = u ? esc((u.name || u.phone || u.email || '').split(' ')[0]) : '';
+    var brandName = (D.brand && D.brand.name) || 'Bharat Pro Expert';
     return '<header class="topbar">' +
-      '<a class="topnav__brand" href="#/" aria-label="Bharat Pro Expert home"><img src="icons/logo.png" alt="Logo" class="topnav__logo-img">' + esc(D.brand.name) + '</a>' +
+      '<a class="topnav__brand" href="#/" aria-label="Bharat Pro Expert home"><img src="icons/logo.png" alt="Logo" class="topnav__logo-img">' + esc(brandName) + '</a>' +
       '<button type="button" class="topbar__loc" data-act="city" aria-label="' + esc(t('chooseCity')) + '">📍 ' + esc(S.city) + ' ▾</button>' +
       '<form class="topbar__search" data-form="search" role="search" style="position:relative" autocomplete="off">' +
         '<input class="input" type="search" name="q" id="q" value="' + esc(q) + '" placeholder="' + esc(t('search')) + '" aria-label="' + esc(t('search')) + '" autocomplete="off">' +
@@ -323,38 +340,49 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     var slides = D.heroSlides || [];
     var h = '<section class="hero" aria-roledescription="carousel" aria-label="Offers" style="overflow:hidden;position:relative">' +
       '<div class="hero__track" style="display:flex;transition:transform .5s cubic-bezier(.2,.8,.2,1);transform:translateX(-' + (heroIdx * 100) + '%)">' + slides.map(function (s, i) {
+        var imgSrc = s.photo || s.imageUrl || s.image;
+        var mediaHtml = imgSrc ? '<img src="' + esc(imgSrc) + '" alt="' + esc(s.title) + '" style="max-height:80px;object-fit:contain">'
+                               : '<span aria-hidden="true" style="font-size:64px">' + esc(s.emoji || '🏠') + '</span>';
         return '<div class="hero__slide" style="flex:0 0 100%;' + gradient(s) + '" role="group" aria-label="' + (i + 1) + ' / ' + slides.length + '">' +
           '<div><h2>' + esc(s.title) + '</h2><p>' + esc(s.sub) + '</p><a class="btn btn--sm" href="#/c/' + esc(s.cat) + '">' + esc(s.cta) + '</a></div>' +
-          '<span aria-hidden="true" style="font-size:64px">' + esc(s.emoji) + '</span></div>';
+          mediaHtml + '</div>';
       }).join('') + '</div>' +
       '<div class="hero__dots">' + slides.map(function (s, i) {
         return '<button type="button" class="hero__dot' + (i === heroIdx ? ' is-active' : '') + '" data-act="slide" data-i="' + i + '" aria-label="Slide ' + (i + 1) + '"></button>';
       }).join('') + '</div></section>';
 
-    h += '<nav class="catrow" aria-label="Categories">' + D.categories.map(function (c) {
-      return '<a class="catrow__item" href="#/c/' + esc(c.id) + '"><span class="catrow__icon" style="' + gradient(c) + '" aria-hidden="true">' + esc(c.emoji) + '</span><span class="catrow__label">' + esc(nm(c)) + '</span></a>';
+    h += '<nav class="catrow" aria-label="Categories">' + (D.categories || []).map(function (c) {
+      var imgSrc = c.photo || c.imageUrl || c.image;
+      var iconHtml = imgSrc ? '<img src="' + esc(imgSrc) + '" alt="' + esc(nm(c)) + '" style="width:28px;height:28px;object-fit:contain">'
+                            : esc(c.emoji || '✨');
+      return '<a class="catrow__item" href="#/c/' + esc(c.id) + '"><span class="catrow__icon" style="' + gradient(c) + '" aria-hidden="true">' + iconHtml + '</span><span class="catrow__label">' + esc(nm(c)) + '</span></a>';
     }).join('') + '</nav>';
 
     var p = D.promo || {};
-    h += '<section class="promo"><div><h2 class="promo__title">' + esc(p.title) + '</h2><p class="promo__sub">' + esc(p.sub) + '</p></div>' +
-      '<button type="button" class="promo__btn" data-act="promo" data-code="' + esc(p.code) + '">' + esc(p.cta) + '</button></section>';
+    if (p.title) {
+      h += '<section class="promo"><div><h2 class="promo__title">' + esc(p.title) + '</h2><p class="promo__sub">' + esc(p.sub) + '</p></div>' +
+        '<button type="button" class="promo__btn" data-act="promo" data-code="' + esc(p.code) + '">' + esc(p.cta || 'Claim Offer') + '</button></section>';
+    }
 
-    D.sections.forEach(function (sec) {
-      var list = D.services.filter(function (s) { return s.cat === sec.cat; }).slice(0, 6);
+    var sectionsList = D.sections || (D.categories || []).map(function (c) { return { id: 'sec-' + c.id, title: nm(c), cat: c.id }; });
+    sectionsList.forEach(function (sec) {
+      var list = (D.services || []).filter(function (s) { return s.cat === sec.cat; }).slice(0, 6);
       if (!list.length) return;
       h += '<section class="section">' + sectionHead(ttl(sec), '#/c/' + sec.cat) + '<div class="grid">' + list.map(card).join('') + '</div></section>';
     });
 
     function rows(arr) {
       return '<div class="list">' + arr.map(function (x) {
-        return '<div class="list__row"><span aria-hidden="true" style="font-size:28px">' + esc(x.emoji) + '</span><div><strong>' + esc(x.title) + '</strong><div class="card__meta">' + esc(x.sub) + '</div></div></div>';
+        return '<div class="list__row"><span aria-hidden="true" style="font-size:28px">' + esc(x.emoji || '✨') + '</span><div><strong>' + esc(x.title) + '</strong><div class="card__meta">' + esc(x.sub) + '</div></div></div>';
       }).join('') + '</div>';
     }
-    h += '<section class="section">' + sectionHead(t('howItWorks')) + rows(D.howItWorks || []) + '</section>';
-    h += '<section class="section">' + sectionHead(t('whyUs')) + rows(D.trust || []) + '</section>';
-    h += '<section class="section">' + sectionHead(t('loved')) + '<div class="list">' + (D.testimonials || []).map(function (x) {
-      return '<div class="list__row"><div>' + stars(x.rating) + '<p>“' + esc(x.text) + '”</p><div class="card__meta"><strong>' + esc(x.name) + '</strong> · ' + esc(x.city) + '</div></div></div>';
-    }).join('') + '</div></section>';
+    if ((D.howItWorks || []).length) h += '<section class="section">' + sectionHead(t('howItWorks')) + rows(D.howItWorks) + '</section>';
+    if ((D.trust || []).length) h += '<section class="section">' + sectionHead(t('whyUs')) + rows(D.trust) + '</section>';
+    if ((D.testimonials || []).length) {
+      h += '<section class="section">' + sectionHead(t('loved')) + '<div class="list">' + D.testimonials.map(function (x) {
+        return '<div class="list__row"><div>' + stars(x.rating) + '<p>“' + esc(x.text) + '”</p><div class="card__meta"><strong>' + esc(x.name) + '</strong> · ' + esc(x.city) + '</div></div></div>';
+      }).join('') + '</div></section>';
+    }
     return h + footer();
   }
 
@@ -431,20 +459,26 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
   }
 
   function viewServices() {
-    return backBar(t('allServices')) + '<div class="grid">' + D.categories.map(function (c) {
-      var n = D.services.filter(function (s) { return s.cat === c.id; }).length;
-      return '<article class="card" data-go="#/c/' + esc(c.id) + '" tabindex="0" role="link" aria-label="' + esc(nm(c)) + '"><div class="card__img" style="' + gradient(c) + '"><span aria-hidden="true" style="font-size:44px">' + esc(c.emoji) + '</span></div><h3 class="card__name">' + esc(nm(c)) + '</h3><div class="card__meta">' + esc(c.blurb) + ' · ' + n + '</div></article>';
+    return backBar(t('allServices')) + '<div class="grid">' + (D.categories || []).map(function (c) {
+      var n = (D.services || []).filter(function (s) { return s.cat === c.id; }).length;
+      var imgSrc = c.photo || c.imageUrl || c.image;
+      var mediaHtml = imgSrc ? '<img src="' + esc(imgSrc) + '" alt="' + esc(nm(c)) + '" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">'
+                             : '<span aria-hidden="true" style="font-size:44px">' + esc(c.emoji || '✨') + '</span>';
+      return '<article class="card" data-go="#/c/' + esc(c.id) + '" tabindex="0" role="link" aria-label="' + esc(nm(c)) + '"><div class="card__img" style="' + gradient(c) + '">' + mediaHtml + '</div><h3 class="card__name">' + esc(nm(c)) + '</h3><div class="card__meta">' + esc(c.blurb || '') + ' · ' + n + '</div></article>';
     }).join('') + '</div>';
   }
 
   function viewCategory(id) {
     var c = catMap[id]; if (!c) return viewNotFound();
-    var list = D.services.filter(function (s) { return s.cat === id; });
+    var list = (D.services || []).filter(function (s) { return s.cat === id; });
     if (S.sort === 'price') list.sort(function (a, b) { return a.price - b.price; });
-    else if (S.sort === 'rating') list.sort(function (a, b) { return b.rating - a.rating; });
+    else if (S.sort === 'rating') list.sort(function (a, b) { return (b.rating || 5) - (a.rating || 5); });
     var sorts = [['popular', 'popular'], ['price', 'priceLow'], ['rating', 'topRated']];
+    var imgSrc = c.photo || c.imageUrl || c.image;
+    var mediaHtml = imgSrc ? '<img src="' + esc(imgSrc) + '" alt="' + esc(nm(c)) + '" style="max-height:80px;object-fit:contain">'
+                           : '<span aria-hidden="true" style="font-size:56px">' + esc(c.emoji || '✨') + '</span>';
     return backBar(nm(c), '#/services') +
-      '<div class="detail__hero" style="' + gradient(c) + '"><span aria-hidden="true" style="font-size:56px">' + esc(c.emoji) + '</span><p>' + esc(c.blurb) + '</p></div>' +
+      '<div class="detail__hero" style="' + gradient(c) + '">' + mediaHtml + '<p>' + esc(c.blurb || '') + '</p></div>' +
       '<div class="chips" role="group" aria-label="' + esc(t('sort')) + '">' + sorts.map(function (s) {
         return '<button type="button" class="chip' + (S.sort === s[0] ? ' is-active' : '') + '" data-act="sort" data-v="' + s[0] + '" aria-pressed="' + (S.sort === s[0]) + '">' + esc(t(s[1])) + '</button>';
       }).join('') + '</div><div class="grid">' + list.map(card).join('') + '</div>';
@@ -454,10 +488,13 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     var s = svc(id); if (!s) return viewNotFound();
     var c = cat(s.cat), q = qtyOf(id);
     var off = s.mrp > s.price ? Math.round((1 - s.price / s.mrp) * 100) : 0;
+    var imgSrc = s.photo || s.imageUrl || s.image;
+    var mediaHtml = imgSrc ? '<img src="' + esc(imgSrc) + '" alt="' + esc(nm(s)) + '" style="max-height:120px;object-fit:contain">'
+                           : '<span aria-hidden="true" style="font-size:72px">' + esc(s.emoji || c.emoji || '✨') + '</span>';
     return backBar(nm(c), '#/c/' + s.cat) +
-      '<div class="detail__hero" style="' + gradient(c) + '"><span aria-hidden="true" style="font-size:72px">' + esc(s.emoji) + '</span>' + (s.tag ? '<span class="card__tag">' + esc(s.tag) + '</span>' : '') + '</div>' +
+      '<div class="detail__hero" style="' + gradient(c) + '">' + mediaHtml + (s.tag ? '<span class="card__tag">' + esc(s.tag) + '</span>' : '') + '</div>' +
       '<h1 class="detail__title">' + esc(nm(s)) + '</h1>' +
-      '<div class="card__meta">' + stars(s.rating) + ' (' + esc(s.reviews) + ' ' + esc(t('reviews')) + ') · ' + esc(s.duration) + ' ' + esc(t('min')) + '</div>' +
+      '<div class="card__meta">' + stars(s.rating) + ' (' + esc(s.reviews || 0) + ' ' + esc(t('reviews')) + ') · ' + esc(s.duration || 30) + ' ' + esc(t('min')) + '</div>' +
       '<div class="detail__price"><span class="card__price">' + inr(s.price) + '</span> ' + (off ? '<s class="card__mrp">' + inr(s.mrp) + '</s> <span class="badge">' + off + '% OFF</span>' : '') + '</div>' +
       '<div class="detail__block"><p>' + esc(s.desc) + '</p></div>' +
       ((s.includes || []).length ? '<div class="detail__block"><h2>' + esc(t('includes')) + '</h2><ul class="checklist">' + s.includes.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>' : '') +
@@ -481,10 +518,9 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       (res.length ? '<div class="grid">' + res.map(card).join('') + '</div>'
         : emptyState('🔍', t('noResults'), t('noResultsSub'), '#/services', t('browse')));
   }
-  // Match on name, Hindi name and category (en/hi), plus description as a weak signal.
   function searchServices(q, limit) {
     q = String(q || '').trim().toLowerCase(); if (!q) return [];
-    var out = D.services.filter(function (s) {
+    var out = (D.services || []).filter(function (s) {
       var c = cat(s.cat);
       return [s.name, s.nameHi, c.name, c.nameHi].some(function (x) { return x && String(x).toLowerCase().indexOf(q) >= 0; });
     });
@@ -495,11 +531,11 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     q = String(q || '').trim();
     if (!q) { box.hidden = true; box.innerHTML = ''; return; }
     var svcs = searchServices(q, 5);
-    var cats = D.categories.filter(function (c) { return (c.name + ' ' + (c.nameHi || '')).toLowerCase().indexOf(q.toLowerCase()) >= 0; }).slice(0, 2);
+    var cats = (D.categories || []).filter(function (c) { return (c.name + ' ' + (c.nameHi || '')).toLowerCase().indexOf(q.toLowerCase()) >= 0; }).slice(0, 2);
     var h = cats.map(function (c) {
-      return '<button type="button" class="list__row" data-go="#/c/' + esc(c.id) + '" role="option">' + esc(c.emoji) + ' ' + esc(nm(c)) + ' <small>' + esc(t('services')) + '</small></button>';
+      return '<button type="button" class="list__row" data-go="#/c/' + esc(c.id) + '" role="option">' + esc(c.emoji || '✨') + ' ' + esc(nm(c)) + ' <small>' + esc(t('services')) + '</small></button>';
     }).join('') + svcs.map(function (s) {
-      return '<button type="button" class="list__row" data-go="#/s/' + esc(s.id) + '" role="option">' + esc(s.emoji) + ' ' + esc(nm(s)) + ' <small>' + inr(s.price) + '</small></button>';
+      return '<button type="button" class="list__row" data-go="#/s/' + esc(s.id) + '" role="option">' + esc(s.emoji || '✨') + ' ' + esc(nm(s)) + ' <small>' + inr(s.price) + '</small></button>';
     }).join('') + '<button type="button" class="list__row" data-go="#/search?q=' + enc(q) + '" role="option">🔍 ' + esc(t('searchFor')) + ' “' + esc(q) + '”</button>';
     box.className = 'list';
     box.setAttribute('role', 'listbox');
@@ -512,9 +548,8 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     var c = calc();
     var h = backBar(t('cart')) + '<div class="list">' + S.cart.map(function (l) {
       var s = svc(l.id); if (!s) return '';
-      return '<div class="list__row"><span aria-hidden="true" style="font-size:28px">' + esc(s.emoji) + '</span><div><a href="#/s/' + esc(s.id) + '"><strong>' + esc(nm(s)) + '</strong></a><div class="card__meta">' + inr(s.price) + ' × ' + l.qty + ' = ' + inr(s.price * l.qty) + '</div></div>' + stepper(s.id, l.qty, 'card__qty') + '</div>';
+      return '<div class="list__row"><span aria-hidden="true" style="font-size:28px">' + esc(s.emoji || '✨') + '</span><div><a href="#/s/' + esc(s.id) + '"><strong>' + esc(nm(s)) + '</strong></a><div class="card__meta">' + inr(s.price) + ' × ' + l.qty + ' = ' + inr(s.price * l.qty) + '</div></div>' + stepper(s.id, l.qty, 'card__qty') + '</div>';
     }).join('') + '</div>';
-    // coupon block
     h += '<div class="detail__block"><h2>' + esc(t('coupon')) + '</h2>';
     if (S.coupon) {
       h += '<div class="list__row"><span class="badge">' + esc(S.coupon) + '</span><span>' + esc(c.couponErr ? t(c.couponErr) : t('couponOn') + ' −' + inr(c.discount)) + '</span><button type="button" class="btn btn--ghost btn--sm" data-act="coupon-remove">' + esc(t('remove')) + '</button></div>';
@@ -545,7 +580,6 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       '</div>';
   }
 
-  /* form field builder bound to a draft model path like "co.name" */
   function getModel(path) { var p = path.split('.'); return (drafts[p[0]] || {})[p[1]] || ''; }
   function field(label, model, o) {
     o = o || {};
@@ -566,7 +600,6 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
 
   function viewCheckout() {
     if (!S.cart.length) return backBar(t('checkout'), '#/cart') + emptyState('🛒', t('emptyCart'), t('emptyCartSub'), '#/services', t('browse'));
-    // Login gating happens here only.
     if (!S.user) {
       return backBar(t('checkout'), '#/cart') + '<div class="empty"><div aria-hidden="true" style="font-size:48px">🔒</div><h2>' + esc(t('loginTitle')) + '</h2><p>' + esc(t('loginReq')) + '</p><button type="button" class="btn btn--primary" data-act="login">' + esc(t('login')) + '</button></div>';
     }
@@ -775,7 +808,7 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
   }
   function bookingItems(b) {
     return '<div class="list">' + b.items.map(function (i) {
-      return '<div class="list__row"><span aria-hidden="true">' + esc(i.emoji || '') + '</span><div>' + esc(isHi() && i.nameHi ? i.nameHi : i.name) + ' × ' + esc(i.qty) + '</div><strong>' + inr(i.price * i.qty) + '</strong></div>';
+      return '<div class="list__row"><span aria-hidden="true">' + esc(i.emoji || '✨') + '</span><div>' + esc(isHi() && i.nameHi ? i.nameHi : i.name) + ' × ' + esc(i.qty) + '</div><strong>' + inr(i.price * i.qty) + '</strong></div>';
     }).join('') + '</div>';
   }
   function bookingActions(b) {
@@ -842,7 +875,6 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       '</div>';
     }
 
-    // Google Sign-In Button
     h += '<button type="button" class="btn-google' + (isGoogleLoginInProgress ? ' is-loading' : '') + '" data-act="google-login"' + (isGoogleLoginInProgress ? ' disabled' : '') + '>' +
       renderGoogleSvg() +
       '<span>' + esc(isGoogleLoginInProgress ? 'Connecting Google...' : t('googleLogin')) + '</span>' +
@@ -893,10 +925,12 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
   }
 
   function viewHelp() {
-    var tel = String(D.brand.phone).replace(/[^\d+]/g, '');
+    var brandPhone = (D.brand && D.brand.phone) || '+91 89202 52647';
+    var brandEmail = (D.brand && D.brand.email) || 'bharatproexpert@gmail.com';
+    var tel = String(brandPhone).replace(/[^\d+]/g, '');
     return backBar(t('help')) + '<div class="detail__block"><h2>' + esc(t('contact')) + '</h2><div class="chips">' +
       '<a class="btn btn--primary" href="tel:' + esc(tel) + '">📞 ' + esc(t('call')) + '</a>' +
-      '<a class="btn" href="mailto:' + esc(D.brand.email) + '">✉️ ' + esc(t('email')) + '</a></div></div>' +
+      '<a class="btn" href="mailto:' + esc(brandEmail) + '">✉️ ' + esc(t('email')) + '</a></div></div>' +
       '<div class="detail__block"><h2>' + esc(t('faqs')) + '</h2>' + faqList(D.faqs || [], 'hf') + '</div>' + footer();
   }
 
@@ -906,17 +940,19 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       return backBar(t('partner'), '#/account') + emptyState('🤝', t('partnerDone'), t('partnerDoneSub'), '#/', t('goHome'));
     }
     if (done == null) done = null;
+    var citiesList = D.cities || ['Gurgaon', 'Delhi', 'Noida'];
+    var catsList = D.categories || [];
     return backBar(t('partner'), '#/account') + '<form class="detail__block" data-form="partner" novalidate><h2>' + esc(t('partnerTitle')) + '</h2><p>' + esc(t('partnerSub')) + '</p>' +
       field(t('name'), 'partner.name', { ac: 'name' }) + field(t('phone'), 'partner.phone', { type: 'tel', inputmode: 'numeric', max: 10, ac: 'tel-national' }) +
-      field(t('city'), 'partner.city', { options: D.cities.map(function (c) { return { v: c, l: c }; }) }) +
-      field(t('skill'), 'partner.skill', { options: D.categories.map(function (c) { return { v: c.id, l: nm(c) }; }) }) +
+      field(t('city'), 'partner.city', { options: citiesList.map(function (c) { return { v: c, l: c }; }) }) +
+      field(t('skill'), 'partner.skill', { options: catsList.map(function (c) { return { v: c.id, l: nm(c) }; }) }) +
       field(t('experience'), 'partner.exp', { type: 'number', inputmode: 'numeric', max: 2 }) +
       '<button type="submit" class="btn btn--primary btn--block">' + esc(t('submit')) + '</button></form>';
   }
 
   /* ---------- SUPER ADMIN PANEL STATE & FUNCTIONS ---------- */
   var ADMIN_PASS = 'bharatproexperthomeservices@9319953137';
-  var LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes lockout on 1 failed attempt
+  var LOCKOUT_DURATION_MS = 15 * 60 * 1000;
   var adminCaptchaCode = '';
 
   function generateCaptcha() {
@@ -995,8 +1031,8 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
         '<main class="admin-content">' +
           '<div class="empty" style="padding:40px 20px">' +
             '<div aria-hidden="true" style="font-size:48px;margin-bottom:12px">📦</div>' +
-            '<h2 style="font-size:22px;font-weight:700;margin-bottom:8px">Admin Panel is empty. No modules active.</h2>' +
-            '<p style="color:var(--text-sub);max-width:400px;margin:0 auto">Currently no administrative modules are active or loaded.</p>' +
+            '<h2 style="font-size:22px;font-weight:700;margin-bottom:8px">Admin Panel Code Snippets Available</h2>' +
+            '<p style="color:var(--text-sub);max-width:500px;margin:0 auto">React Admin Panel snippets are generated in the <code>ADMIN_PANEL_SNIPPETS</code> directory for deployment via Google AI Studio.</p>' +
           '</div>' +
         '</main>' +
       '</div>' +
@@ -1025,7 +1061,8 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     var d = sh.data, body = '', label = '';
     if (sh.kind === 'city') {
       label = t('chooseCity');
-      body = '<h2>' + esc(label) + '</h2><div class="list">' + D.cities.map(function (c) {
+      var citiesList = D.cities || ['Gurgaon', 'Delhi', 'Noida'];
+      body = '<h2>' + esc(label) + '</h2><div class="list">' + citiesList.map(function (c) {
         return '<button type="button" class="list__row" data-act="setcity" data-v="' + esc(c) + '">' + (c === S.city ? '✅ ' : '📍 ') + esc(c) + '</button>';
       }).join('') + '</div>';
     } else if (sh.kind === 'login') {
@@ -1062,8 +1099,9 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     var qi = raw.indexOf('?'), path = qi >= 0 ? raw.slice(0, qi) : raw;
     var qs = new URLSearchParams(qi >= 0 ? raw.slice(qi + 1) : '');
     var p = path.split('/').filter(Boolean).map(safeDecode), a = p[0] || '';
+    var brandName = (D.brand && D.brand.name) || 'Bharat Pro Expert';
     switch (a) {
-      case '': return { name: 'home', nav: 'home', title: D.brand.name + ' — Home Services at your doorstep', view: viewHome };
+      case '': return { name: 'home', nav: 'home', title: brandName + ' — Home Services at your doorstep', view: viewHome };
       case 'services': return { name: 'services', nav: 'services', title: t('allServices'), view: viewServices };
       case 'c': return { name: 'category', nav: 'services', title: cat(p[1]).name, view: function () { return viewCategory(p[1]); } };
       case 's': return { name: 'detail', nav: 'services', title: svc(p[1]) ? svc(p[1]).name : '', view: function () { return viewDetail(p[1]); } };
@@ -1087,8 +1125,9 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     current = parseRoute();
     var bodyHtml;
     try { bodyHtml = current.view(); } catch (err) { bodyHtml = viewNotFound(); }
+    var brandName = (D.brand && D.brand.name) || 'Bharat Pro Expert';
     root.innerHTML = '<div class="app">' + topbar(current) + '<main class="page" id="main"><div class="container">' + bodyHtml + '</div></main>' + cartBar(current) + tabbar(current) + '</div>';
-    document.title = (current.name === 'home' ? '' : (current.title ? current.title + ' — ' : '')) + (current.name === 'home' ? current.title : D.brand.name);
+    document.title = (current.name === 'home' ? '' : (current.title ? current.title + ' — ' : '')) + (current.name === 'home' ? current.title : brandName);
     applyTheme();
     window.scrollTo(0, keepScroll ? y : 0);
     if (keepScroll && activeModel) { var again = $('[data-model="' + activeModel + '"]'); if (again) again.focus(); }
@@ -1098,7 +1137,6 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
   }
   function refresh() { render(true); }
 
-  /* hero carousel: 4s auto-slide, paused while touching */
   function goSlide(i) {
     var n = (D.heroSlides || []).length; if (!n) return;
     heroIdx = (i + n) % n;
@@ -1119,7 +1157,6 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       startHero();
     }, { passive: true });
   }
-  /* simulated status progress: re-render the booking views while a booking is in progress */
   function startTicker() {
     if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
     if (current.name !== 'booking' && current.name !== 'bookings') return;
@@ -1132,7 +1169,7 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     tickSig = undefined;
   }
 
-  /* ---------- actions (click delegation) ---------- */
+  /* ---------- actions ---------- */
   var ACTIONS = {
     add: function (el) { setQty(el.dataset.id, qtyOf(el.dataset.id) + 1); toast(t('added')); refresh(); },
     inc: function (el) { setQty(el.dataset.id, qtyOf(el.dataset.id) + 1); refresh(); },
@@ -1287,7 +1324,7 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     }
     if (!e.target.closest('.topbar__search')) { var s2 = $('#sugg'); if (s2) s2.hidden = true; }
   });
-  // Cards are role=link with tabindex: make Enter/Space activate them.
+
   document.addEventListener('keydown', function (e) {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('article[data-go]')) {
       e.preventDefault(); location.hash = e.target.dataset.go;
@@ -1295,7 +1332,7 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       if (S.sheet) closeSheet(); else { var sg = $('#sugg'); if (sg) sg.hidden = true; }
     }
   });
-  // Draft binding: typed values are stored without re-rendering (keeps focus).
+
   document.addEventListener('input', function (e) {
     var el = e.target;
     if (el.dataset && el.dataset.model) {
@@ -1308,7 +1345,7 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       if (drafts.loginError) { delete drafts.loginError; if (S.sheet) renderSheet(); else refresh(); }
     } else if (el.id === 'q') {
       clearTimeout(searchTimer);
-      searchTimer = setTimeout(function () { renderSuggestions(el.value); }, 180); // debounce
+      searchTimer = setTimeout(function () { renderSuggestions(el.value); }, 180);
     }
   });
   document.addEventListener('focusin', function (e) {
@@ -1412,7 +1449,9 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
       drafts.errs = er;
       if (Object.keys(er).length) { toast(t('fixErrors')); refresh(); var b2 = $('[aria-invalid="true"]'); if (b2) b2.focus(); return; }
       var all = load('bpe_partners', []); if (!Array.isArray(all)) all = [];
-      all.push({ name: p.name.trim(), phone: p.phone, city: p.city || D.cities[0], skill: p.skill || D.categories[0].id, exp: p.exp || '0', at: Date.now() });
+      var citiesList2 = D.cities || ['Gurgaon'];
+      var catsList2 = D.categories || [];
+      all.push({ name: p.name.trim(), phone: p.phone, city: p.city || citiesList2[0], skill: p.skill || (catsList2[0] && catsList2[0].id), exp: p.exp || '0', at: Date.now() });
       save('bpe_partners', all);
       drafts.partner = { sent: true }; drafts.errs = {}; refresh();
     } else if (kind === 'admin-login') {
@@ -1456,15 +1495,12 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     renderSheet(); render(false);
     var m = $('#main'); if (m) m.setAttribute('tabindex', '-1');
   });
-  // Keep follow-up state (system theme change) consistent.
   try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (!S.theme) { applyTheme(); refresh(); } }); } catch (e) { /* old browsers */ }
-  // Drop a stale partner "sent" flag when the user leaves the page.
   window.addEventListener('hashchange', function () { if (parseRoute().name !== 'partner') drafts.partner = {}; });
 
   applyTheme();
   render(false);
 
-  // Subscribe to Firebase auth state changes to auto-sync user state
   try {
     subscribeAuthState(function (err, userObj) {
       if (err) {
@@ -1488,7 +1524,6 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     console.error("Auth Step 2 error initializing subscribeAuthState:", err);
   }
 
-  // Check Google Sign-In redirect result on app initialization
   checkGoogleRedirectResult().then(function (res) {
     if (res.success && res.user) {
       console.log("Auth Step 1 complete: Google redirect auth processed successfully", res.user.uid);
@@ -1511,4 +1546,15 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
   }).catch(function (err) {
     console.error('Auth Step 1 error checking redirect result:', err);
   });
+
+  // Subscribe to real-time CMS Firestore updates
+  try {
+    subscribeCMS(function (type) {
+      console.log("Firestore CMS update received for:", type);
+      rebuildLookups();
+      refresh();
+    });
+  } catch (cmsErr) {
+    console.warn("CMS Real-Time Subscription error:", cmsErr);
+  }
 })();
