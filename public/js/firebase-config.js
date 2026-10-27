@@ -10,6 +10,11 @@ import {
   signOut,
   onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import {
+  getFirestore,
+  collection,
+  addDoc
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "AIzaSyB1GbzmsTs4Uspa4m8h-zYCNbqupfI-L9s",
@@ -17,12 +22,13 @@ const firebaseConfig = {
   projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "bharatproexpert-homeservices",
   storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "bharatproexpert-homeservices.firebasestorage.app",
   messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "11342758143",
-  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "1:11342758143:web:37ee73d3cd1689735e0cca",
+  appId: import.meta.env?.VITE_FIREBASE_APP_ID || "1:11342758143:web:1c23b2f9cb5c55715e0cca",
   measurementId: import.meta.env?.VITE_FIREBASE_MEASUREMENT_ID || "G-EGTW0MDD3W"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
@@ -301,4 +307,16 @@ export async function firebaseLogout() {
   }
 }
 
-export { auth, onAuthStateChanged };
+export async function saveBookingToFirestore(bookingData) {
+  try {
+    console.log("Firestore Step: Saving booking to 'bookings' collection...", bookingData);
+    const docRef = await addDoc(collection(db, "bookings"), bookingData);
+    console.log("Firestore Step complete: Booking saved with Document ID:", docRef.id);
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error("Firestore Step error in saveBookingToFirestore:", error);
+    return { success: false, error: error.message || 'Failed to save booking to Firestore' };
+  }
+}
+
+export { auth, db, collection, addDoc, onAuthStateChanged };

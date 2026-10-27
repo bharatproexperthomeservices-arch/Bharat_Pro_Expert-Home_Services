@@ -1,7 +1,7 @@
 /* Bharat Pro Expert — hash-router SPA.
  * Structure: helpers -> state/storage -> i18n -> pricing -> view fns -> sheets -> actions -> router/boot.
  * All dynamic strings pass through esc() before hitting innerHTML. */
-import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOtp, firebaseLogout, subscribeAuthState } from './firebase-config.js';
+import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOtp, firebaseLogout, subscribeAuthState, saveBookingToFirestore } from './firebase-config.js';
 
 (function () {
   'use strict';
@@ -700,7 +700,57 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
     });
   }
 
-  function finalizeBooking(id, co, c, paymentId) {
+  async function finalizeBooking(id, co, c, paymentId) {
+    toast('Saving booking to database...');
+    var firestoreItems = S.cart.map(function (l) {
+      var s = svc(l.id) || {};
+      var price = Number(s.price || 0);
+      var qty = Number(l.qty || 1);
+      return {
+        serviceName: String(s.name || l.id),
+        unitPrice: price,
+        quantity: qty,
+        subtotal: price * qty
+      };
+    });
+
+    var streetAddress = String(co.area || '').trim();
+    if (co.landmark && String(co.landmark).trim()) {
+      streetAddress += ' (Landmark: ' + String(co.landmark).trim() + ')';
+    }
+
+    var firestoreBookingData = {
+      customer: {
+        name: String(co.name || '').trim(),
+        phone: String(co.phone || '').trim(),
+        email: String((S.user && S.user.email) || '').trim()
+      },
+      address: {
+        houseNo: String(co.house || '').trim(),
+        street: streetAddress,
+        cityName: String(S.city || 'Gurugram').trim(),
+        pincode: String(co.pincode || '').trim()
+      },
+      items: firestoreItems,
+      totalAmount: Number(c.subtotal || 0),
+      finalPayable: Number(c.total || 0),
+      status: "Pending",
+      createdAt: new Date()
+    };
+
+    try {
+      var fsResult = await saveBookingToFirestore(firestoreBookingData);
+      if (fsResult.success) {
+        console.log("Firestore booking doc ID created:", fsResult.id);
+      } else {
+        console.warn("Firestore save warning:", fsResult.error);
+        alert('Booking saved locally. Firestore note: ' + fsResult.error);
+      }
+    } catch (fsErr) {
+      console.error("Firestore submission exception:", fsErr);
+      alert('Failed to save booking to Firestore: ' + fsErr.message);
+    }
+
     var b = {
       id: id, created: Date.now(), cancelled: false, date: co.date, slot: co.slot, pay: 'online',
       paymentId: paymentId || '',
