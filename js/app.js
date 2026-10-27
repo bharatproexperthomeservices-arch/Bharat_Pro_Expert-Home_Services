@@ -420,6 +420,9 @@ import { loginWithGoogle, checkGoogleRedirectResult, sendPhoneOtp, verifyPhoneOt
         '</div>' +
       '</div>' +
       '<hr class="footer-divider">' +
+      '<p class="footer-bottom-text" style="margin-bottom:8px;font-size:13px;line-height:1.5">' +
+        '<strong>Registered Office Address:</strong> Unit No. 309, 3rd Floor, Tower A, SAS Tower, Medicity, Sector 38, Gurugram, Haryana, 122001 | <strong>GSTIN:</strong> 06FCUPM9518L1ZM' +
+      '</p>' +
       '<p class="footer-bottom-text disclaimer">* As on December 31, 2021</p>' +
       '<p class="footer-bottom-text">' +
         '© Copyright 2021 Bharat Pro Expert Home Services Limited (formerly known as Bharat Pro Expert Technologies India Limited) All rights reserved. | CIN: L74140DL2014PLC274413' +
