@@ -1,82 +1,108 @@
 import Razorpay from "razorpay";
-import { ADDON_PRICES, BUSINESS_GST_DETAILS, CONVENIENCE_FEE_INR, COUPON_CODES, GST_RATE, SERVICE_PRICES } from "./pricing-catalog.js";
+import { ADDON_PRICES, BUSINESS_GST_DETAILS, CONVENIENCE_FEE_INR, COUPON_RULES, GST_RATE, SERVICE_PRICES } from "./pricing-catalog.js";
 
 function json(res, status, body) {
   return res.status(status).json(body);
 }
 
 function calculateQuote(body) {
-  const requestedServiceId = typeof body?.serviceId === "string" ? body.serviceId : "";
-  const requestedServiceName = typeof body?.serviceName === "string"
-    ? body.serviceName.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN")
-    : "";
-  // Firestore/admin catalogue records can carry legacy IDs. Resolve by exact approved
-  // service name as a fallback, while ALWAYS taking the price from this server catalogue.
-  const matchedEntry = Object.entries(SERVICE_PRICES).find(([, item]) =>
-    item.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN") === requestedServiceName
-  );
-  const serviceId = Object.prototype.hasOwnProperty.call(SERVICE_PRICES, requestedServiceId)
-    ? requestedServiceId
-    : (matchedEntry ? matchedEntry[0] : "");
-  const service = serviceId ? SERVICE_PRICES[serviceId] : null;
-  if (!service) {
-    return { error: "Selected cleaning service is not in the approved catalogue. Please contact support so the service can be added safely.", code: "UNKNOWN_SERVICE" };
-  }
+  // Support both single serviceId/addons payloads AND multi-item array payloads from cart
+  const items = Array.isArray(body?.items) ? body.items : null;
+  let subtotal = 0;
+  let primaryServiceId = typeof body?.serviceId === "string" ? body.serviceId : "";
 
-  const requestedAddons = body?.addons === undefined ? [] : body.addons;
-  if (!Array.isArray(requestedAddons) || requestedAddons.length > 30) {
-    return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
-  }
+  if (items && items.length > 0) {
+    for (const item of items) {
+      const itemId = typeof item === "string" ? item : (item && typeof item === "object" ? (item.id || "") : "");
+      const qty = (item && typeof item === "object" && typeof item.qty === "number") ? Math.max(1, item.qty) : 1;
+      const foundSvc = SERVICE_PRICES[itemId];
+      const foundAddon = ADDON_PRICES[itemId];
+      if (foundSvc) {
+        subtotal += foundSvc.price * qty;
+        if (!primaryServiceId) primaryServiceId = itemId;
+      } else if (foundAddon) {
+        subtotal += foundAddon.price * qty;
+      }
+    }
+  } else {
+    const requestedServiceName = typeof body?.serviceName === "string"
+      ? body.serviceName.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN")
+      : "";
+    const matchedEntry = Object.entries(SERVICE_PRICES).find(([, item]) =>
+      item.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN") === requestedServiceName
+    );
+    const serviceId = Object.prototype.hasOwnProperty.call(SERVICE_PRICES, primaryServiceId)
+      ? primaryServiceId
+      : (matchedEntry ? matchedEntry[0] : "");
+    const service = serviceId ? SERVICE_PRICES[serviceId] : null;
+    if (!service) {
+      return { error: "Selected cleaning service is not in the approved catalogue. Please contact support so the service can be added safely.", code: "UNKNOWN_SERVICE" };
+    }
+    primaryServiceId = serviceId;
 
-  // Support legacy/admin catalogue IDs by resolving their exact approved name to a
-  // server-owned add-on ID. Prices always come from ADDON_PRICES, never the browser.
-  const normalizedAddonIds = [];
-  for (const candidate of requestedAddons) {
-    let requestedId = "";
-    let requestedName = "";
-    if (typeof candidate === "string") {
-      requestedId = candidate;
-    } else if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
-      requestedId = typeof candidate.id === "string" ? candidate.id : "";
-      requestedName = typeof candidate.name === "string"
-        ? candidate.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN")
-        : "";
-    } else {
+    const requestedAddons = body?.addons === undefined ? [] : body.addons;
+    if (!Array.isArray(requestedAddons) || requestedAddons.length > 30) {
       return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
     }
 
-    let canonicalId = Object.prototype.hasOwnProperty.call(ADDON_PRICES, requestedId) ? requestedId : "";
-    if (!canonicalId && requestedName) {
-      const matchedAddon = Object.entries(ADDON_PRICES).find(([, item]) =>
-        item.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN") === requestedName
-      );
-      if (matchedAddon) canonicalId = matchedAddon[0];
+    const normalizedAddonIds = [];
+    for (const candidate of requestedAddons) {
+      let requestedId = "";
+      let requestedName = "";
+      if (typeof candidate === "string") {
+        requestedId = candidate;
+      } else if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+        requestedId = typeof candidate.id === "string" ? candidate.id : "";
+        requestedName = typeof candidate.name === "string"
+          ? candidate.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN")
+          : "";
+      } else {
+        return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
+      }
+
+      let canonicalId = Object.prototype.hasOwnProperty.call(ADDON_PRICES, requestedId) ? requestedId : "";
+      if (!canonicalId && requestedName) {
+        const matchedAddon = Object.entries(ADDON_PRICES).find(([, item]) =>
+          item.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-IN") === requestedName
+        );
+        if (matchedAddon) canonicalId = matchedAddon[0];
+      }
+      if (!canonicalId) {
+        return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
+      }
+      normalizedAddonIds.push(canonicalId);
     }
-    if (!canonicalId) {
-      return { error: "One or more add-ons are invalid. Refresh the booking and try again.", code: "INVALID_ADDONS" };
+
+    if (new Set(normalizedAddonIds).size !== normalizedAddonIds.length) {
+      return { error: "Duplicate add-ons are not allowed. Refresh the booking and try again.", code: "INVALID_ADDONS" };
     }
-    normalizedAddonIds.push(canonicalId);
+    const addonsPrice = normalizedAddonIds.reduce((sum, id) => sum + ADDON_PRICES[id].price, 0);
+    subtotal = service.price + addonsPrice;
   }
 
-  if (new Set(normalizedAddonIds).size !== normalizedAddonIds.length) {
-    return { error: "Duplicate add-ons are not allowed. Refresh the booking and try again.", code: "INVALID_ADDONS" };
-  }
-  const addonsPrice = normalizedAddonIds.reduce((sum, id) => sum + ADDON_PRICES[id].price, 0);
-  const subtotal = service.price + addonsPrice;
   const gst = Math.round(subtotal * GST_RATE);
-  const convenienceFee = CONVENIENCE_FEE_INR;
+  const convenienceFee = subtotal > 0 && subtotal <= 499 ? CONVENIENCE_FEE_INR : 0;
   const couponCode = typeof body?.couponCode === "string" ? body.couponCode.trim().toUpperCase() : "";
-  const discount = COUPON_CODES.has(couponCode) ? Math.round(subtotal * 0.10) : 0;
-  const total = subtotal + gst + convenienceFee - discount;
+  let discount = 0;
+  if (couponCode && Object.prototype.hasOwnProperty.call(COUPON_RULES, couponCode)) {
+    const rule = COUPON_RULES[couponCode];
+    if (subtotal >= (rule.min || 0)) {
+      if (rule.type === "flat") {
+        discount = Math.min(rule.value, subtotal);
+      } else {
+        discount = Math.min(Math.round(subtotal * rule.value / 100), rule.max || 150);
+      }
+    }
+  }
+
+  const total = Math.max(0, subtotal + gst + convenienceFee - discount);
 
   if (!Number.isSafeInteger(total) || total <= 0 || total > 500000) {
     return { error: "Calculated checkout total is invalid. Please contact support.", code: "INVALID_SERVER_TOTAL" };
   }
   return {
     quote: {
-      serviceId,
-      basePrice: service.price,
-      addonsPrice,
+      serviceId: primaryServiceId || "deep-1bhk",
       subtotal,
       gst,
       convenienceFee,

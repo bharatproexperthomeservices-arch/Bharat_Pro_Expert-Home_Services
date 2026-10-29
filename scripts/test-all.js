@@ -3,7 +3,8 @@ import http from 'node:http';
 
 function request(options, data) {
   return new Promise((resolve, reject) => {
-    const req = http.request(options, (res) => {
+    const reqOpts = { hostname: "127.0.0.1", ...options };
+    const req = http.request(reqOpts, (res) => {
       let body = '';
       res.on('data', (chunk) => body += chunk);
       res.on('end', () => {
@@ -34,7 +35,7 @@ async function runTests() {
     stdio: "pipe"
   });
 
-  await new Promise((r) => setTimeout(r, 1200));
+  await new Promise((r) => setTimeout(r, 3000));
 
   try {
     console.log("\n4. Testing GET /api/health...");
@@ -55,8 +56,8 @@ async function runTests() {
       },
       { mode: "quote", serviceId: "deep-1bhk", addons: [] }
     );
-    // deep-1bhk price: 2999, GST 5%: 150, fee: 49 -> Total: 3198
-    if (quote.status !== 200 || !quote.body.quote || quote.body.quote.total !== 3198) {
+    // deep-1bhk price: 2999, GST 5%: 150, fee: 0 (subtotal > 499) -> Total: 3149
+    if (quote.status !== 200 || !quote.body.quote || quote.body.quote.total !== 3149) {
       throw new Error("Create order quote failed: " + JSON.stringify(quote));
     }
     console.log("✅ POST /api/create-order (quote) passed.");
