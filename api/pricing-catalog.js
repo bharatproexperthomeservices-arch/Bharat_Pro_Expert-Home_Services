@@ -1050,10 +1050,18 @@ export const ADDON_PRICES = {
   }
 };
 
-export const COUPON_CODES = new Set([
-  "FIRST100", "BPE10", "BHARAT50",
-  "BHARAT10", "PRO10", "FIRST10", "CLEAN10", "SAVE10"
-]);
+export const COUPON_RULES = {
+  "FIRST100": { type: "flat", value: 100, min: 299 },
+  "BPE10": { type: "pct", value: 10, max: 150, min: 499 },
+  "BHARAT50": { type: "flat", value: 50, min: 199 },
+  "BHARAT10": { type: "pct", value: 10, max: 150, min: 499 },
+  "PRO10": { type: "pct", value: 10, max: 150, min: 499 },
+  "FIRST10": { type: "pct", value: 10, max: 150, min: 499 },
+  "CLEAN10": { type: "pct", value: 10, max: 150, min: 499 },
+  "SAVE10": { type: "pct", value: 10, max: 150, min: 499 }
+};
+
+export const COUPON_CODES = new Set(Object.keys(COUPON_RULES));
 
 export const CONVENIENCE_FEE_INR = 49;
 export const GST_RATE = 0.05;

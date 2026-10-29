@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { BUSINESS_GST_DETAILS } from "./pricing-catalog.js";
+import { sendGstInvoiceEmail } from "./send-invoice.js";
 
 function json(res, status, body) {
   return res.status(status).json(body);
@@ -42,6 +43,21 @@ export default async function handler(req, res) {
     if (generatedSignature !== razorpay_signature) {
       console.error("Razorpay signature mismatch for payment:", razorpay_payment_id);
       return json(res, 400, { verified: false, error: "Invalid payment signature verification failed." });
+    }
+
+    // Trigger asynchronous email dispatch of GST Invoice if customer email was provided
+    if (req.body?.customerEmail || req.body?.customer) {
+      sendGstInvoiceEmail({
+        bookingId: bookingId || razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        customerName: req.body?.customerName || req.body?.customer?.name || "Customer",
+        customerPhone: req.body?.customerPhone || req.body?.customer?.phone || "",
+        customerEmail: req.body?.customerEmail || req.body?.customer?.email || "",
+        items: req.body?.items || [],
+        subtotal: req.body?.subtotal || 0,
+        gst: req.body?.gst || 0,
+        total: req.body?.total || 0
+      }).catch(err => console.error("Invoice email background error:", err));
     }
 
     return json(res, 200, {
