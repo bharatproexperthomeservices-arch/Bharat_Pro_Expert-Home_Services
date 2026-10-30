@@ -661,6 +661,26 @@ import {
     if (co.phone == null) co.phone = S.user.phone || '';
     if (!co.date) co.date = dateChips()[0].iso;
     co.pay = 'online';
+
+    var gpsLoc = window.BPE_GPS_LOCATION || {};
+    if (co.house == null && gpsLoc.houseNumber) {
+      co.house = gpsLoc.houseNumber;
+    }
+    if (co.area == null) {
+      var areaParts = [gpsLoc.street, gpsLoc.locality, gpsLoc.sector, gpsLoc.city].filter(Boolean);
+      var uniqueArea = areaParts.filter(function(item, index) { return areaParts.indexOf(item) === index; });
+      if (uniqueArea.length) {
+        co.area = uniqueArea.join(', ');
+      } else if (gpsLoc.formattedAddress) {
+        co.area = gpsLoc.formattedAddress;
+      }
+    }
+    if (co.pincode == null && gpsLoc.postalCode) {
+      co.pincode = gpsLoc.postalCode;
+    }
+    if (gpsLoc.city) {
+      S.city = gpsLoc.city;
+    }
     var c = calc();
     return backBar(t('checkout'), '#/cart') +
       '<form class="detail__block" data-form="checkout" novalidate><h2>' + esc(t('address')) + '</h2>' +
