@@ -3,300 +3,659 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#0B1B3D">
 <title>Bharat Pro Expert</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
 <style>
-:root{--navy:#0B1E45;--navy2:#13306B;--gold:#C9A227;--gold-lt:#EBD58A;--gold-dk:#8A6A12;--mute:#667089;--saffron:#F58220;--green:#138808;--emerald:#0E9F5B;
---serif:"Cormorant Garamond","Playfair Display",Georgia,"Times New Roman",serif;--sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
---u:clamp(12px,min(2.4vw,2.4vh),20px);--ease:cubic-bezier(.2,.7,.2,1)}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#fff;color:var(--navy);font-family:var(--sans);-webkit-text-size-adjust:100%;overflow:hidden}
-/* ---------- living background ---------- */
-.bg{position:fixed;inset:0;overflow:hidden;background:#fff}
-.bg i{position:absolute;border-radius:50%;filter:blur(70px);will-change:transform}
-.bg .a{width:70vmax;height:70vmax;left:-28vmax;top:-30vmax;background:radial-gradient(circle,rgba(245,130,32,.20),transparent 65%);animation:drift 16s ease-in-out infinite alternate}
-.bg .b{width:70vmax;height:70vmax;right:-30vmax;bottom:-32vmax;background:radial-gradient(circle,rgba(19,136,8,.17),transparent 65%);animation:drift 19s ease-in-out infinite alternate-reverse}
-.bg .c{width:60vmax;height:60vmax;left:50%;top:44%;margin:-30vmax 0 0 -30vmax;background:radial-gradient(circle,rgba(235,213,138,.30),transparent 62%)}
-.bg::after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(11,30,69,.07) 1px,transparent 1.2px);background-size:26px 26px;-webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 45%,#000,transparent 75%);mask-image:radial-gradient(ellipse 70% 60% at 50% 45%,#000,transparent 75%)}
-@keyframes drift{to{transform:translate(6vmax,5vmax) scale(1.08)}}
-/* ---------- screens ---------- */
-.screen{position:fixed;inset:0;height:100vh;height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
-padding:calc(env(safe-area-inset-top,0px) + 16px) max(20px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(20px,env(safe-area-inset-left,0px));
-opacity:0;visibility:hidden;transition:opacity .6s ease,visibility .6s,filter .6s;filter:blur(6px)}
-.screen.on{opacity:1;visibility:visible;filter:none}
-.stack{display:flex;flex-direction:column;align-items:center;width:100%;max-width:520px}
-/* ---------- shared components ---------- */
-.logo{position:relative;width:calc(var(--u)*6.4);height:calc(var(--u)*6.4);margin-bottom:calc(var(--u)*1.2);border-radius:50%;
-background:linear-gradient(145deg,#ffffff,#f2f4f8);display:flex;align-items:center;justify-content:center;
-box-shadow:0 12px 30px rgba(11,30,69,.12),0 2px 6px rgba(11,30,69,.06);padding:calc(var(--u)*0.5)}
-.logo::before{content:"";position:absolute;inset:-3px;border-radius:50%;padding:3px;
-background:linear-gradient(135deg,var(--saffron),var(--gold),var(--green));
--webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
--webkit-mask-composite:xor;mask-composite:exclude}
-.logo img{width:100%;height:100%;object-fit:contain}
-.brand{font-family:var(--serif);font-size:calc(var(--u)*2.3);font-weight:700;letter-spacing:-.01em;line-height:1.05;color:var(--navy);margin-bottom:calc(var(--u)*0.3)}
-.rule{display:flex;align-items:center;gap:calc(var(--u)*0.6);margin:calc(var(--u)*0.4) 0 calc(var(--u)*0.6);width:100%;max-width:280px}
-.rule::before,.rule::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--gold-lt),transparent)}
-.rule span{font-size:calc(var(--u)*0.65);font-weight:600;letter-spacing:.28em;text-transform:uppercase;color:var(--gold-dk)}
-.tag{font-size:calc(var(--u)*0.78);color:var(--mute);font-weight:400;letter-spacing:.02em;margin-bottom:calc(var(--u)*1.6)}
-.loader{width:100%;max-width:240px}
-.bar{height:4px;width:100%;background:rgba(11,30,69,.08);border-radius:99px;overflow:hidden;position:relative}
-.bar i{position:absolute;inset:0;width:40%;background:linear-gradient(90deg,var(--saffron),var(--gold),var(--green));border-radius:99px;animation:slide 1.8s ease-in-out infinite}
-@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
-.wait{font-size:calc(var(--u)*0.65);color:var(--mute);margin-top:calc(var(--u)*0.5);letter-spacing:.05em;transition:opacity .25s}
-/* ---------- radar / location ---------- */
-.radar{position:relative;width:calc(var(--u)*7.5);height:calc(var(--u)*7.5);margin-bottom:calc(var(--u)*1.4);display:flex;align-items:center;justify-content:center}
-.radar b{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(201,162,39,.35);animation:pulse 2.4s var(--ease) infinite}
-.radar b:nth-child(2){animation-delay:.8s}.radar b:nth-child(3){animation-delay:1.6s}
-@keyframes pulse{0%{transform:scale(.3);opacity:0}50%{opacity:1}100%{transform:scale(1.35);opacity:0}}
-.pin{width:calc(var(--u)*3.2);height:calc(var(--u)*3.2);border-radius:50%;background:linear-gradient(135deg,var(--navy),var(--navy2));
-box-shadow:0 10px 24px rgba(11,30,69,.25),0 0 0 6px rgba(201,162,39,.18);display:flex;align-items:center;justify-content:center;z-index:2;position:relative}
-.pin.load::after{content:"";width:calc(var(--u)*1.1);height:calc(var(--u)*1.1);border:2px solid var(--gold-lt);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.pin.ok{background:linear-gradient(135deg,var(--emerald),var(--green));box-shadow:0 12px 28px rgba(14,159,91,.3),0 0 0 7px rgba(14,159,91,.15);margin-bottom:calc(var(--u)*1.2)}
-.pin.ok svg{width:calc(var(--u)*1.6);height:calc(var(--u)*1.6)}
-.t1{font-size:calc(var(--u)*1.1);font-weight:600;color:var(--navy);letter-spacing:-.01em}
-/* ---------- card & address ---------- */
-.card{background:rgba(255,255,255,.85);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
-border:1px solid rgba(201,162,39,.3);border-radius:calc(var(--u)*1.1);padding:calc(var(--u)*1.2) calc(var(--u)*1.3);
-box-shadow:0 16px 40px rgba(11,30,69,.08);width:100%;margin-bottom:calc(var(--u)*1.2)}
-.ok-l{font-size:calc(var(--u)*0.6);font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin-bottom:calc(var(--u)*0.2)}
-.home{font-family:var(--serif);font-size:calc(var(--u)*1.6);font-weight:700;color:var(--gold-dk);margin-bottom:calc(var(--u)*0.3)}
-.gold-text{background:linear-gradient(135deg,var(--gold-dk),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.addr{font-size:calc(var(--u)*0.75);color:var(--navy);line-height:1.45;font-weight:500}
-/* ---------- buttons ---------- */
-.btns{display:flex;flex-direction:column;gap:calc(var(--u)*0.55);width:100%}
-.btn{width:100%;padding:calc(var(--u)*0.75) calc(var(--u)*1);border-radius:calc(var(--u)*0.7);font-family:var(--sans);
-font-size:calc(var(--u)*0.8);font-weight:600;letter-spacing:.02em;cursor:pointer;transition:transform .2s var(--ease),box-shadow .2s,background .2s,border-color .2s;border:1px solid transparent}
-.btn:active{transform:scale(.98)}
-.btn.p{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;
-box-shadow:0 10px 22px rgba(11,30,69,.22),0 0 0 1px rgba(201,162,39,.4) inset}
-.btn.p:hover{box-shadow:0 14px 28px rgba(11,30,69,.3)}
-.btn.s{background:transparent;color:var(--navy);border-color:rgba(11,30,69,.18)}
-.btn.s:hover{background:rgba(11,30,69,.04)}
-/* ---------- reveal animation ---------- */
-.r{opacity:0;transform:translateY(12px);transition:opacity .5s var(--ease),transform .5s var(--ease);transition-delay:var(--d,0s)}
-.screen.on .r{opacity:1;transform:translateY(0)}
+:root {
+  --bg-cream: #FAF8F5;
+  --navy: #0B1B3D;
+  --navy-light: #132A5C;
+  --gold: #C5A059;
+  --gold-light: #E2C893;
+  --gold-dark: #9A7730;
+  --green: #22C55E;
+  --green-dark: #16A34A;
+  --grey-text: #64748B;
+  --grey-light: #F1F5F9;
+  --saffron: #FF9933;
+  --white: #FFFFFF;
+  --serif: "Playfair Display", Georgia, "Times New Roman", serif;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --u: clamp(12px, min(2.4vw, 2.4vh), 20px);
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background-color: var(--bg-cream);
+  color: var(--navy);
+  font-family: var(--sans);
+  -webkit-text-size-adjust: 100%;
+}
+
+body.onboarding-active {
+  overflow: hidden;
+}
+
+/* Base living background gradient */
+.bg-gradient {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 30%, #FFFFFF 0%, #FAF8F5 60%, #F3EFEA 100%);
+  z-index: 0;
+}
+
+/* Onboarding Screen Container */
+.onboarding-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) max(20px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 20px) max(20px, env(safe-area-inset-left, 0px));
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s var(--ease), visibility 0.5s;
+  background: radial-gradient(circle at 50% 30%, #FFFFFF 0%, #FAF8F5 60%, #F3EFEA 100%);
+}
+
+.onboarding-screen.on {
+  opacity: 1;
+  visibility: visible;
+}
+
+.onboarding-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 440px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Brand & Logo */
+.ob-logo {
+  position: relative;
+  width: calc(var(--u) * 6.8);
+  height: calc(var(--u) * 6.8);
+  margin-bottom: calc(var(--u) * 1.2);
+  border-radius: 50%;
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 32px rgba(11, 27, 61, 0.08), 0 2px 8px rgba(197, 160, 89, 0.15);
+  padding: calc(var(--u) * 0.6);
+}
+
+.ob-logo::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  padding: 3px;
+  background: linear-gradient(135deg, var(--saffron), var(--gold), var(--green));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.ob-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ob-title-navy {
+  font-family: var(--serif);
+  font-size: clamp(24px, 5vw, 32px);
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.ob-divider-rule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0 10px;
+  width: 100%;
+  max-width: 260px;
+}
+
+.ob-divider-rule::before,
+.ob-divider-rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.ob-divider-rule span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.ob-tagline {
+  font-size: clamp(13px, 2.5vw, 15px);
+  color: var(--grey-text);
+  font-weight: 400;
+  margin-bottom: 32px;
+}
+
+/* Tricolor Progress Bar */
+.tricolor-loader {
+  width: 100%;
+  max-width: 260px;
+  margin-top: auto;
+}
+
+.tricolor-track {
+  height: 4px;
+  width: 100%;
+  background: rgba(11, 27, 61, 0.08);
+  border-radius: 99px;
+  overflow: hidden;
+  position: relative;
+}
+
+.tricolor-fill {
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(90deg, var(--saffron) 0%, #FFFFFF 50%, var(--green) 100%);
+  border-radius: 99px;
+  animation: tricolorSlide 1.8s ease-in-out infinite;
+}
+
+@keyframes tricolorSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+.tricolor-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--navy);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 10px;
+}
+
+/* Screen 2: Radar Pulse & Pin */
+.radar-container {
+  position: relative;
+  width: calc(var(--u) * 8);
+  height: calc(var(--u) * 8);
+  margin-bottom: calc(var(--u) * 1.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radar-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(197, 160, 89, 0.4);
+  animation: radarPulse 2.4s var(--ease) infinite;
+}
+
+.radar-ring:nth-child(2) { animation-delay: 0.8s; }
+.radar-ring:nth-child(3) { animation-delay: 1.6s; }
+
+@keyframes radarPulse {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.gold-pin-circle {
+  width: calc(var(--u) * 3.6);
+  height: calc(var(--u) * 3.6);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  box-shadow: 0 10px 24px rgba(197, 160, 89, 0.35), 0 0 0 6px rgba(197, 160, 89, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  position: relative;
+}
+
+.gold-pin-circle svg {
+  width: calc(var(--u) * 1.8);
+  height: calc(var(--u) * 1.8);
+  fill: var(--white);
+}
+
+.heading-serif-navy {
+  font-family: var(--serif);
+  font-size: clamp(20px, 4vw, 26px);
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+/* Screen 3: Success Location State */
+.green-success-pin {
+  width: calc(var(--u) * 3.8);
+  height: calc(var(--u) * 3.8);
+  border-radius: 50%;
+  background: var(--green);
+  border: 3px solid var(--gold);
+  box-shadow: 0 12px 28px rgba(34, 197, 94, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.green-success-pin svg {
+  width: calc(var(--u) * 1.8);
+  height: calc(var(--u) * 1.8);
+  stroke: var(--white);
+  stroke-width: 3;
+}
+
+.delivering-small-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.home-gold-heading {
+  font-family: var(--serif);
+  font-size: clamp(28px, 6vw, 36px);
+  font-weight: 700;
+  color: var(--gold-dark);
+  margin-bottom: 16px;
+}
+
+.address-white-card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(11, 27, 61, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  margin-bottom: 24px;
+  border: 1px solid rgba(197, 160, 89, 0.25);
+  text-align: center;
+}
+
+.address-text-grey {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--grey-text);
+  font-weight: 500;
+}
+
+/* Buttons */
+.btn-onboarding-primary {
+  width: 100%;
+  padding: 16px 24px;
+  border-radius: 12px;
+  background: var(--navy);
+  color: var(--white);
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 8px 20px rgba(11, 27, 61, 0.2);
+}
+
+.btn-onboarding-primary:hover {
+  background: var(--navy-light);
+}
+
+.btn-onboarding-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-change-location-link {
+  background: transparent;
+  border: none;
+  color: var(--gold-dark);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 14px;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.btn-change-location-link:hover {
+  color: var(--gold);
+}
+
+/* Pincode Error Modal */
+.pincode-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(11, 27, 61, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s;
+}
+
+.pincode-modal-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.pincode-modal-card {
+  background: var(--white);
+  border-radius: 20px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  border: 1px solid var(--gold-light);
+}
+
+.pincode-modal-title {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 8px;
+}
+
+.pincode-modal-sub {
+  font-size: 13px;
+  color: var(--grey-text);
+  margin-bottom: 20px;
+}
+
+.pincode-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1.5px solid var(--gold-light);
+  border-radius: 12px;
+  font-size: 15px;
+  color: var(--navy);
+  outline: none;
+  margin-bottom: 16px;
+  transition: border-color 0.2s;
+}
+
+.pincode-input:focus {
+  border-color: var(--gold-dark);
+}
 </style>
 </head>
-<body>
-<div class="bg"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+<body class="onboarding-active">
 
-<section class="screen on" id="s1"><div class="stack">
-  <div class="logo r" style="--d:.1s"><img src="assets/bharat-pro-logo.png" alt="Bharat Pro Expert"></div>
-  <h1 class="brand r" style="--d:.25s">Bharat Pro Expert</h1>
-  <div class="rule r" style="--d:.4s"><span>Home Services</span></div>
-  <p class="tag r" style="--d:.55s">Expert Hands For Your Perfect Home</p>
-  <div class="loader r" style="--d:.7s"><div class="bar"><i></i></div><p class="wait">Just a moment…</p></div>
-</div></section>
+<div class="bg-gradient"></div>
 
-<section class="screen" id="s2"><div class="stack">
-  <div class="radar r" style="--d:.05s"><b></b><b></b><b></b><div class="pin load"></div></div>
-  <p class="t1 r" style="--d:.2s">Fetching your location…</p>
-  <div class="rule r" style="--d:.3s"><span>Please wait</span></div>
-  <div class="loader r" style="--d:.4s"><div class="bar"><i></i></div><p class="wait" id="status">Connecting to GPS…</p></div>
-</div></section>
-
-<section class="screen" id="s3"><div class="stack">
-  <div class="pin ok"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
-  <div class="card r" style="--d:.45s">
-    <p class="ok-l">Delivering Services At</p>
-    <p class="home gold-text" id="label">Current Location</p>
-    <p class="addr" id="addr"></p>
-    <div id="manualBox" style="display:none; margin-top: 12px; width: 100%;">
-      <p id="manualStatus" style="font-size: clamp(11px, 1.8vw, 13px); color: var(--saffron); font-weight: 500; margin-bottom: 8px; display: none;"></p>
-      <input type="text" id="manualInput" placeholder="Enter your address manually..." style="width: 100%; padding: 10px 14px; border: 1px solid var(--gold-lt); border-radius: 8px; font-family: var(--sans); font-size: 14px; color: var(--navy); background: #fff; outline: none; margin-bottom: 8px; transition: border-color .2s;">
-      <button id="saveManual" style="width: 100%; padding: 10px 16px; background: linear-gradient(135deg, var(--navy), var(--navy2)); color: #fff; border: 1px solid var(--gold); border-radius: 8px; font-family: var(--sans); font-weight: 600; font-size: 14px; cursor: pointer; transition: transform .2s, box-shadow .2s;">Save Location</button>
+<!-- SCREEN 1: SPLASH SCREEN -->
+<section class="onboarding-screen on" id="ob-screen-1">
+  <div class="onboarding-stack">
+    <div class="ob-logo">
+      <img src="assets/bharat-pro-logo.png" alt="Bharat Pro Expert">
+    </div>
+    <h1 class="ob-title-navy">Bharat Pro Expert</h1>
+    <div class="ob-divider-rule">
+      <span>Home Services</span>
+    </div>
+    <p class="ob-tagline">Expert Hands For Your Perfect Home</p>
+    <div class="tricolor-loader">
+      <div class="tricolor-track"><div class="tricolor-fill"></div></div>
+      <p class="tricolor-text">JUST A MOMENT...</p>
     </div>
   </div>
-  <div class="btns r" style="--d:.8s">
-    <button class="btn p" id="go">Continue</button>
-    <button class="btn s" id="change">Change location</button>
+</section>
+
+<!-- SCREEN 2: FETCHING LOCATION STATE -->
+<section class="onboarding-screen" id="ob-screen-2">
+  <div class="onboarding-stack">
+    <div class="radar-container">
+      <div class="radar-ring"></div>
+      <div class="radar-ring"></div>
+      <div class="radar-ring"></div>
+      <div class="gold-pin-circle">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+        </svg>
+      </div>
+    </div>
+    <h2 class="heading-serif-navy">Fetching your location...</h2>
+    <div class="ob-divider-rule">
+      <span>PLEASE WAIT</span>
+    </div>
+    <div class="tricolor-loader" style="margin-top: 24px;">
+      <div class="tricolor-track"><div class="tricolor-fill"></div></div>
+      <p class="tricolor-text" id="gps-status-text">CONNECTING TO GPS...</p>
+    </div>
   </div>
-</div></section>
+</section>
+
+<!-- SCREEN 3: SUCCESS LOCATION STATE -->
+<section class="onboarding-screen" id="ob-screen-3">
+  <div class="onboarding-stack">
+    <div class="green-success-pin">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M5 12.5L9.5 17L19 7.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <p class="delivering-small-text">Delivering Services At</p>
+    <h1 class="home-gold-heading">Home</h1>
+
+    <div class="address-white-card">
+      <p class="address-text-grey" id="ob-fetched-address">Fetching address details...</p>
+    </div>
+
+    <button type="button" class="btn-onboarding-primary" id="ob-btn-continue">Continue</button>
+    <button type="button" class="btn-change-location-link" id="ob-btn-change-location">Change location</button>
+  </div>
+</section>
+
+<!-- MANUAL PIN CODE MODAL -->
+<div class="pincode-modal-overlay" id="ob-pincode-modal">
+  <div class="pincode-modal-card">
+    <h3 class="pincode-modal-title">Pin Code daalein</h3>
+    <p class="pincode-modal-sub">GPS location fetch nahi ho saka. Kripya apna address ya Pin Code daalein:</p>
+    <input type="text" class="pincode-input" id="ob-pincode-input" placeholder="Enter Pincode or full address...">
+    <button type="button" class="btn-onboarding-primary" id="ob-btn-save-pincode">Save Location</button>
+  </div>
+</div>
+
+<!-- Main SPA Web App Container -->
+<div id="app"></div>
+<div id="sheet-root"></div>
+<div id="toast-root"></div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script type="module" src="js/firebase-config.js"></script>
+<script type="module" src="js/data.js"></script>
+<script type="module" src="js/app.js"></script>
+<script type="module" src="js/overrides.js"></script>
 
 <script>
-var LOCATION_LABEL = "Current Location";
-var LOCATION_ADDRESS = "";
-var SPLASH_MS = 2800;
-var statusTimer;
-var msgs = ["Connecting to GPS…", "Finding experts near you…", "Almost there…"];
+(function() {
+  var currentLocationData = {
+    address: "",
+    lat: null,
+    lng: null
+  };
 
-var splashDone = false;
-var locationResolved = false;
-var locationError = false;
-var errorMessage = "";
+  var SPLASH_DELAY = 2200;
+  var splashFinished = false;
+  var gpsFinished = false;
+  var gpsFailed = false;
 
-function show(id) {
-  var all = document.querySelectorAll(".screen");
-  for (var i = 0; i < all.length; i++) {
-    all[i].classList.toggle("on", all[i].id === id);
+  function showScreen(screenId) {
+    var screens = document.querySelectorAll(".onboarding-screen");
+    screens.forEach(function(s) {
+      s.classList.toggle("on", s.id === screenId);
+    });
   }
-}
 
-function cycle() {
-  var el = document.getElementById("status"), n = 0;
-  clearInterval(statusTimer);
-  if (el) el.textContent = msgs[0];
-  statusTimer = setInterval(function() {
-    n = (n + 1) % msgs.length;
-    if (el) {
-      el.style.opacity = 0;
-      setTimeout(function() {
-        el.textContent = msgs[n];
-        el.style.opacity = 1;
-      }, 250);
-    }
-  }, 1100);
-}
-
-function checkTransition() {
-  if (!splashDone) return;
-
-  if (!locationResolved) {
-    show("s2");
-    cycle();
-  } else {
-    clearInterval(statusTimer);
-    show("s3");
-    if (locationError) {
-      showManualMode(errorMessage);
-    } else {
-      hideManualMode();
-    }
-  }
-}
-
-function startGpsFetch() {
-  if (!navigator.geolocation) {
-    onLocationFail("Location access denied. Please enter manually.");
-    return;
-  }
-  navigator.geolocation.getCurrentPosition(
-    function(position) {
-      var lat = position.coords.latitude;
-      var lon = position.coords.longitude;
-      fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lon)
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          var addr = data.display_name || "";
-          if (!addr && data.address) {
-            var parts = [];
-            for (var k in data.address) {
-              if (data.address[k]) parts.push(data.address[k]);
-            }
-            addr = parts.join(", ");
-          }
-          if (addr) {
-            LOCATION_ADDRESS = addr;
-            LOCATION_LABEL = "Current Location";
-            document.getElementById("label").textContent = LOCATION_LABEL;
-            document.getElementById("addr").textContent = LOCATION_ADDRESS;
-            locationResolved = true;
-            locationError = false;
-            checkTransition();
-          } else {
-            onLocationFail("Could not determine exact address. Please enter manually.");
-          }
-        })
-        .catch(function() {
-          onLocationFail("Could not determine exact address. Please enter manually.");
-        });
-    },
-    function(err) {
-      var msg = "Location access denied. Please enter manually.";
-      if (err.code === err.TIMEOUT) {
-        msg = "Location request timed out. Please enter manually.";
+  function finishOnboardingAndNavigate() {
+    // 1. Save to localStorage
+    try {
+      localStorage.setItem("bpe_location", JSON.stringify(currentLocationData));
+      if (currentLocationData.address) {
+        localStorage.setItem("bpe_city", JSON.stringify(currentLocationData.address.split(",")[0] || "Gurgaon"));
       }
-      onLocationFail(msg);
-    },
-    { timeout: 10000, enableHighAccuracy: true }
-  );
-}
+    } catch (e) {}
 
-function onLocationFail(msg) {
-  locationResolved = true;
-  locationError = true;
-  errorMessage = msg;
-  checkTransition();
-}
+    // 2. Hide onboarding UI & enable scrolling
+    document.querySelectorAll(".onboarding-screen").forEach(function(s) {
+      s.classList.remove("on");
+      s.style.display = "none";
+    });
+    document.body.classList.remove("onboarding-active");
 
-function showManualMode(msg) {
-  var manualBox = document.getElementById("manualBox");
-  var addrEl = document.getElementById("addr");
-  var manualStatus = document.getElementById("manualStatus");
-
-  if (msg) {
-    manualStatus.textContent = msg;
-    manualStatus.style.display = "block";
-  } else {
-    manualStatus.style.display = "none";
+    // 3. Navigate to Home (#/)
+    if (window.location.hash !== "#/" && window.location.hash !== "") {
+      window.location.hash = "#/";
+    } else {
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    }
   }
 
-  addrEl.style.display = "none";
-  manualBox.style.display = "block";
-  if (LOCATION_ADDRESS) {
-    document.getElementById("manualInput").value = LOCATION_ADDRESS;
+  function fetchGpsLocation() {
+    if (!navigator.geolocation) {
+      handleGpsError("Geolocation is not supported by your browser");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        var lat = pos.coords.latitude;
+        var lng = pos.coords.longitude;
+        currentLocationData.lat = lat;
+        currentLocationData.lng = lng;
+
+        fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lng)
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            var addr = data.display_name || "";
+            if (!addr && data.address) {
+              var parts = [];
+              for (var k in data.address) {
+                if (data.address[k]) parts.push(data.address[k]);
+              }
+              addr = parts.join(", ");
+            }
+            if (addr) {
+              currentLocationData.address = addr;
+              document.getElementById("ob-fetched-address").textContent = addr;
+              gpsFinished = true;
+              gpsFailed = false;
+              checkTransition();
+            } else {
+              handleGpsError("Could not fetch address details");
+            }
+          })
+          .catch(function() {
+            handleGpsError("Network error fetching address");
+          });
+      },
+      function(err) {
+        handleGpsError("GPS permission denied or unavailable");
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
   }
-  document.getElementById("manualInput").focus();
-}
 
-function hideManualMode() {
-  var manualBox = document.getElementById("manualBox");
-  var addrEl = document.getElementById("addr");
-  var manualStatus = document.getElementById("manualStatus");
-
-  manualBox.style.display = "none";
-  manualStatus.style.display = "none";
-  addrEl.style.display = "block";
-}
-
-function run() {
-  splashDone = false;
-  locationResolved = false;
-  locationError = false;
-  errorMessage = "";
-  hideManualMode();
-  show("s1");
-
-  setTimeout(function() {
-    splashDone = true;
+  function handleGpsError(reason) {
+    console.warn("GPS Location error:", reason);
+    gpsFinished = true;
+    gpsFailed = true;
     checkTransition();
-  }, SPLASH_MS);
-
-  startGpsFetch();
-}
-
-document.getElementById("change").addEventListener("click", function() {
-  showManualMode("");
-});
-
-document.getElementById("saveManual").addEventListener("click", function() {
-  var val = document.getElementById("manualInput").value.trim();
-  if (val) {
-    LOCATION_ADDRESS = val;
-    LOCATION_LABEL = "Home";
-    document.getElementById("label").textContent = LOCATION_LABEL;
-    document.getElementById("addr").textContent = LOCATION_ADDRESS;
-    hideManualMode();
   }
-});
 
-document.getElementById("manualInput").addEventListener("keypress", function(e) {
-  if (e.key === "Enter") {
-    document.getElementById("saveManual").click();
+  function checkTransition() {
+    if (!splashFinished) return;
+
+    if (!gpsFinished) {
+      showScreen("ob-screen-2");
+    } else if (gpsFailed) {
+      showScreen("ob-screen-2");
+      document.getElementById("ob-pincode-modal").classList.add("open");
+    } else {
+      document.getElementById("ob-pincode-modal").classList.remove("open");
+      showScreen("ob-screen-3");
+    }
   }
-});
 
-document.getElementById("go").addEventListener("click", function() {
-  document.dispatchEvent(new CustomEvent("bpe:continue", {
-    detail: { label: LOCATION_LABEL, address: LOCATION_ADDRESS }
-  }));
-});
+  // Event Listeners
+  document.getElementById("ob-btn-continue").addEventListener("click", function() {
+    finishOnboardingAndNavigate();
+  });
 
-run();
+  document.getElementById("ob-btn-change-location").addEventListener("click", function() {
+    gpsFinished = false;
+    gpsFailed = false;
+    currentLocationData = { address: "", lat: null, lng: null };
+    document.getElementById("ob-pincode-modal").classList.remove("open");
+    showScreen("ob-screen-2");
+    fetchGpsLocation();
+  });
+
+  document.getElementById("ob-btn-save-pincode").addEventListener("click", function() {
+    var val = document.getElementById("ob-pincode-input").value.trim();
+    if (val) {
+      currentLocationData.address = val;
+      document.getElementById("ob-fetched-address").textContent = val;
+      document.getElementById("ob-pincode-modal").classList.remove("open");
+      gpsFailed = false;
+      showScreen("ob-screen-3");
+    }
+  });
+
+  // Check if location is already saved
+  var savedLoc = null;
+  try {
+    savedLoc = JSON.parse(localStorage.getItem("bpe_location"));
+  } catch (e) {}
+
+  if (savedLoc && savedLoc.address) {
+    // Fast path if location exists
+    document.body.classList.remove("onboarding-active");
+    document.querySelectorAll(".onboarding-screen").forEach(function(s) {
+      s.style.display = "none";
+    });
+  } else {
+    // Start splash flow
+    setTimeout(function() {
+      splashFinished = true;
+      checkTransition();
+    }, SPLASH_DELAY);
+
+    fetchGpsLocation();
+  }
+})();
 </script>
 </body>
 </html>
