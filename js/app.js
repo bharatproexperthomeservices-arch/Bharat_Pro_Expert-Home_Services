@@ -662,18 +662,26 @@ import {
     if (!co.date) co.date = dateChips()[0].iso;
     co.pay = 'online';
 
-    var gpsLoc = window.BPE_GPS_LOCATION || {};
-    if (co.house == null && gpsLoc.houseNumber) {
-      co.house = gpsLoc.houseNumber;
+    var gpsLoc = window.BPE_GPS_LOCATION || load('bpe_location', {});
+    if (co.house == null) {
+      co.house = gpsLoc.flatNo || gpsLoc.houseNumber || '';
     }
     if (co.area == null) {
-      var areaParts = [gpsLoc.street, gpsLoc.locality, gpsLoc.sector, gpsLoc.city].filter(Boolean);
-      var uniqueArea = areaParts.filter(function(item, index) { return areaParts.indexOf(item) === index; });
-      if (uniqueArea.length) {
-        co.area = uniqueArea.join(', ');
-      } else if (gpsLoc.formattedAddress) {
-        co.area = gpsLoc.formattedAddress;
+      if (gpsLoc.apartmentName) {
+        var areaParts = [gpsLoc.apartmentName, gpsLoc.sector || gpsLoc.locality, gpsLoc.city].filter(Boolean);
+        co.area = areaParts.join(', ');
+      } else {
+        var areaParts = [gpsLoc.street, gpsLoc.locality, gpsLoc.sector, gpsLoc.city].filter(Boolean);
+        var uniqueArea = areaParts.filter(function(item, index) { return areaParts.indexOf(item) === index; });
+        if (uniqueArea.length) {
+          co.area = uniqueArea.join(', ');
+        } else if (gpsLoc.formattedAddress) {
+          co.area = gpsLoc.formattedAddress;
+        }
       }
+    }
+    if (co.landmark == null && gpsLoc.landmark) {
+      co.landmark = gpsLoc.landmark;
     }
     if (co.pincode == null && gpsLoc.postalCode) {
       co.pincode = gpsLoc.postalCode;
@@ -682,7 +690,21 @@ import {
       S.city = gpsLoc.city;
     }
     var c = calc();
+
+    var fullDisplayAddress = gpsLoc.fullAddress ||
+      [gpsLoc.flatNo || co.house, gpsLoc.apartmentName, co.landmark || gpsLoc.landmark, gpsLoc.formattedAddress || co.area].filter(Boolean).join(', ');
+
+    var locationBannerHtml = fullDisplayAddress ?
+      '<div style="background:linear-gradient(135deg, #0B1B3D 0%, #132A5C 100%);color:#FFFFFF;padding:16px 18px;border-radius:16px;margin-bottom:20px;border:1px solid #C5A059;box-shadow:0 8px 24px rgba(11,27,61,0.12)">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+          '<span style="font-size:18px">📍</span>' +
+          '<span style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#E2C893">Servicing Location</span>' +
+        '</div>' +
+        '<p style="font-size:14px;line-height:1.4;font-weight:500;color:#FFFFFF;margin:0">' + esc(fullDisplayAddress) + '</p>' +
+      '</div>' : '';
+
     return backBar(t('checkout'), '#/cart') +
+      locationBannerHtml +
       '<form class="detail__block" data-form="checkout" novalidate><h2>' + esc(t('address')) + '</h2>' +
       field(t('name'), 'co.name', { ac: 'name' }) + field(t('phone'), 'co.phone', { type: 'tel', inputmode: 'numeric', max: 10, ac: 'tel-national' }) +
       field(t('house'), 'co.house', { ac: 'address-line1' }) + field(t('area'), 'co.area', { ac: 'address-line2' }) +
@@ -849,12 +871,17 @@ import {
       };
     });
 
-    var streetAddress = String(co.area || '').trim();
-    if (co.landmark && String(co.landmark).trim()) {
-      streetAddress += ' (Landmark: ' + String(co.landmark).trim() + ')';
-    }
+    var gps = window.BPE_GPS_LOCATION || load('bpe_location', {});
 
-    var gps = window.BPE_GPS_LOCATION || {};
+    var aptName = gps.apartmentName || '';
+    var flatNumber = gps.flatNo || co.house.trim();
+    var landmarkVal = (co.landmark || gps.landmark || '').trim();
+    var fullAddressVal = gps.fullAddress || [flatNumber, aptName, landmarkVal, co.area.trim(), S.city, co.pincode.trim()].filter(Boolean).join(', ');
+
+    var streetAddress = String(co.area || '').trim();
+    if (landmarkVal) {
+      streetAddress += ' (Landmark: ' + landmarkVal + ')';
+    }
 
     var supabaseBookingData = {
       id: id,
@@ -870,19 +897,22 @@ import {
       address: {
         name: co.name.trim(),
         phone: co.phone.trim(),
-        house: co.house.trim(),
+        house: flatNumber,
+        apartmentName: aptName,
+        flatNo: flatNumber,
         area: co.area.trim(),
         pincode: co.pincode.trim(),
-        landmark: (co.landmark || '').trim(),
+        landmark: landmarkVal,
+        fullAddress: fullAddressVal,
         city: S.city
       },
       latitude: gps.latitude || null,
       longitude: gps.longitude || null,
       accuracy: gps.accuracy || null,
       capturedAt: gps.timestamp || new Date().toISOString(),
-      formattedAddress: gps.formattedAddress || streetAddress,
-      houseNumber: gps.houseNumber || co.house.trim(),
-      street: gps.street || streetAddress,
+      formattedAddress: fullAddressVal || gps.formattedAddress || streetAddress,
+      houseNumber: flatNumber || gps.houseNumber || co.house.trim(),
+      street: aptName || gps.street || streetAddress,
       locality: gps.locality || co.area.trim(),
       sector: gps.sector || '',
       city: gps.city || S.city || 'Gurugram',
@@ -892,6 +922,10 @@ import {
       country: gps.country || 'India',
       locationSource: gps.locationSource || 'GPS',
       addressConfirmed: true,
+      apartmentName: aptName,
+      flatNo: flatNumber,
+      landmark: landmarkVal,
+      fullAddress: fullAddressVal,
       createdAt: new Date().toISOString()
     };
 
@@ -944,12 +978,13 @@ import {
     var a = b.address;
     var gps = b.gps || {};
     var mapsUrl = (gps.latitude && gps.longitude) ? ('https://www.google.com/maps?q=' + gps.latitude + ',' + gps.longitude) : null;
+    var displayAddress = a.fullAddress || (a.house + ', ' + a.area + (a.landmark ? ' (' + a.landmark + ')' : '') + ', ' + a.city + ' ' + a.pincode);
 
     return '<div class="empty"><div aria-hidden="true" style="font-size:48px">' + (b.cancelled ? '❌' : '🎉') + '</div><h1>' + esc(b.cancelled ? t('cancelled') : t('thanks')) + '</h1><p>' + esc(t('thanksSub')) + '</p></div>' +
       '<div class="detail__block"><p>' + esc(t('bookingId')) + ': <strong>' + esc(b.id) + '</strong></p>' +
       (b.paymentId ? '<p>💳 Payment Txn ID: <strong>' + esc(b.paymentId) + '</strong></p>' : '') +
       '<p>📅 ' + fmtDate(b.date) + ', ' + esc(b.slot) + '</p>' +
-      '<p>📍 ' + esc(a.house + ', ' + a.area + (a.landmark ? ' (' + a.landmark + ')' : '') + ', ' + a.city + ' ' + a.pincode) + '</p>' +
+      '<p>📍 ' + esc(displayAddress) + '</p>' +
       (gps.formattedAddress ? '<p style="margin-top:4px;font-size:13px;color:var(--text-sub)">📍 Verified GPS: ' + esc(gps.formattedAddress) + '</p>' : '') +
       (mapsUrl ? '<p style="margin-top:6px"><a href="' + esc(mapsUrl) + '" target="_blank" rel="noopener" class="btn btn--sm btn--ghost" style="display:inline-flex;align-items:center;gap:4px">🗺️ Open Location in Google Maps</a></p>' : '') +
       '<p style="margin-top:6px">📞 ' + esc(a.name) + ', ' + esc(a.phone) + '</p></div>' +
