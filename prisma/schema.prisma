@@ -124,6 +124,10 @@ model Booking {
   country          String?   @default("India")
   locationSource   String?   @default("GPS") // GPS | manual | pincode
   addressConfirmed Boolean   @default(true)
+  apartmentName    String?
+  flatNo           String?
+  landmark         String?
+  fullAddress      String?
   partnerId        String?
   partner          Partner?  @relation(fields: [partnerId], references: [id])
   cancelled        Boolean   @default(false)
