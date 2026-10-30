@@ -1592,17 +1592,111 @@ import {
   try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (!S.theme) { applyTheme(); refresh(); } }); } catch (e) { /* old browsers */ }
   window.addEventListener('hashchange', function () { if (parseRoute().name !== 'partner') drafts.partner = {}; });
 
+  /* ---------- Splash Screen Controller ---------- */
+  var splashController = (function () {
+    var targetPercent = 0;
+    var currentPercent = 0;
+    var barEl = document.getElementById('splash-progress');
+    var statusEl = document.getElementById('splash-status');
+    var splashEl = document.getElementById('splash-screen');
+    var animationFrame = null;
+    var isDone = false;
+
+    function updateUI() {
+      if (barEl) {
+        barEl.style.width = Math.min(100, Math.max(0, currentPercent)) + '%';
+      }
+    }
+
+    function step() {
+      if (currentPercent < targetPercent) {
+        currentPercent += Math.max(0.8, (targetPercent - currentPercent) * 0.18);
+        if (Math.abs(targetPercent - currentPercent) < 0.2) {
+          currentPercent = targetPercent;
+        }
+        updateUI();
+        if (currentPercent < targetPercent) {
+          animationFrame = requestAnimationFrame(step);
+        } else if (currentPercent >= 100 && !isDone) {
+          finish();
+        }
+      }
+    }
+
+    function setMilestone(percent, statusText) {
+      if (isDone) return;
+      if (percent > targetPercent) {
+        targetPercent = percent;
+        if (statusText && statusEl) {
+          statusEl.textContent = statusText;
+        }
+        if (animationFrame) cancelAnimationFrame(animationFrame);
+        animationFrame = requestAnimationFrame(step);
+      }
+    }
+
+    function finish() {
+      if (isDone) return;
+      isDone = true;
+      targetPercent = 100;
+      currentPercent = 100;
+      updateUI();
+      if (statusEl) statusEl.textContent = 'Just a moment...';
+      setTimeout(function () {
+        if (splashEl) {
+          splashEl.classList.add('splash-hidden', 'opacity-0', 'pointer-events-none');
+          setTimeout(function () {
+            if (splashEl && splashEl.parentNode) {
+              splashEl.parentNode.removeChild(splashEl);
+            }
+          }, 600);
+        }
+      }, 250);
+    }
+
+    return {
+      setMilestone: setMilestone,
+      finish: finish
+    };
+  })();
+
+  // Milestone 0% -> 20%: Document & Font Readiness
+  if (document.readyState === 'complete') {
+    splashController.setMilestone(20, 'Just a moment...');
+  } else {
+    window.addEventListener('load', function () {
+      splashController.setMilestone(20, 'Just a moment...');
+    });
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      splashController.setMilestone(20, 'Just a moment...');
+    }).catch(function () {});
+  }
+
   applyTheme();
   render(false);
 
+  // Asynchronous network milestone tracking
+  var authDone = false;
+  var cmsDone = false;
+
+  function checkInitializationComplete() {
+    if (authDone && cmsDone) {
+      splashController.setMilestone(100, 'Just a moment...');
+      splashController.finish();
+    }
+  }
+
+  // Milestone 20% -> 50%: Auth session check
   try {
-    subscribeAuthState(function (err, userObj) {
+    var unsubscribeAuth = subscribeAuthState(function (err, userObj) {
+      authDone = true;
+      splashController.setMilestone(50, 'Just a moment...');
       if (err) {
         console.error("Auth Step 2 error in auth listener:", err);
-        return;
-      }
-      if (userObj) {
-        console.log("Auth Step 2 complete: Firebase Auth state synced for UID:", userObj.uid);
+      } else if (userObj) {
+        console.log("Auth Step 2 complete: Auth state synced for UID:", userObj.uid);
         var currentStored = load('bpe_user', null);
         if (!currentStored || currentStored.uid !== userObj.uid || !currentStored.phone) {
           S.user = Object.assign({}, currentStored || {}, userObj, {
@@ -1613,9 +1707,13 @@ import {
           refresh();
         }
       }
+      checkInitializationComplete();
     });
   } catch (err) {
+    authDone = true;
+    splashController.setMilestone(50, 'Just a moment...');
     console.error("Auth Step 2 error initializing subscribeAuthState:", err);
+    checkInitializationComplete();
   }
 
   checkGoogleRedirectResult().then(function (res) {
@@ -1641,14 +1739,32 @@ import {
     console.error('Auth Step 1 error checking redirect result:', err);
   });
 
-  // Subscribe to real-time CMS Firestore updates
+  // Milestone 50% -> 80%: CMS data/catalog fetch
   try {
+    var initialCmsReceived = false;
     subscribeCMS(function (type) {
-      console.log("Firestore CMS update received for:", type);
+      if (!initialCmsReceived) {
+        initialCmsReceived = true;
+        cmsDone = true;
+        splashController.setMilestone(80, 'Just a moment...');
+        checkInitializationComplete();
+      }
+      console.log("CMS update received for:", type);
       rebuildLookups();
       refresh();
     });
   } catch (cmsErr) {
+    cmsDone = true;
+    splashController.setMilestone(80, 'Just a moment...');
     console.warn("CMS Real-Time Subscription error:", cmsErr);
+    checkInitializationComplete();
   }
+
+  // Safety fallback timeout: ensure splash screen closes within 3.5s if network is exceptionally slow or offline
+  setTimeout(function () {
+    authDone = true;
+    cmsDone = true;
+    splashController.setMilestone(100, 'Just a moment...');
+    splashController.finish();
+  }, 3500);
 })();
