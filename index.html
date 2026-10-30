@@ -1,43 +1,302 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#007AFF">
-<meta name="description" content="Bharat Pro Expert: book trusted apartment cleaning at your doorstep - home deep cleaning, bathroom, kitchen, sofa, carpet, mattress and appliance cleaning in Gurgaon and across India.">
-<title>Bharat Pro Expert — Apartment Cleaning Services</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="assets/bharat-pro-logo.png" type="image/png">
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="css/styles.css">
+<meta name="theme-color" content="#FFFFFF">
+<title>Bharat Pro Expert</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0B1E45;--navy2:#13306B;--gold:#C9A227;--gold-lt:#EBD58A;--gold-dk:#8A6A12;--mute:#667089;--saffron:#F58220;--green:#138808;--emerald:#0E9F5B;
+--serif:"Cormorant Garamond","Playfair Display",Georgia,"Times New Roman",serif;--sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+--u:clamp(12px,min(2.4vw,2.4vh),20px);--ease:cubic-bezier(.2,.7,.2,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#fff;color:var(--navy);font-family:var(--sans);-webkit-text-size-adjust:100%;overflow:hidden}
+/* ---------- living background ---------- */
+.bg{position:fixed;inset:0;overflow:hidden;background:#fff}
+.bg i{position:absolute;border-radius:50%;filter:blur(70px);will-change:transform}
+.bg .a{width:70vmax;height:70vmax;left:-28vmax;top:-30vmax;background:radial-gradient(circle,rgba(245,130,32,.20),transparent 65%);animation:drift 16s ease-in-out infinite alternate}
+.bg .b{width:70vmax;height:70vmax;right:-30vmax;bottom:-32vmax;background:radial-gradient(circle,rgba(19,136,8,.17),transparent 65%);animation:drift 19s ease-in-out infinite alternate-reverse}
+.bg .c{width:60vmax;height:60vmax;left:50%;top:44%;margin:-30vmax 0 0 -30vmax;background:radial-gradient(circle,rgba(235,213,138,.30),transparent 62%)}
+.bg::after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(11,30,69,.07) 1px,transparent 1.2px);background-size:26px 26px;-webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 45%,#000,transparent 75%);mask-image:radial-gradient(ellipse 70% 60% at 50% 45%,#000,transparent 75%)}
+@keyframes drift{to{transform:translate(6vmax,5vmax) scale(1.08)}}
+/* ---------- screens ---------- */
+.screen{position:fixed;inset:0;height:100vh;height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+padding:calc(env(safe-area-inset-top,0px) + 16px) max(20px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(20px,env(safe-area-inset-left,0px));
+opacity:0;visibility:hidden;transition:opacity .6s ease,visibility .6s,filter .6s;filter:blur(6px)}
+.screen.on{opacity:1;visibility:visible;filter:none}
+.stack{display:flex;flex-direction:column;align-items:center;width:100%;max-width:520px}
+/* ---------- shared components ---------- */
+.logo{position:relative;width:calc(var(--u)*6.4);height:calc(var(--u)*6.4);margin-bottom:calc(var(--u)*1.2);border-radius:50%;
+background:linear-gradient(145deg,#ffffff,#f2f4f8);display:flex;align-items:center;justify-content:center;
+box-shadow:0 12px 30px rgba(11,30,69,.12),0 2px 6px rgba(11,30,69,.06);padding:calc(var(--u)*0.5)}
+.logo::before{content:"";position:absolute;inset:-3px;border-radius:50%;padding:3px;
+background:linear-gradient(135deg,var(--saffron),var(--gold),var(--green));
+-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+-webkit-mask-composite:xor;mask-composite:exclude}
+.logo img{width:100%;height:100%;object-fit:contain}
+.brand{font-family:var(--serif);font-size:calc(var(--u)*2.3);font-weight:700;letter-spacing:-.01em;line-height:1.05;color:var(--navy);margin-bottom:calc(var(--u)*0.3)}
+.rule{display:flex;align-items:center;gap:calc(var(--u)*0.6);margin:calc(var(--u)*0.4) 0 calc(var(--u)*0.6);width:100%;max-width:280px}
+.rule::before,.rule::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--gold-lt),transparent)}
+.rule span{font-size:calc(var(--u)*0.65);font-weight:600;letter-spacing:.28em;text-transform:uppercase;color:var(--gold-dk)}
+.tag{font-size:calc(var(--u)*0.78);color:var(--mute);font-weight:400;letter-spacing:.02em;margin-bottom:calc(var(--u)*1.6)}
+.loader{width:100%;max-width:240px}
+.bar{height:4px;width:100%;background:rgba(11,30,69,.08);border-radius:99px;overflow:hidden;position:relative}
+.bar i{position:absolute;inset:0;width:40%;background:linear-gradient(90deg,var(--saffron),var(--gold),var(--green));border-radius:99px;animation:slide 1.8s ease-in-out infinite}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+.wait{font-size:calc(var(--u)*0.65);color:var(--mute);margin-top:calc(var(--u)*0.5);letter-spacing:.05em;transition:opacity .25s}
+/* ---------- radar / location ---------- */
+.radar{position:relative;width:calc(var(--u)*7.5);height:calc(var(--u)*7.5);margin-bottom:calc(var(--u)*1.4);display:flex;align-items:center;justify-content:center}
+.radar b{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(201,162,39,.35);animation:pulse 2.4s var(--ease) infinite}
+.radar b:nth-child(2){animation-delay:.8s}.radar b:nth-child(3){animation-delay:1.6s}
+@keyframes pulse{0%{transform:scale(.3);opacity:0}50%{opacity:1}100%{transform:scale(1.35);opacity:0}}
+.pin{width:calc(var(--u)*3.2);height:calc(var(--u)*3.2);border-radius:50%;background:linear-gradient(135deg,var(--navy),var(--navy2));
+box-shadow:0 10px 24px rgba(11,30,69,.25),0 0 0 6px rgba(201,162,39,.18);display:flex;align-items:center;justify-content:center;z-index:2;position:relative}
+.pin.load::after{content:"";width:calc(var(--u)*1.1);height:calc(var(--u)*1.1);border:2px solid var(--gold-lt);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pin.ok{background:linear-gradient(135deg,var(--emerald),var(--green));box-shadow:0 12px 28px rgba(14,159,91,.3),0 0 0 7px rgba(14,159,91,.15);margin-bottom:calc(var(--u)*1.2)}
+.pin.ok svg{width:calc(var(--u)*1.6);height:calc(var(--u)*1.6)}
+.t1{font-size:calc(var(--u)*1.1);font-weight:600;color:var(--navy);letter-spacing:-.01em}
+/* ---------- card & address ---------- */
+.card{background:rgba(255,255,255,.85);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+border:1px solid rgba(201,162,39,.3);border-radius:calc(var(--u)*1.1);padding:calc(var(--u)*1.2) calc(var(--u)*1.3);
+box-shadow:0 16px 40px rgba(11,30,69,.08);width:100%;margin-bottom:calc(var(--u)*1.2)}
+.ok-l{font-size:calc(var(--u)*0.6);font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin-bottom:calc(var(--u)*0.2)}
+.home{font-family:var(--serif);font-size:calc(var(--u)*1.6);font-weight:700;color:var(--gold-dk);margin-bottom:calc(var(--u)*0.3)}
+.gold-text{background:linear-gradient(135deg,var(--gold-dk),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.addr{font-size:calc(var(--u)*0.75);color:var(--navy);line-height:1.45;font-weight:500}
+/* ---------- buttons ---------- */
+.btns{display:flex;flex-direction:column;gap:calc(var(--u)*0.55);width:100%}
+.btn{width:100%;padding:calc(var(--u)*0.75) calc(var(--u)*1);border-radius:calc(var(--u)*0.7);font-family:var(--sans);
+font-size:calc(var(--u)*0.8);font-weight:600;letter-spacing:.02em;cursor:pointer;transition:transform .2s var(--ease),box-shadow .2s,background .2s,border-color .2s;border:1px solid transparent}
+.btn:active{transform:scale(.98)}
+.btn.p{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;
+box-shadow:0 10px 22px rgba(11,30,69,.22),0 0 0 1px rgba(201,162,39,.4) inset}
+.btn.p:hover{box-shadow:0 14px 28px rgba(11,30,69,.3)}
+.btn.s{background:transparent;color:var(--navy);border-color:rgba(11,30,69,.18)}
+.btn.s:hover{background:rgba(11,30,69,.04)}
+/* ---------- reveal animation ---------- */
+.r{opacity:0;transform:translateY(12px);transition:opacity .5s var(--ease),transform .5s var(--ease);transition-delay:var(--d,0s)}
+.screen.on .r{opacity:1;transform:translateY(0)}
+</style>
 </head>
 <body>
-<div id="splash-screen" class="fixed inset-0 z-[9999] min-h-screen w-full flex flex-col items-center justify-center bg-[#F9FAFB] text-slate-800 transition-opacity duration-500 ease-out">
-  <div class="w-full max-w-md mx-auto px-6 flex flex-col items-center justify-between min-h-[85vh] splash-wrapper">
-    <div></div>
-    <div class="flex flex-col items-center text-center">
-      <img src="assets/bharat-pro-logo.png" alt="Bharat Pro Expert Logo" class="w-32 h-auto md:w-40 object-contain drop-shadow-md mb-6 splash-logo">
-      <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 mb-1 splash-title">Bharat Pro Expert</h1>
-      <p class="text-sm md:text-base font-semibold text-blue-900 tracking-wide mb-2 splash-subtitle">– Home Services –</p>
-      <p class="text-xs md:text-sm text-slate-500 font-medium splash-tagline">Expert Hands For Your Perfect Home</p>
-    </div>
-    <div class="w-full max-w-xs flex flex-col items-center gap-3 mb-8 splash-bar-container">
-      <div class="w-full h-2.5 bg-slate-200/80 rounded-full p-[1px] shadow-inner border border-slate-300/70 overflow-hidden splash-bar-track">
-        <div id="splash-progress" class="h-full rounded-full bg-gradient-to-r from-[#FF9933] via-white to-[#138808] transition-all duration-300 ease-out shadow-xs splash-bar-fill" style="width: 0%"></div>
-      </div>
-      <p id="splash-status" class="text-xs text-slate-400 font-medium tracking-wide splash-status">Just a moment...</p>
+<div class="bg"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+
+<section class="screen on" id="s1"><div class="stack">
+  <div class="logo r" style="--d:.1s"><img src="assets/bharat-pro-logo.png" alt="Bharat Pro Expert"></div>
+  <h1 class="brand r" style="--d:.25s">Bharat Pro Expert</h1>
+  <div class="rule r" style="--d:.4s"><span>Home Services</span></div>
+  <p class="tag r" style="--d:.55s">Expert Hands For Your Perfect Home</p>
+  <div class="loader r" style="--d:.7s"><div class="bar"><i></i></div><p class="wait">Just a moment…</p></div>
+</div></section>
+
+<section class="screen" id="s2"><div class="stack">
+  <div class="radar r" style="--d:.05s"><b></b><b></b><b></b><div class="pin load"></div></div>
+  <p class="t1 r" style="--d:.2s">Fetching your location…</p>
+  <div class="rule r" style="--d:.3s"><span>Please wait</span></div>
+  <div class="loader r" style="--d:.4s"><div class="bar"><i></i></div><p class="wait" id="status">Connecting to GPS…</p></div>
+</div></section>
+
+<section class="screen" id="s3"><div class="stack">
+  <div class="pin ok"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+  <div class="card r" style="--d:.45s">
+    <p class="ok-l">Delivering Services At</p>
+    <p class="home gold-text" id="label">Current Location</p>
+    <p class="addr" id="addr"></p>
+    <div id="manualBox" style="display:none; margin-top: 12px; width: 100%;">
+      <p id="manualStatus" style="font-size: clamp(11px, 1.8vw, 13px); color: var(--saffron); font-weight: 500; margin-bottom: 8px; display: none;"></p>
+      <input type="text" id="manualInput" placeholder="Enter your address manually..." style="width: 100%; padding: 10px 14px; border: 1px solid var(--gold-lt); border-radius: 8px; font-family: var(--sans); font-size: 14px; color: var(--navy); background: #fff; outline: none; margin-bottom: 8px; transition: border-color .2s;">
+      <button id="saveManual" style="width: 100%; padding: 10px 16px; background: linear-gradient(135deg, var(--navy), var(--navy2)); color: #fff; border: 1px solid var(--gold); border-radius: 8px; font-family: var(--sans); font-weight: 600; font-size: 14px; cursor: pointer; transition: transform .2s, box-shadow .2s;">Save Location</button>
     </div>
   </div>
-</div>
-<div id="app"></div>
-<div id="sheet-root"></div>
-<div id="toast-root" aria-live="polite"></div>
-<div id="recaptcha-container"></div>
-<noscript><p style="padding:24px;font-family:sans-serif">Bharat Pro Expert needs JavaScript. Please enable it, or call us on <a href="tel:+918920252647">+91 89202 52647</a>.</p></noscript>
-<script type="module" src="js/data.js"></script>
-<script type="module" src="js/overrides.js"></script>
-<script type="module" src="js/firebase-config.js"></script>
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<script type="module" src="js/app.js"></script>
+  <div class="btns r" style="--d:.8s">
+    <button class="btn p" id="go">Continue</button>
+    <button class="btn s" id="change">Change location</button>
+  </div>
+</div></section>
+
+<script>
+var LOCATION_LABEL = "Current Location";
+var LOCATION_ADDRESS = "";
+var SPLASH_MS = 2800;
+var statusTimer;
+var msgs = ["Connecting to GPS…", "Finding experts near you…", "Almost there…"];
+
+var splashDone = false;
+var locationResolved = false;
+var locationError = false;
+var errorMessage = "";
+
+function show(id) {
+  var all = document.querySelectorAll(".screen");
+  for (var i = 0; i < all.length; i++) {
+    all[i].classList.toggle("on", all[i].id === id);
+  }
+}
+
+function cycle() {
+  var el = document.getElementById("status"), n = 0;
+  clearInterval(statusTimer);
+  if (el) el.textContent = msgs[0];
+  statusTimer = setInterval(function() {
+    n = (n + 1) % msgs.length;
+    if (el) {
+      el.style.opacity = 0;
+      setTimeout(function() {
+        el.textContent = msgs[n];
+        el.style.opacity = 1;
+      }, 250);
+    }
+  }, 1100);
+}
+
+function checkTransition() {
+  if (!splashDone) return;
+
+  if (!locationResolved) {
+    show("s2");
+    cycle();
+  } else {
+    clearInterval(statusTimer);
+    show("s3");
+    if (locationError) {
+      showManualMode(errorMessage);
+    } else {
+      hideManualMode();
+    }
+  }
+}
+
+function startGpsFetch() {
+  if (!navigator.geolocation) {
+    onLocationFail("Location access denied. Please enter manually.");
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    function(position) {
+      var lat = position.coords.latitude;
+      var lon = position.coords.longitude;
+      fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lon)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var addr = data.display_name || "";
+          if (!addr && data.address) {
+            var parts = [];
+            for (var k in data.address) {
+              if (data.address[k]) parts.push(data.address[k]);
+            }
+            addr = parts.join(", ");
+          }
+          if (addr) {
+            LOCATION_ADDRESS = addr;
+            LOCATION_LABEL = "Current Location";
+            document.getElementById("label").textContent = LOCATION_LABEL;
+            document.getElementById("addr").textContent = LOCATION_ADDRESS;
+            locationResolved = true;
+            locationError = false;
+            checkTransition();
+          } else {
+            onLocationFail("Could not determine exact address. Please enter manually.");
+          }
+        })
+        .catch(function() {
+          onLocationFail("Could not determine exact address. Please enter manually.");
+        });
+    },
+    function(err) {
+      var msg = "Location access denied. Please enter manually.";
+      if (err.code === err.TIMEOUT) {
+        msg = "Location request timed out. Please enter manually.";
+      }
+      onLocationFail(msg);
+    },
+    { timeout: 10000, enableHighAccuracy: true }
+  );
+}
+
+function onLocationFail(msg) {
+  locationResolved = true;
+  locationError = true;
+  errorMessage = msg;
+  checkTransition();
+}
+
+function showManualMode(msg) {
+  var manualBox = document.getElementById("manualBox");
+  var addrEl = document.getElementById("addr");
+  var manualStatus = document.getElementById("manualStatus");
+
+  if (msg) {
+    manualStatus.textContent = msg;
+    manualStatus.style.display = "block";
+  } else {
+    manualStatus.style.display = "none";
+  }
+
+  addrEl.style.display = "none";
+  manualBox.style.display = "block";
+  if (LOCATION_ADDRESS) {
+    document.getElementById("manualInput").value = LOCATION_ADDRESS;
+  }
+  document.getElementById("manualInput").focus();
+}
+
+function hideManualMode() {
+  var manualBox = document.getElementById("manualBox");
+  var addrEl = document.getElementById("addr");
+  var manualStatus = document.getElementById("manualStatus");
+
+  manualBox.style.display = "none";
+  manualStatus.style.display = "none";
+  addrEl.style.display = "block";
+}
+
+function run() {
+  splashDone = false;
+  locationResolved = false;
+  locationError = false;
+  errorMessage = "";
+  hideManualMode();
+  show("s1");
+
+  setTimeout(function() {
+    splashDone = true;
+    checkTransition();
+  }, SPLASH_MS);
+
+  startGpsFetch();
+}
+
+document.getElementById("change").addEventListener("click", function() {
+  showManualMode("");
+});
+
+document.getElementById("saveManual").addEventListener("click", function() {
+  var val = document.getElementById("manualInput").value.trim();
+  if (val) {
+    LOCATION_ADDRESS = val;
+    LOCATION_LABEL = "Home";
+    document.getElementById("label").textContent = LOCATION_LABEL;
+    document.getElementById("addr").textContent = LOCATION_ADDRESS;
+    hideManualMode();
+  }
+});
+
+document.getElementById("manualInput").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") {
+    document.getElementById("saveManual").click();
+  }
+});
+
+document.getElementById("go").addEventListener("click", function() {
+  document.dispatchEvent(new CustomEvent("bpe:continue", {
+    detail: { label: LOCATION_LABEL, address: LOCATION_ADDRESS }
+  }));
+});
+
+run();
+</script>
 </body>
 </html>
