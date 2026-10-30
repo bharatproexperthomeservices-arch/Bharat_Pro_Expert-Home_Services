@@ -8,9 +8,27 @@
 <title>Bharat Pro Expert — Apartment Cleaning Services</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+<div id="splash-screen" class="fixed inset-0 z-[9999] min-h-screen w-full flex flex-col items-center justify-center bg-[#F9FAFB] text-slate-800 transition-opacity duration-500 ease-out">
+  <div class="w-full max-w-md mx-auto px-6 flex flex-col items-center justify-between min-h-[85vh] splash-wrapper">
+    <div></div>
+    <div class="flex flex-col items-center text-center">
+      <img src="icons/logo.png" alt="Bharat Pro Expert Logo" class="w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-md mb-6 splash-logo">
+      <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 mb-1 splash-title">Bharat Pro Expert</h1>
+      <p class="text-sm md:text-base font-semibold text-blue-900 tracking-wide mb-2 splash-subtitle">– Home Services –</p>
+      <p class="text-xs md:text-sm text-slate-500 font-medium splash-tagline">Expert Hands For Your Perfect Home</p>
+    </div>
+    <div class="w-full max-w-xs flex flex-col items-center gap-3 mb-8 splash-bar-container">
+      <div class="w-full h-2.5 bg-slate-200/80 rounded-full p-[1px] shadow-inner border border-slate-300/70 overflow-hidden splash-bar-track">
+        <div id="splash-progress" class="h-full rounded-full bg-gradient-to-r from-[#FF9933] via-white to-[#138808] transition-all duration-300 ease-out shadow-xs splash-bar-fill" style="width: 0%"></div>
+      </div>
+      <p id="splash-status" class="text-xs text-slate-400 font-medium tracking-wide splash-status">Just a moment...</p>
+    </div>
+  </div>
+</div>
 <div id="app"></div>
 <div id="sheet-root"></div>
 <div id="toast-root" aria-live="polite"></div>
