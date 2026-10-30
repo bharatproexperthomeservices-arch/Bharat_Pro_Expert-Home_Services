@@ -494,20 +494,37 @@ body.onboarding-active {
 <div id="toast-root"></div>
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<script type="module" src="js/firebase-config.js"></script>
+<script type="module" src="js/supabase-config.js"></script>
 <script type="module" src="js/data.js"></script>
 <script type="module" src="js/app.js"></script>
 <script type="module" src="js/overrides.js"></script>
 
 <script>
 (function() {
-  var currentLocationData = {
-    address: "",
-    lat: null,
-    lng: null
+  window.BPE_GPS_LOCATION = {
+    latitude: null,
+    longitude: null,
+    accuracy: null,
+    altitude: null,
+    heading: null,
+    speed: null,
+    timestamp: null,
+    formattedAddress: "",
+    houseNumber: "",
+    street: "",
+    locality: "",
+    sector: "",
+    city: "Gurugram",
+    district: "",
+    state: "Haryana",
+    postalCode: "",
+    country: "India",
+    locationSource: "GPS",
+    addressConfirmed: false
   };
 
-  var SPLASH_DELAY = 2200;
+  var retryCount = 0;
+  var MAX_RETRIES = 3;
   var splashFinished = false;
   var gpsFinished = false;
   var gpsFailed = false;
@@ -520,22 +537,18 @@ body.onboarding-active {
   }
 
   function finishOnboardingAndNavigate() {
-    // 1. Save to localStorage
+    window.BPE_GPS_LOCATION.addressConfirmed = true;
     try {
-      localStorage.setItem("bpe_location", JSON.stringify(currentLocationData));
-      if (currentLocationData.address) {
-        localStorage.setItem("bpe_city", JSON.stringify(currentLocationData.address.split(",")[0] || "Gurgaon"));
-      }
+      localStorage.setItem("bpe_location", JSON.stringify(window.BPE_GPS_LOCATION));
+      localStorage.setItem("bpe_city", JSON.stringify(window.BPE_GPS_LOCATION.city || "Gurugram"));
     } catch (e) {}
 
-    // 2. Hide onboarding UI & enable scrolling
     document.querySelectorAll(".onboarding-screen").forEach(function(s) {
       s.classList.remove("on");
       s.style.display = "none";
     });
     document.body.classList.remove("onboarding-active");
 
-    // 3. Navigate to Home (#/)
     if (window.location.hash !== "#/" && window.location.hash !== "") {
       window.location.hash = "#/";
     } else {
@@ -544,47 +557,84 @@ body.onboarding-active {
   }
 
   function fetchGpsLocation() {
+    var statusText = document.getElementById("gps-status-text");
+    if (statusText) {
+      statusText.textContent = retryCount > 0 ? "RETRYING GPS (" + retryCount + "/3)..." : "CONNECTING TO GPS...";
+    }
+
     if (!navigator.geolocation) {
       handleGpsError("Geolocation is not supported by your browser");
       return;
     }
 
+    var geoOptions = {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 20000
+    };
+
     navigator.geolocation.getCurrentPosition(
       function(pos) {
-        var lat = pos.coords.latitude;
-        var lng = pos.coords.longitude;
-        currentLocationData.lat = lat;
-        currentLocationData.lng = lng;
+        var coords = pos.coords;
+        var accuracy = coords.accuracy || 0;
 
-        fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lng)
+        if (accuracy > 100 && retryCount < MAX_RETRIES) {
+          retryCount++;
+          setTimeout(fetchGpsLocation, 1000);
+          return;
+        }
+
+        window.BPE_GPS_LOCATION.latitude = coords.latitude;
+        window.BPE_GPS_LOCATION.longitude = coords.longitude;
+        window.BPE_GPS_LOCATION.accuracy = accuracy;
+        window.BPE_GPS_LOCATION.altitude = coords.altitude;
+        window.BPE_GPS_LOCATION.heading = coords.heading;
+        window.BPE_GPS_LOCATION.speed = coords.speed;
+        window.BPE_GPS_LOCATION.timestamp = new Date(pos.timestamp || Date.now()).toISOString();
+        window.BPE_GPS_LOCATION.locationSource = "GPS";
+
+        fetch("/api/site/reverse-geocode?lat=" + coords.latitude + "&lng=" + coords.longitude)
           .then(function(res) { return res.json(); })
-          .then(function(data) {
-            var addr = data.display_name || "";
-            if (!addr && data.address) {
-              var parts = [];
-              for (var k in data.address) {
-                if (data.address[k]) parts.push(data.address[k]);
-              }
-              addr = parts.join(", ");
-            }
-            if (addr) {
-              currentLocationData.address = addr;
-              document.getElementById("ob-fetched-address").textContent = addr;
+          .then(function(resData) {
+            if (resData.ok && resData.data) {
+              var d = resData.data;
+              window.BPE_GPS_LOCATION.formattedAddress = d.formattedAddress;
+              window.BPE_GPS_LOCATION.houseNumber = d.houseNumber;
+              window.BPE_GPS_LOCATION.street = d.street;
+              window.BPE_GPS_LOCATION.locality = d.locality;
+              window.BPE_GPS_LOCATION.sector = d.sector;
+              window.BPE_GPS_LOCATION.city = d.city || "Gurugram";
+              window.BPE_GPS_LOCATION.district = d.district;
+              window.BPE_GPS_LOCATION.state = d.state;
+              window.BPE_GPS_LOCATION.postalCode = d.postalCode;
+              window.BPE_GPS_LOCATION.country = d.country;
+
+              document.getElementById("ob-fetched-address").textContent = d.formattedAddress || (coords.latitude.toFixed(5) + ", " + coords.longitude.toFixed(5));
               gpsFinished = true;
               gpsFailed = false;
               checkTransition();
             } else {
-              handleGpsError("Could not fetch address details");
+              throw new Error("Geocoding failed");
             }
           })
           .catch(function() {
-            handleGpsError("Network error fetching address");
+            var fallbackAddr = coords.latitude.toFixed(5) + ", " + coords.longitude.toFixed(5);
+            window.BPE_GPS_LOCATION.formattedAddress = fallbackAddr;
+            document.getElementById("ob-fetched-address").textContent = fallbackAddr;
+            gpsFinished = true;
+            gpsFailed = false;
+            checkTransition();
           });
       },
       function(err) {
-        handleGpsError("GPS permission denied or unavailable");
+        if (retryCount < MAX_RETRIES) {
+          retryCount++;
+          setTimeout(fetchGpsLocation, 1000);
+        } else {
+          handleGpsError(err.message || "GPS permission denied or unavailable");
+        }
       },
-      { timeout: 10000, enableHighAccuracy: true }
+      geoOptions
     );
   }
 
@@ -609,7 +659,6 @@ body.onboarding-active {
     }
   }
 
-  // Event Listeners
   document.getElementById("ob-btn-continue").addEventListener("click", function() {
     finishOnboardingAndNavigate();
   });
@@ -617,7 +666,7 @@ body.onboarding-active {
   document.getElementById("ob-btn-change-location").addEventListener("click", function() {
     gpsFinished = false;
     gpsFailed = false;
-    currentLocationData = { address: "", lat: null, lng: null };
+    retryCount = 0;
     document.getElementById("ob-pincode-modal").classList.remove("open");
     showScreen("ob-screen-2");
     fetchGpsLocation();
@@ -626,7 +675,9 @@ body.onboarding-active {
   document.getElementById("ob-btn-save-pincode").addEventListener("click", function() {
     var val = document.getElementById("ob-pincode-input").value.trim();
     if (val) {
-      currentLocationData.address = val;
+      window.BPE_GPS_LOCATION.formattedAddress = val;
+      window.BPE_GPS_LOCATION.locationSource = /^\d{6}$/.test(val) ? "pincode" : "manual";
+      window.BPE_GPS_LOCATION.timestamp = new Date().toISOString();
       document.getElementById("ob-fetched-address").textContent = val;
       document.getElementById("ob-pincode-modal").classList.remove("open");
       gpsFailed = false;
@@ -634,27 +685,13 @@ body.onboarding-active {
     }
   });
 
-  // Check if location is already saved
-  var savedLoc = null;
-  try {
-    savedLoc = JSON.parse(localStorage.getItem("bpe_location"));
-  } catch (e) {}
+  // Mandatory fresh location fetch on every site visit/reload
+  setTimeout(function() {
+    splashFinished = true;
+    checkTransition();
+  }, 2000);
 
-  if (savedLoc && savedLoc.address) {
-    // Fast path if location exists
-    document.body.classList.remove("onboarding-active");
-    document.querySelectorAll(".onboarding-screen").forEach(function(s) {
-      s.style.display = "none";
-    });
-  } else {
-    // Start splash flow
-    setTimeout(function() {
-      splashFinished = true;
-      checkTransition();
-    }, SPLASH_DELAY);
-
-    fetchGpsLocation();
-  }
+  fetchGpsLocation();
 })();
 </script>
 </body>

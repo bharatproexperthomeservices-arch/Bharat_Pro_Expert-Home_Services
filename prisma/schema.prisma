@@ -96,24 +96,40 @@ model Coupon {
 }
 
 model Booking {
-  id          String    @id
-  bookingCode String    @unique
-  customerId  String?
-  customer    Customer? @relation(fields: [customerId], references: [id])
-  date        String
-  slot        String
-  payStatus   String    @default("pending") // pending | paid | refunded
-  status      String    @default("confirmed") // confirmed | assigned | on_the_way | completed | cancelled
-  totalAmount Float
-  pricing     Json
-  items       Json
-  address     Json
-  partnerId   String?
-  partner     Partner?  @relation(fields: [partnerId], references: [id])
-  cancelled   Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  payments    Payment[]
-  refunds     Refund[]
+  id               String    @id
+  bookingCode      String    @unique
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [id])
+  date             String
+  slot             String
+  payStatus        String    @default("pending") // pending | paid | refunded
+  status           String    @default("confirmed") // confirmed | assigned | on_the_way | completed | cancelled
+  totalAmount      Float
+  pricing          Json
+  items            Json
+  address          Json
+  latitude         Float?
+  longitude        Float?
+  accuracy         Float?
+  capturedAt       DateTime?
+  formattedAddress String?
+  houseNumber      String?
+  street           String?
+  locality         String?
+  sector           String?
+  city             String?
+  district         String?
+  state            String?
+  postalCode       String?
+  country          String?   @default("India")
+  locationSource   String?   @default("GPS") // GPS | manual | pincode
+  addressConfirmed Boolean   @default(true)
+  partnerId        String?
+  partner          Partner?  @relation(fields: [partnerId], references: [id])
+  cancelled        Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  payments         Payment[]
+  refunds          Refund[]
 
   @@map("bookings")
 }
