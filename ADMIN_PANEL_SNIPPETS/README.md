@@ -13,6 +13,7 @@ ADMIN_PANEL_SNIPPETS/
 ├── 3_ManageServices.jsx       # Component to manage the 64 cleaning services (search, edit price, photo upload)
 ├── 4_ImageUploadDeleteLogic.js# Firebase Storage upload, download URL retrieval, Firestore save, & image deletion logic
 ├── 5_ManageLayoutText.jsx     # Component to manage brand details, header/footer info, promo offer banners, & cities
+├── 6_SkeletonScreens.jsx      # Reusable Skeleton components (Rectangle, Circle, Line) & loaders for Dashboard, Tables, and Kanban
 └── README.md                  # This step-by-step integration guide
 ```
 
