@@ -1172,7 +1172,7 @@ textarea.input { min-height: 88px; resize: vertical; }
 
 .splash-logo {
   width: 8rem;
-  height: 8rem;
+  height: auto;
   object-fit: contain;
   margin-bottom: 1.5rem;
 }
@@ -1180,7 +1180,7 @@ textarea.input { min-height: 88px; resize: vertical; }
 @media (min-width: 768px) {
   .splash-logo {
     width: 10rem;
-    height: 10rem;
+    height: auto;
   }
 }
 
