@@ -596,7 +596,7 @@ body.onboarding-active {
         fetch("/api/site/reverse-geocode?lat=" + coords.latitude + "&lng=" + coords.longitude)
           .then(function(res) { return res.json(); })
           .then(function(resData) {
-            if (resData.ok && resData.data) {
+            if (resData.ok && resData.data && resData.data.formattedAddress) {
               var d = resData.data;
               window.BPE_GPS_LOCATION.formattedAddress = d.formattedAddress;
               window.BPE_GPS_LOCATION.houseNumber = d.houseNumber;
@@ -609,7 +609,7 @@ body.onboarding-active {
               window.BPE_GPS_LOCATION.postalCode = d.postalCode;
               window.BPE_GPS_LOCATION.country = d.country;
 
-              document.getElementById("ob-fetched-address").textContent = d.formattedAddress || (coords.latitude.toFixed(5) + ", " + coords.longitude.toFixed(5));
+              document.getElementById("ob-fetched-address").textContent = d.formattedAddress;
               gpsFinished = true;
               gpsFailed = false;
               checkTransition();
@@ -618,11 +618,8 @@ body.onboarding-active {
             }
           })
           .catch(function() {
-            var fallbackAddr = coords.latitude.toFixed(5) + ", " + coords.longitude.toFixed(5);
-            window.BPE_GPS_LOCATION.formattedAddress = fallbackAddr;
-            document.getElementById("ob-fetched-address").textContent = fallbackAddr;
             gpsFinished = true;
-            gpsFailed = false;
+            gpsFailed = true;
             checkTransition();
           });
       },

@@ -44,30 +44,72 @@ router.get("/reverse-geocode", async (req, res) => {
   }
 
   try {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&addressdetails=1`;
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'BharatProExpertHomeServices/1.0 (bharatproexperthomeservices@gmail.com)'
-      }
-    });
+    let data = null;
+    let houseNumber = "";
+    let road = "";
+    let locality = "";
+    let sector = "";
+    let city = "Gurugram";
+    let district = "";
+    let state = "Haryana";
+    let postalCode = "";
+    let country = "India";
+    let formattedAddress = "";
 
-    if (!response.ok) {
-      throw new Error(`Reverse geocoding HTTP error ${response.status}`);
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&addressdetails=1`;
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'BharatProExpertHomeServices/1.0 (bharatproexperthomeservices@gmail.com)'
+        }
+      });
+      if (response.ok) {
+        data = await response.json();
+      }
+    } catch (e) {
+      console.warn("Nominatim reverse geocode error:", e.message);
     }
 
-    const data = await response.json();
-    const addr = data.address || {};
+    if (data && data.address) {
+      const addr = data.address;
+      houseNumber = addr.house_number || addr.building || addr.house || "";
+      road = addr.road || addr.street || "";
+      sector = addr.suburb || addr.quarter || addr.subdistrict || "";
+      locality = addr.neighbourhood || addr.locality || addr.residential || addr.city_district || "";
+      city = addr.city || addr.town || addr.village || addr.city_district || addr.county || "Gurugram";
+      district = addr.state_district || addr.district || city;
+      state = addr.state || "Haryana";
+      postalCode = addr.postcode || "";
+      country = addr.country || "India";
 
-    const formattedAddress = data.display_name || "";
-    const houseNumber = addr.house_number || addr.building || addr.house || "";
-    const road = addr.road || addr.street || "";
-    const neighbourhood = addr.neighbourhood || addr.suburb || addr.locality || "";
-    const sector = addr.subdistrict || addr.quarter || "";
-    const city = addr.city || addr.town || addr.village || addr.county || "Gurugram";
-    const district = addr.state_district || addr.district || city;
-    const state = addr.state || "Haryana";
-    const postalCode = addr.postcode || "";
-    const country = addr.country || "India";
+      const parts = [houseNumber, road, locality, sector, city, state, postalCode, country].filter(Boolean);
+      const uniqueParts = parts.filter((item, index) => parts.indexOf(item) === index);
+      formattedAddress = uniqueParts.join(", ");
+    }
+
+    // Fallback to BigDataCloud if Nominatim failed or yielded empty formattedAddress
+    if (!formattedAddress) {
+      try {
+        const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lng)}&localityLanguage=en`;
+        const bdcRes = await fetch(bdcUrl);
+        if (bdcRes.ok) {
+          const bdc = await bdcRes.json();
+          city = bdc.city || bdc.locality || "Gurugram";
+          state = bdc.principalSubdivision || "Haryana";
+          postalCode = bdc.postcode || "";
+          country = bdc.countryName || "India";
+          locality = bdc.locality || "";
+          const parts = [locality, city, state, postalCode, country].filter(Boolean);
+          formattedAddress = parts.filter((item, index) => parts.indexOf(item) === index).join(", ");
+        }
+      } catch (e) {
+        console.warn("BigDataCloud reverse geocode error:", e.message);
+      }
+    }
+
+    if (!formattedAddress) {
+      return res.status(500).json({ ok: false, error: "Failed to reverse geocode location" });
+    }
 
     res.json({
       ok: true,
@@ -77,7 +119,7 @@ router.get("/reverse-geocode", async (req, res) => {
         formattedAddress,
         houseNumber,
         street: road,
-        locality: neighbourhood,
+        locality,
         sector,
         city,
         district,
