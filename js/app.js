@@ -3,14 +3,12 @@
  * All dynamic strings pass through esc() before hitting innerHTML. */
 import {
   loginWithGoogle,
-  checkGoogleRedirectResult,
   sendPhoneOtp,
   verifyPhoneOtp,
-  firebaseLogout,
+  supabaseLogout,
   subscribeAuthState,
-  saveBookingToFirestore,
-  subscribeCMS
-} from './firebase-config.js';
+  saveBookingToSupabase
+} from './supabase-config.js';
 
 (function () {
   'use strict';
@@ -817,11 +815,13 @@ import {
 
   async function finalizeBooking(id, co, c, paymentId) {
     toast('Saving booking to database...');
-    var firestoreItems = S.cart.map(function (l) {
+    var bookingItemsList = S.cart.map(function (l) {
       var s = svc(l.id) || {};
       var price = Number(s.price || 0);
       var qty = Number(l.qty || 1);
       return {
+        id: l.id,
+        name: s.name || l.id,
         serviceName: String(s.name || l.id),
         unitPrice: price,
         quantity: qty,
@@ -834,36 +834,56 @@ import {
       streetAddress += ' (Landmark: ' + String(co.landmark).trim() + ')';
     }
 
-    var firestoreBookingData = {
-      customer: {
-        name: String(co.name || '').trim(),
-        phone: String(co.phone || '').trim(),
-        email: String((S.user && S.user.email) || '').trim()
-      },
+    var gps = window.BPE_GPS_LOCATION || {};
+
+    var supabaseBookingData = {
+      id: id,
+      bookingCode: id,
+      customerId: (S.user && S.user.uid) ? String(S.user.uid) : null,
+      date: co.date,
+      slot: co.slot,
+      payStatus: 'paid',
+      status: 'confirmed',
+      totalAmount: Number(c.total || 0),
+      pricing: c,
+      items: bookingItemsList,
       address: {
-        houseNo: String(co.house || '').trim(),
-        street: streetAddress,
-        cityName: String(S.city || 'Gurugram').trim(),
-        pincode: String(co.pincode || '').trim()
+        name: co.name.trim(),
+        phone: co.phone.trim(),
+        house: co.house.trim(),
+        area: co.area.trim(),
+        pincode: co.pincode.trim(),
+        landmark: (co.landmark || '').trim(),
+        city: S.city
       },
-      items: firestoreItems,
-      totalAmount: Number(c.subtotal || 0),
-      finalPayable: Number(c.total || 0),
-      status: "Pending",
-      createdAt: new Date()
+      latitude: gps.latitude || null,
+      longitude: gps.longitude || null,
+      accuracy: gps.accuracy || null,
+      capturedAt: gps.timestamp || new Date().toISOString(),
+      formattedAddress: gps.formattedAddress || streetAddress,
+      houseNumber: gps.houseNumber || co.house.trim(),
+      street: gps.street || streetAddress,
+      locality: gps.locality || co.area.trim(),
+      sector: gps.sector || '',
+      city: gps.city || S.city || 'Gurugram',
+      district: gps.district || '',
+      state: gps.state || 'Haryana',
+      postalCode: gps.postalCode || co.pincode.trim(),
+      country: gps.country || 'India',
+      locationSource: gps.locationSource || 'GPS',
+      addressConfirmed: true,
+      createdAt: new Date().toISOString()
     };
 
     try {
-      var fsResult = await saveBookingToFirestore(firestoreBookingData);
-      if (fsResult.success) {
-        console.log("Firestore booking doc ID created:", fsResult.id);
+      var sbResult = await saveBookingToSupabase(supabaseBookingData);
+      if (sbResult.success) {
+        console.log("Supabase booking created with ID:", sbResult.id);
       } else {
-        console.warn("Firestore save warning:", fsResult.error);
-        alert('Booking saved locally. Firestore note: ' + fsResult.error);
+        console.warn("Supabase save warning:", sbResult.error);
       }
-    } catch (fsErr) {
-      console.error("Firestore submission exception:", fsErr);
-      alert('Failed to save booking to Firestore: ' + fsErr.message);
+    } catch (sbErr) {
+      console.error("Supabase submission exception:", sbErr);
     }
 
     var b = {
@@ -871,7 +891,8 @@ import {
       paymentId: paymentId || '',
       items: S.cart.map(function (l) { var s = svc(l.id) || {}; return { id: l.id, name: s.name || l.id, nameHi: s.nameHi, emoji: s.emoji, price: s.price || 0, qty: l.qty }; }),
       pricing: c, coupon: S.coupon && !c.couponErr ? S.coupon : null,
-      address: { name: co.name.trim(), phone: co.phone.trim(), house: co.house.trim(), area: co.area.trim(), pincode: co.pincode.trim(), landmark: (co.landmark || '').trim(), city: S.city }
+      address: { name: co.name.trim(), phone: co.phone.trim(), house: co.house.trim(), area: co.area.trim(), pincode: co.pincode.trim(), landmark: (co.landmark || '').trim(), city: S.city },
+      gps: gps
     };
     S.bookings.unshift(b); persistBookings();
     S.cart = []; S.coupon = null; persistCart(); save('bpe_coupon', null);
@@ -901,11 +922,17 @@ import {
   function viewBookingPage(id) {
     var b = getBooking(id); if (!b) return viewNotFound();
     var a = b.address;
+    var gps = b.gps || {};
+    var mapsUrl = (gps.latitude && gps.longitude) ? ('https://www.google.com/maps?q=' + gps.latitude + ',' + gps.longitude) : null;
+
     return '<div class="empty"><div aria-hidden="true" style="font-size:48px">' + (b.cancelled ? '❌' : '🎉') + '</div><h1>' + esc(b.cancelled ? t('cancelled') : t('thanks')) + '</h1><p>' + esc(t('thanksSub')) + '</p></div>' +
       '<div class="detail__block"><p>' + esc(t('bookingId')) + ': <strong>' + esc(b.id) + '</strong></p>' +
       (b.paymentId ? '<p>💳 Payment Txn ID: <strong>' + esc(b.paymentId) + '</strong></p>' : '') +
       '<p>📅 ' + fmtDate(b.date) + ', ' + esc(b.slot) + '</p>' +
-      '<p>📍 ' + esc(a.house + ', ' + a.area + (a.landmark ? ' (' + a.landmark + ')' : '') + ', ' + a.city + ' ' + a.pincode) + '</p><p>📞 ' + esc(a.name) + ', ' + esc(a.phone) + '</p></div>' +
+      '<p>📍 ' + esc(a.house + ', ' + a.area + (a.landmark ? ' (' + a.landmark + ')' : '') + ', ' + a.city + ' ' + a.pincode) + '</p>' +
+      (gps.formattedAddress ? '<p style="margin-top:4px;font-size:13px;color:var(--text-sub)">📍 Verified GPS: ' + esc(gps.formattedAddress) + '</p>' : '') +
+      (mapsUrl ? '<p style="margin-top:6px"><a href="' + esc(mapsUrl) + '" target="_blank" rel="noopener" class="btn btn--sm btn--ghost" style="display:inline-flex;align-items:center;gap:4px">🗺️ Open Location in Google Maps</a></p>' : '') +
+      '<p style="margin-top:6px">📞 ' + esc(a.name) + ', ' + esc(a.phone) + '</p></div>' +
       timeline(b) + bookingItems(b) + summary(b.pricing) + bookingActions(b) +
       '<a class="btn btn--ghost btn--block" href="#/bookings">' + esc(t('myBookings')) + '</a>';
   }

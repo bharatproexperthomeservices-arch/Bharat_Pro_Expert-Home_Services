@@ -37,6 +37,61 @@ router.get("/global-settings", (req, res) => {
   res.json({ ok: true, settings: siteContentState.globalSettings });
 });
 
+router.get("/reverse-geocode", async (req, res) => {
+  const { lat, lng } = req.query;
+  if (!lat || !lng) {
+    return res.status(400).json({ ok: false, error: "Latitude and Longitude required" });
+  }
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&addressdetails=1`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'BharatProExpertHomeServices/1.0 (bharatproexperthomeservices@gmail.com)'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Reverse geocoding HTTP error ${response.status}`);
+    }
+
+    const data = await response.json();
+    const addr = data.address || {};
+
+    const formattedAddress = data.display_name || "";
+    const houseNumber = addr.house_number || addr.building || addr.house || "";
+    const road = addr.road || addr.street || "";
+    const neighbourhood = addr.neighbourhood || addr.suburb || addr.locality || "";
+    const sector = addr.subdistrict || addr.quarter || "";
+    const city = addr.city || addr.town || addr.village || addr.county || "Gurugram";
+    const district = addr.state_district || addr.district || city;
+    const state = addr.state || "Haryana";
+    const postalCode = addr.postcode || "";
+    const country = addr.country || "India";
+
+    res.json({
+      ok: true,
+      data: {
+        latitude: parseFloat(lat),
+        longitude: parseFloat(lng),
+        formattedAddress,
+        houseNumber,
+        street: road,
+        locality: neighbourhood,
+        sector,
+        city,
+        district,
+        state,
+        postalCode,
+        country
+      }
+    });
+  } catch (err) {
+    console.error("Reverse geocoding error:", err);
+    res.status(500).json({ ok: false, error: "Failed to reverse geocode location" });
+  }
+});
+
 router.get("/nav", (req, res) => {
   res.json({
     ok: true,
