@@ -8,6 +8,7 @@ import createOrderHandler from "./api/create-order.js";
 import verifyPaymentHandler from "./api/verify-payment.js";
 import siteRouter from "./api/site-router.js";
 import adminRouter from "./api/admin-router.js";
+import locationRouter from "./api/location-router.js";
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.get("/api/health", (_req, res) => res.status(200).json({ ok: true }));
 // Dynamic site content & admin routes
 app.use("/api/site", siteRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api", locationRouter);
 
 // Keep local Express and Vercel serverless routes on the same trusted pricing
 // and payment-verification implementation to prevent security drift.
