@@ -634,27 +634,13 @@ body.onboarding-active {
     }
   });
 
-  // Check if location is already saved
-  var savedLoc = null;
-  try {
-    savedLoc = JSON.parse(localStorage.getItem("bpe_location"));
-  } catch (e) {}
+  // Mandatory Onboarding & Geolocation Fetching on every load/session
+  setTimeout(function() {
+    splashFinished = true;
+    checkTransition();
+  }, SPLASH_DELAY);
 
-  if (savedLoc && savedLoc.address) {
-    // Fast path if location exists
-    document.body.classList.remove("onboarding-active");
-    document.querySelectorAll(".onboarding-screen").forEach(function(s) {
-      s.style.display = "none";
-    });
-  } else {
-    // Start splash flow
-    setTimeout(function() {
-      splashFinished = true;
-      checkTransition();
-    }, SPLASH_DELAY);
-
-    fetchGpsLocation();
-  }
+  fetchGpsLocation();
 })();
 </script>
 </body>
