@@ -1048,3 +1048,88 @@ textarea.input { min-height: 88px; resize: vertical; }
     transition-duration: .001ms !important; scroll-behavior: auto !important;
   }
 }
+
+/* ---------- 14. SKELETON SCREENS & SHIMMER LOADING PLACEHOLDERS ---------- */
+@keyframes skeleton-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes animate-pulse-fade {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse {
+  animation: animate-pulse-fade 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--fill2, #E2E8F0);
+  border-radius: var(--r, 12px);
+}
+
+:root[data-theme="dark"] .skeleton {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.8s infinite;
+}
+
+:root[data-theme="dark"] .skeleton::after {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+.skeleton-rect {
+  width: 100%;
+  border-radius: var(--r, 12px);
+}
+
+.skeleton-circle {
+  border-radius: 50%;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 6px;
+  width: 100%;
+}
+
+.skeleton-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+  padding: 12px;
+  gap: 10px;
+}
+
+.skeleton-fade-in {
+  animation: skeletonFadeIn 0.35s ease-in-out forwards;
+}
+
+@keyframes skeletonFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

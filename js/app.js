@@ -71,7 +71,8 @@ import {
     theme: load('bpe_theme', null),        // 'dark' | 'light' | null (system)
     coupon: load('bpe_coupon', null),      // code string
     sort: 'popular',
-    sheet: null                            // {kind, data}
+    sheet: null,                           // {kind, data}
+    isLoading: false                       // loading state for skeleton placeholders
   };
   if (!Array.isArray(S.cart)) S.cart = [];
   if (!Array.isArray(S.bookings)) S.bookings = [];
@@ -335,8 +336,67 @@ import {
     return '<div class="detail__bar cartbar"><div><strong>' + n + ' ' + esc(t(n === 1 ? 'item' : 'items')) + '</strong> · ' + inr(calc().total) + '</div><a class="btn btn--primary btn--sm" href="#/cart">' + esc(t('viewCart')) + '</a></div>';
   }
 
+  /* ---------- skeleton screens ---------- */
+  function viewHomeSkeleton() {
+    return '<div class="skeleton-fade-in" style="display:flex;flex-direction:column;gap:20px;padding-top:12px">' +
+      '<div class="skeleton skeleton-rect" style="height:180px"></div>' +
+      '<div style="display:flex;gap:12px;overflow-x:hidden">' +
+        Array.from({ length: 6 }).map(function () {
+          return '<div style="display:flex;flex-direction:column;align-items:center;gap:6px">' +
+            '<div class="skeleton skeleton-circle" style="width:56px;height:56px"></div>' +
+            '<div class="skeleton skeleton-line" style="width:48px;height:10px"></div>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+      '<div class="grid">' +
+        Array.from({ length: 6 }).map(function () {
+          return '<div class="skeleton-card">' +
+            '<div class="skeleton skeleton-rect" style="height:120px"></div>' +
+            '<div class="skeleton skeleton-line" style="width:80%"></div>' +
+            '<div class="skeleton skeleton-line" style="width:50%"></div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">' +
+              '<div class="skeleton skeleton-line" style="width:60px;height:20px"></div>' +
+              '<div class="skeleton skeleton-rect" style="width:70px;height:32px;border-radius:20px"></div>' +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+  }
+
+  function viewDetailSkeleton() {
+    return '<div class="skeleton-fade-in" style="display:flex;flex-direction:column;gap:16px;padding-top:12px">' +
+      '<div class="skeleton skeleton-rect" style="height:220px"></div>' +
+      '<div class="skeleton skeleton-line skeleton-text--title"></div>' +
+      '<div class="skeleton skeleton-line" style="width:40%"></div>' +
+      '<div class="skeleton skeleton-line" style="width:30%;height:22px"></div>' +
+      '<div class="detail__block" style="display:flex;flex-direction:column;gap:8px">' +
+        '<div class="skeleton skeleton-line" style="width:100%"></div>' +
+        '<div class="skeleton skeleton-line" style="width:90%"></div>' +
+        '<div class="skeleton skeleton-line" style="width:75%"></div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function viewBookingsSkeleton() {
+    return '<div class="skeleton-fade-in" style="display:flex;flex-direction:column;gap:16px;padding-top:12px">' +
+      '<div class="skeleton skeleton-line skeleton-text--title"></div>' +
+      Array.from({ length: 3 }).map(function () {
+        return '<div class="detail__block" style="display:flex;flex-direction:column;gap:12px">' +
+          '<div style="display:flex;justify-content:space-between">' +
+            '<div class="skeleton skeleton-line" style="width:120px"></div>' +
+            '<div class="skeleton skeleton-rect" style="width:80px;height:22px;border-radius:12px"></div>' +
+          '</div>' +
+          '<div class="skeleton skeleton-line" style="width:180px"></div>' +
+          '<div class="skeleton skeleton-line" style="width:100%"></div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }
+
   /* ---------- pages ---------- */
   function viewHome() {
+    if (S.isLoading) return viewHomeSkeleton();
     var slides = D.heroSlides || [];
     var h = '<section class="hero" aria-roledescription="carousel" aria-label="Offers" style="overflow:hidden;position:relative">' +
       '<div class="hero__track" style="display:flex;transition:transform .5s cubic-bezier(.2,.8,.2,1);transform:translateX(-' + (heroIdx * 100) + '%)">' + slides.map(function (s, i) {
@@ -485,6 +545,7 @@ import {
   }
 
   function viewDetail(id) {
+    if (S.isLoading) return viewDetailSkeleton();
     var s = svc(id); if (!s) return viewNotFound();
     var c = cat(s.cat), q = qtyOf(id);
     var off = s.mrp > s.price ? Math.round((1 - s.price / s.mrp) * 100) : 0;
@@ -849,6 +910,7 @@ import {
       '<a class="btn btn--ghost btn--block" href="#/bookings">' + esc(t('myBookings')) + '</a>';
   }
   function viewBookings() {
+    if (S.isLoading) return viewBookingsSkeleton();
     if (!S.bookings.length) return backBar(t('bookings')) + emptyState('📋', t('noBookings'), t('noBookingsSub'), '#/services', t('browse'));
     return backBar(t('bookings')) + S.bookings.map(function (b) {
       var st = stageOf(b);
