@@ -1,4 +1,3 @@
-import Razorpay from "razorpay";
 import { ADDON_PRICES, BUSINESS_GST_DETAILS, CONVENIENCE_FEE_INR, COUPON_RULES, GST_RATE, SERVICE_PRICES } from "./pricing-catalog.js";
 
 function json(res, status, body) {
@@ -139,12 +138,9 @@ export default async function handler(req, res) {
   }
 
   // Credentials lookup for Razorpay and Cashfree
-  const razorpayKeyId = typeof process.env.RAZORPAY_KEY_ID === "string" ? process.env.RAZORPAY_KEY_ID.trim() : "";
-  const razorpayKeySecret = typeof process.env.RAZORPAY_KEY_SECRET === "string" ? process.env.RAZORPAY_KEY_SECRET.trim() : "";
   const cashfreeAppId = typeof process.env.CASHFREE_APP_ID === "string" ? process.env.CASHFREE_APP_ID.trim() : "";
   const cashfreeSecretKey = typeof process.env.CASHFREE_SECRET_KEY === "string" ? process.env.CASHFREE_SECRET_KEY.trim() : "";
 
-  const hasRazorpay = Boolean(razorpayKeyId && razorpayKeySecret);
   const hasCashfree = Boolean(cashfreeAppId && cashfreeSecretKey);
 
   if (!hasRazorpay && !hasCashfree) {
@@ -172,41 +168,12 @@ export default async function handler(req, res) {
     return json(res, 400, { error: "Enter a valid customer name and 10-digit phone number.", code: "INVALID_CUSTOMER_DETAILS" });
   }
 
-  // Priority: Razorpay first if available, else Cashfree
-  if (hasRazorpay) {
-    try {
-      const razorpay = new Razorpay({
-        key_id: razorpayKeyId,
-        key_secret: razorpayKeySecret
-      });
-
-      const orderOptions = {
-        amount: quote.total * 100, // in paise
-        currency: "INR",
-        receipt: bookingId.slice(0, 40),
-        notes: {
-          bookingId,
-          customerName,
-          customerPhone,
-          gstin: BUSINESS_GST_DETAILS.gstin,
-          businessName: BUSINESS_GST_DETAILS.businessName
-        }
-      };
-
-      const order = await razorpay.orders.create(orderOptions);
-      return json(res, 201, {
-        gateway: "razorpay",
-        order_id: order.id,
-        key_id: razorpayKeyId,
-        amount: quote.total * 100,
-        currency: "INR",
-        quote,
-        businessGst: BUSINESS_GST_DETAILS
-      });
-    } catch (error) {
-      console.error("Razorpay order creation failed:", error?.message || error);
-      return json(res, 502, { error: "Razorpay order creation failed.", code: "RAZORPAY_ORDER_CREATION_FAILED" });
-    }
+  // Cashfree is the only enabled payment provider for this deployment.
+  if (!hasCashfree) {
+    return json(res, 503, {
+      error: "Cashfree is not configured. Add CASHFREE_APP_ID and CASHFREE_SECRET_KEY on the server.",
+      code: "CASHFREE_NOT_CONFIGURED"
+    });
   }
 
   // Cashfree Order Creation
