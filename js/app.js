@@ -2,7 +2,6 @@
  * Structure: helpers -> state/storage -> i18n -> pricing -> view fns -> sheets -> actions -> router/boot.
  * All dynamic strings pass through esc() before hitting innerHTML. */
 import {
-  loginWithGoogle,
   sendPhoneOtp,
   verifyPhoneOtp,
   supabaseLogout,
@@ -847,8 +846,49 @@ import {
           toast('Payment failed: ' + (resp.error.description || 'Transaction unsuccessful'));
         });
         rzp.open();
+      } else if (gatewayData.gateway === 'cashfree') {
+        if (typeof window.Cashfree !== 'function') {
+          toast('Cashfree checkout SDK failed to load. Please refresh and retry.');
+          return;
+        }
+        try {
+          var cf = window.Cashfree({ mode: gatewayData.environment === 'production' ? 'production' : 'sandbox' });
+          cf.checkout({
+            paymentSessionId: gatewayData.payment_session_id,
+            redirectTarget: '_modal'
+          }).then(function (checkoutResult) {
+            if (checkoutResult && checkoutResult.error) {
+              toast('Payment was not completed. You can retry checkout.');
+              return;
+            }
+            toast('Confirming payment securely...');
+            return fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                gateway: 'cashfree',
+                bookingId: serverBookingId,
+                order_id: gatewayData.order_id
+              })
+            }).then(function (vRes) {
+              return vRes.json().then(function (data) { return { ok: vRes.ok, data: data }; });
+            }).then(function (verified) {
+              if (verified.ok && verified.data.verified) {
+                finalizeBooking(id, co, c, verified.data.payment_id);
+              } else {
+                toast(verified.data.error || 'Payment is not confirmed yet. Check My Bookings before retrying.');
+              }
+            });
+          }).catch(function (checkoutErr) {
+            console.error('Cashfree checkout error:', checkoutErr);
+            toast('Cashfree checkout was interrupted. Check payment status before retrying.');
+          });
+        } catch (checkoutInitErr) {
+          console.error('Cashfree SDK initialization failed:', checkoutInitErr);
+          toast('Could not start Cashfree checkout. Please retry.');
+        }
       } else {
-        toast('Online payment order created: ' + gatewayData.order_id);
+        toast('Unsupported payment gateway response. Please contact support.');
       }
     }).catch(function (err) {
       toast('Failed to reach payment gateway. Try again.');
@@ -1013,9 +1053,7 @@ import {
       '</div>';
   }
 
-  function renderGoogleSvg() {
-    return '<svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>';
-  }
+
 
   function renderLoginCardBody() {
     var L = drafts.login;
@@ -1039,13 +1077,6 @@ import {
         '</div>' +
       '</div>';
     }
-
-    h += '<button type="button" class="btn-google' + (isGoogleLoginInProgress ? ' is-loading' : '') + '" data-act="google-login"' + (isGoogleLoginInProgress ? ' disabled' : '') + '>' +
-      renderGoogleSvg() +
-      '<span>' + esc(isGoogleLoginInProgress ? 'Connecting Google...' : t('googleLogin')) + '</span>' +
-    '</button>';
-
-    h += '<div class="auth-divider"><span>' + esc(t('orDivider')) + '</span></div>';
 
     if (step === 'otp') {
       var verifyDisabled = drafts.verifyLoading ? ' disabled' : '';
@@ -1360,54 +1391,19 @@ import {
     theme: function () { S.theme = isDark() ? 'light' : 'dark'; save('bpe_theme', S.theme); applyTheme(); refresh(); },
     login: function () { drafts.login = {}; drafts.errs = {}; delete drafts.loginError; location.hash = '#/login'; },
     logout: function () {
-      firebaseLogout().catch(function (e) {
-        console.error("Auth Step error on logout:", e);
-      });
-      S.user = null;
-      delete drafts.loginError;
-      save('bpe_user', null);
-      toast(t('loggedOut'));
-      refresh();
-    },
-    'google-login': function (btnEl) {
-      if (isGoogleLoginInProgress) return;
-      isGoogleLoginInProgress = true;
-      delete drafts.loginError;
-
-      if (btnEl && btnEl.setAttribute) {
-        btnEl.setAttribute('disabled', 'disabled');
-        btnEl.classList.add('is-loading');
-      }
-      if (S.sheet) renderSheet(); else refresh();
-      toast('Connecting Google Sign-In...');
-
-      loginWithGoogle().then(function (res) {
-        isGoogleLoginInProgress = false;
-        if (res.success && res.user) {
-          console.log("Auth Step 1 complete: Google Sign-In success", res.user.uid);
-          S.user = res.user;
-          save('bpe_user', S.user);
-          drafts.login = {};
-          delete drafts.loginError;
-          if (S.sheet) closeSheet();
-          toast(t('googleSuccess'));
-          if (parseRoute().name === 'checkout') refresh();
-          else location.hash = '#/account';
-        } else if (res.success && res.redirecting) {
-          console.log("Auth Step 1: Redirecting browser for Google auth...");
-          toast('Redirecting to Google Sign-In...');
-        } else {
-          console.error("Auth Step 1 error: Google login failed with error:", res.error);
-          drafts.loginError = res.error || 'Google Sign-In failed.';
-          toast(res.error || 'Google sign-in failed');
-          if (S.sheet) renderSheet(); else refresh();
+      supabaseLogout().then(function (res) {
+        if (!res.success) {
+          toast(res.error || 'Could not log out. Please retry.');
+          return;
         }
+        S.user = null;
+        delete drafts.loginError;
+        save('bpe_user', null);
+        toast(t('loggedOut'));
+        refresh();
       }).catch(function (err) {
-        isGoogleLoginInProgress = false;
-        console.error("Auth Step 1 exception in google-login action:", err);
-        drafts.loginError = 'Google Sign-In failed: ' + (err.message || err);
-        toast('Google sign-in failed');
-        if (S.sheet) renderSheet(); else refresh();
+        console.error('Supabase logout failed:', err);
+        toast('Could not log out. Please retry.');
       });
     },
     'edit-phone': function () {
@@ -1549,7 +1545,7 @@ import {
       delete drafts.errs['login.phone'];
       drafts.otpLoading = true;
       if (S.sheet) renderSheet(); else refresh();
-      toast('Sending OTP via Firebase...');
+      toast('Sending OTP via Supabase...');
       sendPhoneOtp(drafts.login.phone).then(function (res) {
         drafts.otpLoading = false;
         if (res.success) {
@@ -1583,7 +1579,7 @@ import {
       drafts.verifyLoading = true;
       if (S.sheet) renderSheet(); else refresh();
       toast('Verifying OTP...');
-      verifyPhoneOtp(drafts.login.otp).then(function (res) {
+      verifyPhoneOtp(drafts.login.phone, drafts.login.otp).then(function (res) {
         drafts.verifyLoading = false;
         if (res.success) {
           console.log("Auth Step 3 complete: OTP verified successfully");
@@ -1798,28 +1794,7 @@ import {
     checkInitializationComplete();
   }
 
-  checkGoogleRedirectResult().then(function (res) {
-    if (res.success && res.user) {
-      console.log("Auth Step 1 complete: Google redirect auth processed successfully", res.user.uid);
-      S.user = res.user;
-      save('bpe_user', S.user);
-      drafts.login = {};
-      delete drafts.loginError;
-      if (S.sheet) closeSheet();
-      toast(t('googleSuccess'));
-      if (parseRoute().name === 'checkout') refresh();
-      else location.hash = '#/account';
-    } else if (!res.success && !res.noResult) {
-      console.error("Auth Step 1 error in Google redirect result:", res.error);
-      if (res.error) {
-        drafts.loginError = res.error;
-      }
-      toast(res.error || 'Google sign-in failed');
-      refresh();
-    }
-  }).catch(function (err) {
-    console.error('Auth Step 1 error checking redirect result:', err);
-  });
+
 
   // Milestone 50% -> 80%: CMS data/catalog fetch
   try {
