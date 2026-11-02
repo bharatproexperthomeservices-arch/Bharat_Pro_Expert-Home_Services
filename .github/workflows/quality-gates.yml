@@ -31,3 +31,5 @@ jobs:
         run: npm run lint
       - name: Production build
         run: npm run build
+      - name: API and checkout safety regression tests
+        run: npm test
