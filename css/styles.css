@@ -1,31 +1,33 @@
 /* ==========================================================================
-   Bharat Pro Expert - iOS-style design system & Inch-Tape Full Width Layout
+   Bharat Pro Expert — responsive layout foundation
+   Keep viewport fluid while giving desktop content readable max-widths.
    ========================================================================== */
-
-/* ---------- 0. GLOBAL 100% FULL-WIDTH INCH-TAPE OVERRIDES ---------- */
 html, body, #root, #app, .app, .app-shell {
-  width: 100% !important;
-  max-width: 100% !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  box-sizing: border-box !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  box-sizing: border-box;
 }
-
-.container, .wrapper, .max-w-7xl, .section, .hero, .detail__block, .summary, .list, .page, .topbar {
-  width: 100% !important;
-  max-width: 100% !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  padding-left: 15px !important;
-  padding-right: 15px !important;
-  box-sizing: border-box !important;
+img, video, canvas, svg { max-width: 100%; }
+#app, .app, .app-shell, .page { min-width: 0; }
+.container, .wrapper, .max-w-7xl {
+  width: min(100% - 32px, 1240px);
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: 0;
+  box-sizing: border-box;
 }
-
-/* Ensure sub-elements and grid stretch completely */
+.section, .hero, .detail__block, .summary, .list {
+  min-width: 0;
+  box-sizing: border-box;
+}
 .grid {
-  width: 100% !important;
-  max-width: 100% !important;
+  width: 100%;
+  min-width: 0;
 }
+
+/* Admin Panel full-width layout & sidebar drawer */
 
 /* Admin Panel full-width layout & sidebar drawer */
 .admin-shell {
@@ -1258,4 +1260,43 @@ textarea.input { min-height: 88px; resize: vertical; }
   color: #94a3b8;
   font-weight: 500;
   letter-spacing: 0.025em;
+}
+
+
+/* ---------- Responsive finishing pass (mobile / tablet / desktop) ---------- */
+@media (max-width: 699px) {
+  .container, .wrapper, .max-w-7xl {
+    width: calc(100% - 30px);
+    max-width: 100%;
+  }
+  .page > .container + .container,
+  .page > .section, .page > .hero, .page > .catrow, .page > .promo {
+    margin-top: 16px;
+  }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .topbar { min-width: 0; }
+  .hero__slide { min-width: 0; }
+  .site-footer { min-width: 0; }
+}
+@media (min-width: 700px) and (max-width: 1199px) {
+  .container, .wrapper, .max-w-7xl {
+    width: calc(100% - 48px);
+    max-width: 1080px;
+  }
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .hero { padding-inline: 24px !important; }
+}
+@media (min-width: 1200px) {
+  .container, .wrapper, .max-w-7xl {
+    width: calc(100% - 80px);
+    max-width: 1280px;
+  }
+  .page > .container + .container,
+  .page > .section, .page > .catrow, .page > .promo {
+    margin-top: 28px;
+  }
+  .hero { padding-inline: max(40px, calc((100vw - 1280px) / 2)) !important; }
+}
+@media (min-width: 1600px) {
+  .container, .wrapper, .max-w-7xl { max-width: 1360px; }
 }
