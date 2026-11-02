@@ -279,6 +279,7 @@ function initOverlayDOM() {
  * Fetch user saved addresses from Supabase for logged-in users
  */
 async function loadSavedAddressesForUser() {
+  if (!supabase) return [];
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session || !session.user) return [];
@@ -871,8 +872,9 @@ async function saveAddressAndComplete() {
 
   const fullAddressStr = addressParts.join(', ');
 
-  // Save/Upsert to Supabase if logged in
+  // Save/Upsert to Supabase only when the project is configured and a session exists.
   try {
+    if (!supabase) throw new Error('Supabase is not configured; address remains saved on this device.');
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
       const userId = session.user.id;
