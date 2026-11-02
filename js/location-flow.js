@@ -1114,64 +1114,28 @@ export async function initLocationFlow() {
   initOverlayDOM();
   attachHeaderLocationSelectorHook();
 
-  const minSplashPromise = new Promise(resolve => setTimeout(resolve, 1200));
-
-  // Check cached location in localStorage
+  // Every full page load/refresh must replay all three intro screens.
+  // Keep the customer's last confirmed address available while GPS is being checked.
   let cached = null;
   try {
     const raw = localStorage.getItem('bpe_location');
     if (raw) cached = JSON.parse(raw);
   } catch (e) {}
 
-  await minSplashPromise;
-
-  if (cached && cached.latitude && cached.longitude) {
-    // Returning visit: skip overlay, use cached location instantly
-    window.BPE_GPS_LOCATION = cached;
+  if (cached && Number.isFinite(Number(cached.latitude)) && Number.isFinite(Number(cached.longitude))) {
     currentAddressState = { ...currentAddressState, ...cached };
-
-    const container = document.getElementById('bpe-location-flow-container');
-    if (container) container.style.display = 'none';
-    document.body.classList.remove('onboarding-active');
-
-    // Refresh location silently in background
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const dist = getDistanceMeters(cached.latitude, cached.longitude, pos.coords.latitude, pos.coords.longitude);
-          if (dist > 200) {
-            console.log(`Background location update: moved ${Math.round(dist)}m > 200m`);
-            await performReverseGeocode(pos.coords.latitude, pos.coords.longitude);
-            await checkServiceabilityForCurrentLocation();
-
-            const updatedPayload = {
-              latitude: currentAddressState.latitude,
-              longitude: currentAddressState.longitude,
-              formattedAddress: currentAddressState.formattedAddress,
-              city: currentAddressState.city,
-              pincode: currentAddressState.postalCode,
-              label: currentAddressState.label,
-              timestamp: Date.now()
-            };
-
-            try {
-              localStorage.setItem('bpe_location', JSON.stringify(updatedPayload));
-            } catch (e) {}
-
-            window.BPE_GPS_LOCATION = updatedPayload;
-            window.dispatchEvent(new CustomEvent('bpe:continue', { detail: updatedPayload }));
-          }
-        },
-        (err) => console.warn('Background location refresh error:', err),
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-      );
-    }
-  } else {
-    // First visit: start full 3-screen location detection
-    startRealLocationFetch();
+    window.BPE_GPS_LOCATION = cached;
+    const labelEl = document.getElementById('ob-address-label');
+    const addressEl = document.getElementById('ob-fetched-address');
+    if (labelEl) labelEl.textContent = cached.label || 'Selected location';
+    if (addressEl) addressEl.textContent = cached.fullAddress || cached.formattedAddress || 'Checking your confirmed location…';
   }
-}
 
+  // The splash screen is already visible. Briefly preserve it, then run fresh GPS
+  // detection on every reload instead of silently skipping onboarding for returning users.
+  await new Promise(resolve => setTimeout(resolve, 1200));
+  startRealLocationFetch();
+}
 // Auto-run initialization when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initLocationFlow);
