@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const roots = ['server.js', 'js', 'api'];
+const roots = ['server.js', 'js', 'api', 'admin', 'public/admin'];
 const jsFiles = [];
 
 for (const root of roots) {
@@ -11,10 +11,13 @@ for (const root of roots) {
     if (stat.isFile() && root.endsWith('.js')) {
       jsFiles.push(root);
     } else if (stat.isDirectory()) {
-      const entries = fs.readdirSync(root);
+      const entries = fs.readdirSync(root, { withFileTypes: true });
       for (const entry of entries) {
-        if (entry.endsWith('.js')) {
-          jsFiles.push(path.join(root, entry));
+        if (entry.isFile() && entry.name.endsWith('.js')) jsFiles.push(path.join(root, entry.name));
+        if (entry.isDirectory()) {
+          for (const nested of fs.readdirSync(path.join(root, entry.name), { withFileTypes: true })) {
+            if (nested.isFile() && nested.name.endsWith('.js')) jsFiles.push(path.join(root, entry.name, nested.name));
+          }
         }
       }
     }
