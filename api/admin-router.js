@@ -1,90 +1,63 @@
 import express from "express";
-
 const router = express.Router();
+const SUPABASE_URL = String(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
+const SERVICE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
+const MEMBERSHIP_TABLE = "admin_memberships";
 
-// Auth middleware for RBAC token validation
-const authMiddleware = (req, res, next) => {
-  const token = req.headers.authorization;
-  if (!token || token !== "Bearer mock-super-admin-token-xyz") {
-    return res.status(401).json({ ok: false, error: "Unauthorized access: Invalid or missing token" });
+// Server-side identity verification with Supabase Auth. Never accept client-supplied role claims.
+async function identityFromRequest(req) {
+  const header = String(req.headers.authorization || "");
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (!match || !SUPABASE_URL) return { error: "Sign in is required.", status: 401 };
+  const response = await fetch(SUPABASE_URL + "/auth/v1/user", {
+    headers: { apikey: SERVICE_KEY, Authorization: "Bearer " + match[1] },
+    cache: "no-store"
+  });
+  if (!response.ok) return { error: "Session is invalid or expired.", status: 401 };
+  const user = await response.json();
+  if (!user?.id) return { error: "Session identity could not be confirmed.", status: 401 };
+  if (!SERVICE_KEY) return { error: "Admin access is not configured on this server.", status: 503 };
+
+  const membershipResponse = await fetch(
+    SUPABASE_URL + "/rest/v1/" + MEMBERSHIP_TABLE +
+    "?auth_user_id=eq." + encodeURIComponent(user.id) + "&active=eq.true&select=auth_user_id,role,active&limit=1",
+    { headers: { apikey: SERVICE_KEY, Authorization: "Bearer " + SERVICE_KEY }, cache: "no-store" }
+  );
+  if (!membershipResponse.ok) {
+    console.error("Admin membership lookup failed:", membershipResponse.status);
+    return { error: "Admin access directory is unavailable. Configure and migrate admin access before use.", status: 503 };
   }
-  next();
-};
+  const rows = await membershipResponse.json();
+  const member = Array.isArray(rows) ? rows[0] : null;
+  if (!member || member.auth_user_id !== user.id || member.active !== true ||
+      typeof member.role !== "string" || !member.role.trim()) {
+    return { error: "This account is not approved for administrator access.", status: 403 };
+  }
+  return { user, member };
+}
 
-router.post("/auth/login", (req, res) => {
-  const { email, password } = req.body;
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPass = process.env.ADMIN_PASS;
-
-  const isEmailMatch = !email || !adminEmail || email.toLowerCase() === adminEmail.toLowerCase();
-  if (adminPass && password === adminPass && isEmailMatch) {
+router.get("/session", async (req, res) => {
+  try {
+    const result = await identityFromRequest(req);
+    if (result.error) return res.status(result.status).json({ authorized: false, error: result.error });
+    res.setHeader("Cache-Control", "no-store");
     return res.json({
-      ok: true,
-      token: "Bearer mock-super-admin-token-xyz",
-      user: { name: "Super Admin", email: email || adminEmail || "admin@bharatproexpert.com", role: "SUPER_ADMIN" }
+      authorized: true,
+      role: result.member.role,
+      user: { id: result.user.id, email: result.user.email || null, phone: result.user.phone || null }
     });
+  } catch (error) {
+    console.error("Admin session verification error:", error?.message || "Unknown error");
+    return res.status(503).json({ authorized: false, error: "Unable to verify admin access." });
   }
-  return res.status(401).json({ ok: false, error: "Invalid credentials" });
 });
 
-router.get("/dashboard/stats", authMiddleware, (req, res) => {
-  res.json({
-    ok: true,
-    stats: {}
-  });
-});
-
-router.get("/website/:pageKey", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: `Draft content for ${req.params.pageKey}` });
-});
-
-router.put("/website/:pageKey/publish", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: `Published changes for ${req.params.pageKey} live!` });
-});
-
-router.get("/partners", authMiddleware, (req, res) => {
-  res.json({
-    ok: true,
-    partners: []
-  });
-});
-
-router.patch("/partners/:id/approve", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: `Partner ${req.params.id} approved successfully.` });
-});
-
-router.patch("/partners/:id/kyc-verify", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: `Partner ${req.params.id} document verified successfully.` });
-});
-
-router.post("/partners/:id/wallet-adjust", authMiddleware, (req, res) => {
-  const { amount, type, reason } = req.body || {};
-  res.json({ ok: true, message: `Partner ${req.params.id} wallet adjusted by ${type === 'credit' ? '+' : '-'}${amount}. Reason: ${reason || 'Admin Adjustment'}` });
-});
-
-router.get("/bookings", authMiddleware, (req, res) => {
-  res.json({
-    ok: true,
-    bookings: []
-  });
-});
-
-router.patch("/bookings/:id/status", authMiddleware, (req, res) => {
-  const { status } = req.body || {};
-  res.json({ ok: true, message: `Booking ${req.params.id} status updated to ${status}` });
-});
-
-router.patch("/bookings/:id/assign", authMiddleware, (req, res) => {
-  const { partnerId } = req.body || {};
-  res.json({ ok: true, message: `Partner ${partnerId || 'assigned'} linked to booking ${req.params.id}` });
-});
-
-router.post("/catalogue/services", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: "Custom service added to catalogue successfully" });
-});
-
-router.post("/coupons", authMiddleware, (req, res) => {
-  res.json({ ok: true, message: "New coupon created successfully" });
-});
+// Deliberately no mock writes or fake list endpoints. Operational APIs will be added only
+// after the canonical schema, RLS, permission map and mutation rules are audited.
+router.all("*", (_req, res) => res.status(501).json({
+  ok: false,
+  code: "ADMIN_MODULE_NOT_IMPLEMENTED",
+  error: "This admin operation is not enabled yet. No data was changed."
+}));
 
 export default router;
