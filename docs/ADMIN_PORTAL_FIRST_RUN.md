@@ -3,6 +3,8 @@
 ## What exists in this milestone
 - Separate responsive portal assets at `/admin` (static entry: `public/admin/index.html`).
 - Supabase email/password sign-in, then server-verified admin session.
+- Authenticated read-only booking queue endpoint at `GET /api/admin/bookings` for owner, operations and support roles; capped to 100 records. Queue returns normalized booking state, amount, service summaries and broad area only, not customer phone or full street address.
+- Queue search by booking reference/status and refresh control.
 - The server authorizes a user only if the Supabase Auth user ID has an active `public.admin_memberships` row.
 - Express endpoint: `GET /api/admin/session`; Vercel function endpoint: `GET /api/admin/session`.
 - All booking, partner, finance, content and catalogue operations remain disabled until schema/RLS and permissions are reviewed. The page intentionally has no demo records.
@@ -22,7 +24,7 @@
 7. Use only an explicitly authorized preview deployment to verify login and that a normal customer account is denied. Do not merge or promote this branch without owner approval.
 
 ## Known implementation boundary
-This milestone authenticates and authorizes the portal entry only. The console reports no fake counts or fake actions. Admin modules must next be built against inspected real schemas and RLS rules, with API authorization on every operation, tests and audit records. Payment/booking linkage, refund paths, KYC data and financial adjustments need separate controls and tests.
+This milestone authenticates and authorizes portal entry and adds a read-only booking queue. It is not yet a full operations system. Schema/RLS confirmation and live preview testing are still required. Partner, availability/calendar, assignment, reschedule/cancel, finance/refund, CMS, catalogue editing and audit-log modules are not implemented. Admin writes must be built against inspected schemas with per-action authorization, transactional safeguards, audit records and tests. Payment/booking linkage needs reconciliation/webhook recovery because current customer finalization still attempts a direct browser-side Supabase booking insert.
 
 ## Release safety
 - Do not delete any Firebase projects or legacy customer records as part of this UI milestone.
