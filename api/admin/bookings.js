@@ -25,7 +25,14 @@ export default async function handler(req, res) {
     const raw=await dataRes.json();
     if(!Array.isArray(raw))return res.status(502).json({error:"Unexpected booking data response."});
     const pick=(o,keys)=>{for(const k of keys)if(o[k]!==undefined&&o[k]!==null)return o[k];return null;};
-    const bookings=raw.map((b)=>({
+    const bookings=raw.map((b)=>{
+      const rawAddress=pick(b,["address"]);
+      const address=rawAddress&&typeof rawAddress==="object"?{
+        area:pick(rawAddress,["area","locality"]),city:pick(rawAddress,["city"]),pincode:pick(rawAddress,["pincode","postalCode","postal_code"])
+      }:null;
+      const rawItems=pick(b,["items","services"]);
+      const items=Array.isArray(rawItems)?rawItems.slice(0,30).map(it=>typeof it==="string"?{serviceName:it}:{serviceName:pick(it||{},["serviceName","name","id"])||"Service",quantity:pick(it||{},["quantity","qty"])}):[];
+      return ({
       id:pick(b,["bookingCode","booking_code","id"]),
       createdAt:pick(b,["createdAt","created_at"]),
       date:pick(b,["date","bookingDate","booking_date"]),
@@ -33,10 +40,9 @@ export default async function handler(req, res) {
       status:pick(b,["status","bookingStatus","booking_status"]),
       paymentStatus:pick(b,["payStatus","pay_status","paymentStatus","payment_status"]),
       amount:pick(b,["totalAmount","total_amount"]),
-      items:pick(b,["items","services"]),
-      address:pick(b,["address"]),
-      customerId:pick(b,["customerId","customer_id"])
-    }));
+      items,
+      address
+    });});
     return res.status(200).json({ok:true,readOnly:true,count:bookings.length,bookings});
   }catch(e){console.error("Booking queue error",e?.message||"unknown");return res.status(503).json({error:"Unable to load the booking queue."});}
 }
