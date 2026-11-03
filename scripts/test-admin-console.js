@@ -5,6 +5,9 @@ const router = fs.readFileSync("api/admin-router.js", "utf8");
 const page = fs.readFileSync("public/admin/index.html", "utf8");
 const script = fs.readFileSync("public/admin/admin.js", "utf8");
 const migration = fs.readFileSync("supabase/migrations/202611030001_admin_memberships.sql", "utf8");
+const queueApi = fs.readFileSync("api/admin/bookings.js", "utf8");
+const sessionApi = fs.readFileSync("api/admin/session.js", "utf8");
+const configApi = fs.readFileSync("api/admin/config.js", "utf8");
 
 assert.match(router, /\/auth\/v1\/user/, "Admin API verifies identity against Supabase Auth");
 assert.match(router, /admin_memberships/, "Admin API checks persistent membership");
