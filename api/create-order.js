@@ -143,15 +143,6 @@ export default async function handler(req, res) {
 
   const hasCashfree = Boolean(cashfreeAppId && cashfreeSecretKey);
 
-  if (!hasRazorpay && !hasCashfree) {
-    console.error("No payment gateway configured (Razorpay or Cashfree).");
-    return json(res, 503, {
-      error: "Payment gateway is not configured on this deployment. Please contact administrator.",
-      code: "PAYMENT_GATEWAY_NOT_CONFIGURED",
-      missingVariables: ["RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET or CASHFREE_APP_ID/CASHFREE_SECRET_KEY"]
-    });
-  }
-
   const bookingId = typeof req.body?.bookingId === "string" ? req.body.bookingId.slice(0, 100) : "";
   if (!/^bpe_[a-zA-Z0-9_-]{8,100}$/.test(bookingId)) {
     return json(res, 400, { error: "Invalid booking reference. Refresh the booking and retry.", code: "INVALID_BOOKING_REFERENCE" });
