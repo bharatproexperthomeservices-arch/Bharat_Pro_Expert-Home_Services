@@ -6,9 +6,10 @@ const MEMBERSHIP_TABLE = "admin_memberships";
 
 // Server-side identity verification with Supabase Auth. Never accept client-supplied role claims.
 async function identityFromRequest(req) {
+  if (!SUPABASE_URL || !SERVICE_KEY) return { error: "Admin access is not configured on this server.", status: 503 };
   const header = String(req.headers.authorization || "");
   const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match || !SUPABASE_URL) return { error: "Sign in is required.", status: 401 };
+  if (!match) return { error: "Sign in is required.", status: 401 };
   const response = await fetch(SUPABASE_URL + "/auth/v1/user", {
     headers: { apikey: SERVICE_KEY, Authorization: "Bearer " + match[1] },
     cache: "no-store"
