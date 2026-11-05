@@ -1,7 +1,10 @@
 /**
  * Location Flow Module - Bharat Pro Expert
- * Production-grade location detection, reverse geocoding, serviceability check,
- * address persistence, and interactive location management.
+ * Realistic 3-step Location Onboarding Flow on Every Refresh:
+ * Step 1 (2s): Just a moment... (Progress Bar)
+ * Step 2 (2s): Fetching your location... (Animated dropping pin, real GPS call)
+ * Step 3 (2s): Capturing your location... (Pulsing radar, real geocoding e.g. Sector 85, Gurugram, Haryana)
+ * Responsive across Mobile, Tablet, and Desktop in full screen.
  */
 
 import { supabase } from './supabase-config.js';
@@ -16,10 +19,10 @@ let currentAddressState = {
   street: '',
   locality: '',
   sector: '',
-  city: '',
-  district: '',
-  state: '',
-  postalCode: '',
+  city: 'Gurugram',
+  district: 'Gurugram',
+  state: 'Haryana',
+  postalCode: '122001',
   country: 'India',
   label: 'Current location',
   serviceable: true,
@@ -29,30 +32,8 @@ let currentAddressState = {
   savedAddressId: null
 };
 
-let activeWatchId = null;
-let currentAbortController = null;
 let autocompleteSessionToken = null;
-let googleMapInstance = null;
-let googleMarkerInstance = null;
-
-/**
- * Utility: Distance calculation in meters (Haversine formula)
- */
-function getDistanceMeters(lat1, lon1, lat2, lon2) {
-  if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return Infinity;
-  const R = 6371e3; // metres
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
+let autoRedirectTimer = null;
 
 /**
  * Log Analytics Event
@@ -97,6 +78,86 @@ function showScreen(screenId) {
 }
 
 /**
+ * Direct client-side Nominatim reverse geocode fallback
+ */
+async function clientSideNominatimReverse(lat, lng) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`;
+  const res = await fetch(url, {
+    headers: {
+      'Accept': 'application/json'
+    }
+  });
+  if (!res.ok) throw new Error('Nominatim HTTP ' + res.status);
+  const data = await res.json();
+  const addr = data.address || {};
+  const sector = addr.suburb || addr.neighbourhood || addr.subdivision || addr.residential || '';
+  const locality = addr.residential || addr.neighbourhood || addr.suburb || '';
+  const city = addr.city || addr.town || addr.city_district || addr.district || 'Gurugram';
+  const district = addr.city_district || addr.district || addr.county || '';
+  const state = addr.state || 'Haryana';
+  const postalCode = addr.postcode || '';
+
+  const readableParts = [sector || locality, city, state].filter(Boolean);
+  const formattedAddress = readableParts.join(', ') || data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+
+  return {
+    latitude: lat,
+    longitude: lng,
+    formattedAddress,
+    houseNumber: addr.house_number || '',
+    street: addr.road || '',
+    locality,
+    sector,
+    city,
+    district,
+    state,
+    postalCode,
+    country: addr.country || 'India'
+  };
+}
+
+/**
+ * Reverse Geocode via server /api/geocode/reverse with client-side fallback
+ */
+async function performReverseGeocode(lat, lng) {
+  updateStatusAnnouncement('Resolving physical address details...');
+  try {
+    const res = await fetch('/api/geocode/reverse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lng })
+    });
+    const json = await res.json();
+    if (json.ok && json.data) {
+      return json.data;
+    }
+  } catch (err) {
+    console.warn('Server reverse geocode failed, using client Nominatim:', err);
+  }
+
+  // Fallback direct call
+  try {
+    return await clientSideNominatimReverse(lat, lng);
+  } catch (err2) {
+    console.warn('Client Nominatim also failed:', err2);
+    return {
+      latitude: lat,
+      longitude: lng,
+      formattedAddress: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+      houseNumber: '',
+      street: '',
+      locality: 'Current Location',
+      sector: '',
+      city: 'Gurugram',
+      district: 'Gurugram',
+      state: 'Haryana',
+      postalCode: '',
+      country: 'India'
+    };
+  }
+}
+
+/**
  * Initialize overlay DOM elements
  */
 function initOverlayDOM() {
@@ -108,8 +169,8 @@ function initOverlayDOM() {
     <!-- ARIA Live Status Announcer -->
     <div id="bpe-status-announcer" aria-live="polite" class="sr-only" style="position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); border:0;"></div>
 
-    <!-- SCREEN 1: SPLASH SCREEN -->
-    <section class="onboarding-screen on" id="ob-screen-1" aria-label="Welcome Splash">
+    <!-- STEP 1: LOADING BAR (2 SECONDS) -->
+    <section class="onboarding-screen on" id="ob-screen-1" aria-label="Step 1 - Just a moment">
       <div class="onboarding-stack">
         <div class="ob-logo">
           <img src="assets/bharat-pro-logo.png" alt="Bharat Pro Expert Logo">
@@ -120,82 +181,79 @@ function initOverlayDOM() {
         </div>
         <p class="ob-tagline">Expert Hands For Your Perfect Home</p>
         <div class="tricolor-loader">
-          <div class="tricolor-track"><div class="tricolor-fill"></div></div>
-          <p class="tricolor-text">JUST A MOMENT...</p>
+          <div class="tricolor-track">
+            <div class="tricolor-fill anim-step1" id="step1-bar-fill"></div>
+          </div>
+          <p class="tricolor-text" id="step1-status-text">JUST A MOMENT...</p>
         </div>
       </div>
     </section>
 
-    <!-- SCREEN 2: FETCHING LOCATION STATE -->
-    <section class="onboarding-screen" id="ob-screen-2" aria-label="Fetching Location">
+    <!-- STEP 2: FETCHING LOCATION (2 SECONDS - PIN DROPPING ANIMATION) -->
+    <section class="onboarding-screen" id="ob-screen-2" aria-label="Step 2 - Fetching your location">
       <div class="onboarding-stack">
-        <div class="radar-container">
-          <div class="radar-ring"></div>
-          <div class="radar-ring"></div>
-          <div class="radar-ring"></div>
-          <div class="gold-pin-circle">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-          </div>
+        <div class="pin-drop-container">
+          <div class="pin-drop-stick"></div>
+          <div class="pin-shadow"></div>
         </div>
         <h2 class="heading-serif-navy">Fetching your location...</h2>
         <div class="ob-divider-rule">
           <span>PLEASE WAIT</span>
         </div>
         <div class="tricolor-loader" style="margin-top: 24px;">
-          <div class="tricolor-track"><div class="tricolor-fill"></div></div>
+          <div class="tricolor-track">
+            <div class="tricolor-fill anim-step2" id="step2-bar-fill"></div>
+          </div>
           <p class="tricolor-text" id="gps-status-text">CONNECTING TO GPS...</p>
         </div>
       </div>
     </section>
 
-    <!-- SCREEN 3: SUCCESS LOCATION STATE -->
-    <section class="onboarding-screen" id="ob-screen-3" aria-label="Location Details">
+    <!-- STEP 3: CAPTURING LOCATION & AREA DETAILS (2 SECONDS - PULSING RADAR) -->
+    <section class="onboarding-screen" id="ob-screen-3" aria-label="Step 3 - Capturing Location">
       <div class="onboarding-stack">
-        <div class="green-success-pin" id="ob-pin-icon">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M5 12.5L9.5 17L19 7.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <p class="delivering-small-text" id="ob-delivering-tag">Delivering Services At</p>
-        <h1 class="home-gold-heading" id="ob-address-label">Current location</h1>
-
-        <div class="address-white-card">
-          <p class="address-text-grey" id="ob-fetched-address">Fetching address details...</p>
-        </div>
-
-        <!-- Serviceability alert card if unserviceable -->
-        <div id="ob-serviceability-alert" class="serviceability-alert-card" style="display:none; margin-bottom:16px; background:#FEF2F2; border:1px solid #FCA5A5; padding:12px; border-radius:12px; color:#991B1B; font-size:13px; text-align:center;">
-          <strong>We don't serve this area yet.</strong>
-          <p style="margin-top:4px; font-size:12px; color:#B91C1C;">We are expanding rapidly across India!</p>
+        <div class="radar-container">
+          <div class="radar-ring"></div>
+          <div class="radar-ring"></div>
+          <div class="radar-ring"></div>
+          <div class="green-success-pin" style="margin-bottom: 0; z-index: 2;">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 12.5L9.5 17L19 7.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
         </div>
 
-        <button type="button" class="btn-onboarding-primary" id="ob-btn-continue" style="min-height: 44px;">Continue</button>
-        <button type="button" class="btn-change-location-link" id="ob-btn-change-location" style="min-height: 44px;">Change location</button>
+        <p class="delivering-small-text" id="ob-delivering-tag">CAPTURING YOUR LOCATION...</p>
+        <h1 class="home-gold-heading" id="ob-address-label" style="font-size: clamp(22px, 5vw, 28px); margin-bottom: 12px;">Delivering Services At</h1>
+
+        <div class="address-white-card" style="margin-bottom: 16px;">
+          <p class="address-text-grey" id="ob-fetched-address" style="font-size: 16px; font-weight: 600; color: var(--navy);">Capturing your real area...</p>
+        </div>
+
+        <div class="tricolor-loader" id="step3-loader" style="margin-bottom: 20px;">
+          <div class="tricolor-track">
+            <div class="tricolor-fill anim-step3" id="step3-bar-fill"></div>
+          </div>
+        </div>
+
+        <div id="ob-step3-action-buttons" style="width: 100%; display: flex; flex-direction: column; gap: 8px;">
+          <button type="button" class="btn-onboarding-primary" id="ob-btn-continue" style="min-height: 44px;">Continue</button>
+          <button type="button" class="btn-change-location-link" id="ob-btn-change-location" style="min-height: 44px; margin-top: 4px;">Change location</button>
+        </div>
       </div>
     </section>
 
-    <!-- ERROR STATE OVERLAY CARD -->
-    <section class="onboarding-screen" id="ob-screen-error" aria-label="Location Error">
+    <!-- ERROR STATE OVERLAY CARD (Polite fallback when denied/unavailable) -->
+    <section class="onboarding-screen" id="ob-screen-error" aria-label="Location Permission / Availability">
       <div class="onboarding-stack">
-        <div class="error-pin-circle" style="width: 60px; height: 60px; border-radius: 50%; background: #FEE2E2; border: 2px solid #EF4444; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="#DC2626"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <div class="error-pin-circle" style="width: 64px; height: 64px; border-radius: 50%; background: #FEE2E2; border: 2px solid #EF4444; display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="#DC2626"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
         </div>
-        <h2 class="heading-serif-navy" id="ob-error-title">Location Error</h2>
-        <p class="address-text-grey" id="ob-error-desc" style="margin-top: 8px; margin-bottom: 24px;">Could not retrieve location.</p>
-        <button type="button" class="btn-onboarding-primary" id="ob-btn-error-retry" style="min-height: 44px; margin-bottom: 12px;">Retry</button>
+        <h2 class="heading-serif-navy" id="ob-error-title">Location not available</h2>
+        <p class="address-text-grey" id="ob-error-desc" style="margin-top: 8px; margin-bottom: 20px;">Please allow location access to deliver services to your doorstep.</p>
+        <button type="button" class="btn-onboarding-primary" id="ob-btn-error-continue" style="min-height: 44px; margin-bottom: 10px;">Continue with Default Location (Gurugram)</button>
+        <button type="button" class="btn-change-location-link" id="ob-btn-error-retry" style="min-height: 44px;">Retry GPS Location</button>
         <button type="button" class="btn-change-location-link" id="ob-btn-error-manual" style="min-height: 44px;">Search location manually</button>
-      </div>
-    </section>
-
-    <!-- MAP CONFIRMATION OVERLAY FOR LOW ACCURACY (>500m) -->
-    <section class="onboarding-screen" id="ob-screen-map" aria-label="Confirm Location on Map">
-      <div class="onboarding-stack" style="max-width: 500px; width: 100%;">
-        <h2 class="heading-serif-navy" style="font-size: 20px;">Confirm your location</h2>
-        <p class="address-text-grey" style="font-size: 13px; margin-bottom: 12px;">GPS accuracy is low. Drag the pin to adjust your exact position.</p>
-        <div id="ob-google-map-container" style="width: 100%; height: 260px; border-radius: 16px; border: 1.5px solid var(--gold-light); margin-bottom: 16px;"></div>
-        <button type="button" class="btn-onboarding-primary" id="ob-btn-confirm-map" style="min-height: 44px;">Confirm Location</button>
       </div>
     </section>
 
@@ -213,12 +271,6 @@ function initOverlayDOM() {
           <label class="address-form-label" for="ob-input-search">Search Area / Society / City</label>
           <input type="text" class="address-input" id="ob-input-search" placeholder="Type location in India..." autocomplete="off">
           <div id="ob-autocomplete-results" class="autocomplete-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #E2C893; border-radius:12px; z-index:100; max-height:200px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,0.12); margin-top:4px;"></div>
-        </div>
-
-        <!-- SAVED ADDRESSES LIST -->
-        <div id="ob-saved-addresses-section" style="margin-bottom: 20px; display:none;">
-          <label class="address-form-label">Saved Addresses</label>
-          <div id="ob-saved-addresses-list" style="display:flex; flex-direction:column; gap:8px;"></div>
         </div>
 
         <!-- ADDRESS FORM FIELDS -->
@@ -257,18 +309,6 @@ function initOverlayDOM() {
         <button type="button" class="btn-change-location-link" id="ob-btn-cancel-modal" style="width:100%; min-height: 44px;">Cancel</button>
       </div>
     </div>
-
-    <!-- NOTIFY ME MODAL (When area unserviceable) -->
-    <div class="pincode-modal-overlay" id="ob-notify-modal">
-      <div class="pincode-modal-card">
-        <h3 class="pincode-modal-title">Notify Me</h3>
-        <p class="pincode-modal-sub">We don't serve your pincode (<span id="ob-notify-pincode"></span>) yet. Enter phone/email to get notified when we launch!</p>
-        <input type="text" class="pincode-input" id="ob-notify-input" placeholder="Phone number or Email address">
-        <div id="ob-notify-err" style="color:#EF4444; font-size:12px; margin-bottom:12px;" hidden>Please enter a valid phone number or email</div>
-        <button type="button" class="btn-onboarding-primary" id="ob-btn-submit-notify" style="min-height: 44px;">Submit Request</button>
-        <button type="button" class="btn-change-location-link" id="ob-btn-close-notify" style="width:100%; margin-top:12px;">Close</button>
-      </div>
-    </div>
   `;
 
   document.body.appendChild(container);
@@ -276,436 +316,220 @@ function initOverlayDOM() {
 }
 
 /**
- * Fetch user saved addresses from Supabase for logged-in users
+ * Update UI for Screen 3 with resolved location
  */
-async function loadSavedAddressesForUser() {
-  if (!supabase) return [];
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session || !session.user) return [];
+function updateScreen3UI() {
+  const fetchedAddrEl = document.getElementById('ob-fetched-address');
+  const labelEl = document.getElementById('ob-address-label');
+  const deliveringTag = document.getElementById('ob-delivering-tag');
 
-    const { data, error } = await supabase
-      .from('user_addresses')
-      .select('*')
-      .order('is_default', { ascending: false });
-
-    if (error) throw error;
-    return data || [];
-  } catch (err) {
-    console.warn('Failed to load user saved addresses:', err);
-    return [];
+  if (deliveringTag) deliveringTag.textContent = 'DELIVERING SERVICE AT';
+  if (labelEl) labelEl.textContent = currentAddressState.label || 'Current location';
+  if (fetchedAddrEl) {
+    fetchedAddrEl.textContent = currentAddressState.formattedAddress || 'Sector 85, Gurugram, Haryana';
   }
+
+  updateStatusAnnouncement(`Delivering service at ${currentAddressState.formattedAddress}`);
 }
 
 /**
- * Render saved addresses list in the bottom sheet
+ * Finalize location selection and transition into the website
  */
-async function renderSavedAddressesInSheet() {
-  const container = document.getElementById('ob-saved-addresses-list');
-  const section = document.getElementById('ob-saved-addresses-section');
-  if (!container || !section) return;
+function completeLocationFlowAndEnterSite() {
+  clearTimeout(autoRedirectTimer);
 
-  const addresses = await loadSavedAddressesForUser();
-  if (addresses.length === 0) {
-    section.style.display = 'none';
-    return;
-  }
-
-  section.style.display = 'block';
-  container.innerHTML = addresses.map(addr => `
-    <div class="saved-address-item" data-id="${addr.id}" style="padding:10px 14px; border:1px solid rgba(197,160,89,0.3); border-radius:10px; cursor:pointer; background:#FAF8F5; display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <span style="font-weight:700; font-size:12px; text-transform:uppercase; color:var(--navy); background:#E2C893; padding:2px 6px; border-radius:4px; margin-right:6px;">${sanitizeText(addr.label)}</span>
-        <span style="font-size:13px; color:var(--navy); font-weight:600;">${sanitizeText(addr.flat_no ? addr.flat_no + ', ' + addr.apartment_name : addr.formatted_address)}</span>
-        <p style="font-size:12px; color:var(--grey-text); margin-top:2px;">${sanitizeText(addr.formatted_address)}</p>
-      </div>
-      <button type="button" class="btn-select-saved" style="background:var(--navy); color:#fff; border:none; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;">Select</button>
-    </div>
-  `).join('');
-
-  container.querySelectorAll('.saved-address-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const id = item.getAttribute('data-id');
-      const selected = addresses.find(a => a.id === id);
-      if (selected) {
-        selectSavedAddress(selected);
-      }
-    });
-  });
-}
-
-/**
- * Handle selection of a saved address
- */
-async function selectSavedAddress(addr) {
-  currentAddressState.latitude = addr.latitude;
-  currentAddressState.longitude = addr.longitude;
-  currentAddressState.formattedAddress = addr.formatted_address;
-  currentAddressState.apartmentName = addr.apartment_name || '';
-  currentAddressState.flatNo = addr.flat_no || '';
-  currentAddressState.landmark = addr.landmark || '';
-  currentAddressState.postalCode = addr.pincode || '';
-  currentAddressState.city = addr.city || '';
-  currentAddressState.label = addr.label || 'Saved Address';
-  currentAddressState.savedAddressId = addr.id;
-
-  // Check serviceability
-  await checkServiceabilityForCurrentLocation();
-
-  document.getElementById('ob-address-modal').classList.remove('open');
-  showScreen('ob-screen-3');
-  updateScreen3UI();
-  logAnalyticsEvent('location_changed', { source: 'saved_address', label: addr.label });
-}
-
-/**
- * Handle Reverse Geocoding API call
- */
-async function performReverseGeocode(lat, lng) {
-  if (currentAbortController) {
-    currentAbortController.abort();
-  }
-  currentAbortController = new AbortController();
-
-  updateStatusAnnouncement('Resolving address details from coordinates...');
-  const res = await fetch('/api/geocode/reverse', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lat, lng }),
-    signal: currentAbortController.signal
-  });
-
-  const json = await res.json();
-  if (!json.ok || !json.data) {
-    throw new Error(json.error || 'Reverse geocoding failed');
-  }
-
-  const d = json.data;
-  currentAddressState.latitude = d.latitude;
-  currentAddressState.longitude = d.longitude;
-  currentAddressState.formattedAddress = d.formattedAddress;
-  currentAddressState.houseNumber = d.houseNumber || '';
-  currentAddressState.street = d.street || '';
-  currentAddressState.locality = d.locality || '';
-  currentAddressState.sector = d.sector || '';
-  currentAddressState.city = d.city || 'Gurugram';
-  currentAddressState.district = d.district || '';
-  currentAddressState.state = d.state || 'Haryana';
-  currentAddressState.postalCode = d.postalCode || '';
-  currentAddressState.country = d.country || 'India';
-
-  // Check if matched within 100m of user saved addresses
-  const savedAddresses = await loadSavedAddressesForUser();
-  const matched = savedAddresses.find(sa => getDistanceMeters(lat, lng, sa.latitude, sa.longitude) <= 100);
-  if (matched) {
-    currentAddressState.label = matched.label;
-    currentAddressState.apartmentName = matched.apartment_name || '';
-    currentAddressState.flatNo = matched.flat_no || '';
-    currentAddressState.landmark = matched.landmark || '';
-    currentAddressState.savedAddressId = matched.id;
-  } else {
-    currentAddressState.label = 'Current location';
-    currentAddressState.savedAddressId = null;
-  }
-
-  logAnalyticsEvent('location_resolved', { lat, lng, pincode: d.postalCode, city: d.city });
-  return d;
-}
-
-/**
- * Check Serviceability Endpoint
- */
-async function checkServiceabilityForCurrentLocation() {
-  try {
-    const res = await fetch('/api/serviceability', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        lat: currentAddressState.latitude,
-        lng: currentAddressState.longitude,
-        pincode: currentAddressState.postalCode,
-        city: currentAddressState.city
-      })
-    });
-
-    const json = await res.json();
-    currentAddressState.serviceable = json.ok ? Boolean(json.serviceable) : false;
-    if (json.city) currentAddressState.city = json.city;
-  } catch (err) {
-    console.warn('Serviceability check network error:', err);
-    currentAddressState.serviceable = false;
-  }
-}
-
-/**
- * Load Google Maps JS API for Confirm-on-map feature
- */
-function loadGoogleMapsScript() {
-  return new Promise((resolve, reject) => {
-    if (window.google && window.google.maps) {
-      return resolve(window.google.maps);
-    }
-    const apiKey = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY_BROWSER || '';
-    if (!apiKey) {
-      console.warn('VITE_GOOGLE_MAPS_API_KEY_BROWSER is not set');
-    }
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve(window.google.maps);
-    script.onerror = (err) => reject(err);
-    document.head.appendChild(script);
-  });
-}
-
-/**
- * Render Interactive Map for confirming low accuracy location
- */
-async function showConfirmOnMapScreen(lat, lng) {
-  showScreen('ob-screen-map');
-  updateStatusAnnouncement('Map loaded. Drag the marker to adjust your exact location.');
-
-  try {
-    await loadGoogleMapsScript();
-    const mapContainer = document.getElementById('ob-google-map-container');
-    const pos = { lat, lng };
-
-    googleMapInstance = new window.google.maps.Map(mapContainer, {
-      center: pos,
-      zoom: 16,
-      disableDefaultUI: true,
-      zoomControl: true
-    });
-
-    googleMarkerInstance = new window.google.maps.Marker({
-      position: pos,
-      map: googleMapInstance,
-      draggable: true,
-      title: 'Drag to adjust location'
-    });
-
-    googleMarkerInstance.addListener('dragend', async (evt) => {
-      const newLat = evt.latLng.lat();
-      const newLng = evt.latLng.lng();
-      updateStatusAnnouncement('Updating coordinates from dragged marker...');
-      try {
-        await performReverseGeocode(newLat, newLng);
-        await checkServiceabilityForCurrentLocation();
-      } catch (err) {
-        console.error('Failed to geocode dragged pin:', err);
-      }
-    });
-  } catch (err) {
-    console.warn('Google Maps JS API failed to load, proceeding to standard screen:', err);
-    showScreen('ob-screen-3');
-    updateScreen3UI();
-  }
-}
-
-/**
- * Start Real GPS Location Fetching
- */
-async function startRealLocationFetch() {
-  showScreen('ob-screen-2');
-  const statusEl = document.getElementById('gps-status-text');
-  if (statusEl) statusEl.textContent = 'CHECKING PERMISSIONS...';
-  updateStatusAnnouncement('Checking location permissions...');
-
-  logAnalyticsEvent('location_requested');
-
-  // 1. Check HTTPS / secure context
-  if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-    showErrorState('Insecure Context', 'Geolocation requires HTTPS or localhost connection.');
-    logAnalyticsEvent('location_failed', { reason: 'insecure_context' });
-    return;
-  }
-
-  // 2. Check Permissions API if supported
-  if (navigator.permissions && navigator.permissions.query) {
-    try {
-      const perm = await navigator.permissions.query({ name: 'geolocation' });
-      if (perm.state === 'denied') {
-        logAnalyticsEvent('location_denied');
-        showErrorState(
-          'Permission Denied',
-          'Location access is blocked in your browser settings. Please enable location permissions or search manually.'
-        );
-        return;
-      }
-    } catch (e) {
-      // Permission query not supported for geolocation in some browsers (e.g. Safari)
-    }
-  }
-
-  if (!navigator.geolocation) {
-    showErrorState('Not Supported', 'Geolocation is not supported by your device or browser.');
-    logAnalyticsEvent('location_failed', { reason: 'not_supported' });
-    return;
-  }
-
-  if (statusEl) statusEl.textContent = 'CONNECTING TO GPS...';
-  updateStatusAnnouncement('Connecting to device GPS...');
-
-  let bestReading = null;
-  const options = {
-    enableHighAccuracy: true,
-    timeout: 10000,
-    maximumAge: 60000
+  const storagePayload = {
+    latitude: currentAddressState.latitude,
+    longitude: currentAddressState.longitude,
+    formattedAddress: currentAddressState.formattedAddress,
+    apartmentName: currentAddressState.apartmentName || '',
+    flatNo: currentAddressState.flatNo || '',
+    landmark: currentAddressState.landmark || '',
+    fullAddress: currentAddressState.formattedAddress,
+    city: currentAddressState.city || 'Gurugram',
+    pincode: currentAddressState.postalCode || '122001',
+    label: currentAddressState.label || 'Current location',
+    timestamp: Date.now()
   };
 
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      logAnalyticsEvent('location_granted');
-      const { latitude, longitude, accuracy } = pos.coords;
-      bestReading = { latitude, longitude, accuracy };
+  try {
+    localStorage.setItem('bpe_location', JSON.stringify(storagePayload));
+    localStorage.setItem('bpe_city', JSON.stringify(currentAddressState.city || 'Gurugram'));
+  } catch (e) {}
 
-      // If accuracy > 100m, fallback to watchPosition up to 8s to get a tighter fix
-      if (accuracy > 100) {
-        if (statusEl) statusEl.textContent = 'REFINING GPS ACCURACY...';
-        updateStatusAnnouncement('Refining high accuracy GPS fix...');
+  window.BPE_GPS_LOCATION = storagePayload;
+  window.dispatchEvent(new CustomEvent('bpe:continue', { detail: storagePayload }));
 
-        await new Promise((resolve) => {
-          const timeoutId = setTimeout(() => {
-            if (activeWatchId !== null) {
-              navigator.geolocation.clearWatch(activeWatchId);
-              activeWatchId = null;
-            }
-            resolve();
-          }, 8000);
+  // Remove overlay smoothly
+  const container = document.getElementById('bpe-location-flow-container');
+  if (container) {
+    container.style.opacity = '0';
+    container.style.transition = 'opacity 0.4s ease';
+    setTimeout(() => {
+      container.style.display = 'none';
+      document.body.classList.remove('onboarding-active');
+    }, 400);
+  } else {
+    document.body.classList.remove('onboarding-active');
+  }
 
-          activeWatchId = navigator.geolocation.watchPosition(
-            (watchPos) => {
-              if (watchPos.coords.accuracy < bestReading.accuracy) {
-                bestReading = {
-                  latitude: watchPos.coords.latitude,
-                  longitude: watchPos.coords.longitude,
-                  accuracy: watchPos.coords.accuracy
-                };
-              }
-              if (bestReading.accuracy <= 100) {
-                clearTimeout(timeoutId);
-                if (activeWatchId !== null) {
-                  navigator.geolocation.clearWatch(activeWatchId);
-                  activeWatchId = null;
-                }
-                resolve();
-              }
-            },
-            (err) => {
-              console.warn('WatchPosition error:', err);
-            },
-            options
-          );
-        });
-      }
-
-      currentAddressState.accuracy = bestReading.accuracy;
-
-      try {
-        await performReverseGeocode(bestReading.latitude, bestReading.longitude);
-        await checkServiceabilityForCurrentLocation();
-
-        // If low accuracy > 500m, ask user to confirm on map
-        if (bestReading.accuracy > 500) {
-          await showConfirmOnMapScreen(bestReading.latitude, bestReading.longitude);
-        } else {
-          showScreen('ob-screen-3');
-          updateScreen3UI();
-        }
-      } catch (geocodeErr) {
-        console.error('Reverse Geocode failed:', geocodeErr);
-        showErrorState('Geocoding Failed', 'Could not resolve physical address for your GPS coordinates.');
-        logAnalyticsEvent('location_failed', { reason: 'geocoding_failure', message: geocodeErr.message });
-      }
-    },
-    (err) => {
-      console.warn('getCurrentPosition error:', err);
-      logAnalyticsEvent('location_failed', { code: err.code, message: err.message });
-      if (err.code === err.PERMISSION_DENIED) {
-        showErrorState('Permission Denied', 'Location permission was denied. Please allow location access or search manually.');
-      } else if (err.code === err.TIMEOUT) {
-        showErrorState('GPS Timeout', 'Timed out waiting for GPS signal. Please retry or search manually.');
-      } else {
-        showErrorState('Position Unavailable', 'GPS signal unavailable. Please ensure location services are enabled.');
-      }
-    },
-    options
-  );
+  if (window.location.hash !== '#/' && window.location.hash !== '') {
+    window.location.hash = '#/';
+  } else {
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  }
 }
 
 /**
- * Display Error State UI with Retry and Manual Search buttons
+ * Display Fallback / Error State
  */
 function showErrorState(title, description) {
+  clearTimeout(autoRedirectTimer);
   const tEl = document.getElementById('ob-error-title');
   const dEl = document.getElementById('ob-error-desc');
   if (tEl) tEl.textContent = title;
   if (dEl) dEl.textContent = description;
   showScreen('ob-screen-error');
-  updateStatusAnnouncement(`Error: ${title}. ${description}`);
+  updateStatusAnnouncement(`Notice: ${title}. ${description}`);
 }
 
 /**
- * Update UI on Screen 3
+ * Acquire GPS coordinates with browser geolocation API
  */
-function updateScreen3UI() {
-  const fetchedAddrEl = document.getElementById('ob-fetched-address');
-  const labelEl = document.getElementById('ob-address-label');
-  const continueBtn = document.getElementById('ob-btn-continue');
-  const alertCard = document.getElementById('ob-serviceability-alert');
-
-  if (fetchedAddrEl) {
-    fetchedAddrEl.textContent = currentAddressState.formattedAddress || 'Selected Address';
-  }
-
-  if (labelEl) {
-    labelEl.textContent = currentAddressState.label || 'Current location';
-  }
-
-  if (currentAddressState.serviceable) {
-    if (alertCard) alertCard.style.display = 'none';
-    if (continueBtn) {
-      continueBtn.disabled = false;
-      continueBtn.style.opacity = '1';
-      continueBtn.style.cursor = 'pointer';
-      continueBtn.textContent = 'Continue';
+function captureCoordinates() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      return resolve({ success: false, reason: 'not_supported' });
     }
-    updateStatusAnnouncement(`Delivering service at ${currentAddressState.label}: ${currentAddressState.formattedAddress}`);
-  } else {
-    if (alertCard) alertCard.style.display = 'block';
-    if (continueBtn) {
-      continueBtn.disabled = true;
-      continueBtn.style.opacity = '0.5';
-      continueBtn.style.cursor = 'not-allowed';
-      continueBtn.textContent = 'Area Not Serviceable';
-    }
-    updateStatusAnnouncement(`Notice: Service is not available yet at ${currentAddressState.formattedAddress}`);
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        resolve({
+          success: true,
+          coords: {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy
+          }
+        });
+      },
+      (err) => {
+        resolve({
+          success: false,
+          code: err.code,
+          message: err.message
+        });
+      },
+      options
+    );
+  });
+}
+
+/**
+ * Execute the 3-step realistic sequence (2 seconds each, total ~6 seconds)
+ */
+async function runThreeStepLocationSequence() {
+  document.body.classList.add('onboarding-active');
+
+  // STEP 1: Just a moment... (2 seconds)
+  showScreen('ob-screen-1');
+  const step1Fill = document.getElementById('step1-bar-fill');
+  if (step1Fill) {
+    step1Fill.classList.remove('anim-step1');
+    void step1Fill.offsetWidth;
+    step1Fill.classList.add('anim-step1');
   }
+  updateStatusAnnouncement('Step 1: Just a moment...');
+  await new Promise(r => setTimeout(r, 2000));
+
+  // STEP 2: Fetching your location... (2 seconds)
+  // Dropping pin animation + concurrent real GPS call
+  showScreen('ob-screen-2');
+  const step2Fill = document.getElementById('step2-bar-fill');
+  if (step2Fill) {
+    step2Fill.classList.remove('anim-step2');
+    void step2Fill.offsetWidth;
+    step2Fill.classList.add('anim-step2');
+  }
+  const statusEl = document.getElementById('gps-status-text');
+  if (statusEl) statusEl.textContent = 'CONNECTING TO GPS...';
+  updateStatusAnnouncement('Step 2: Fetching your location...');
+
+  const step2Start = Date.now();
+  const geoPromise = captureCoordinates();
+
+  // Wait for at least 2 seconds for visual animation of dropping pin
+  const [geoResult] = await Promise.all([
+    geoPromise,
+    new Promise(r => setTimeout(r, 2000))
+  ]);
+
+  if (!geoResult.success) {
+    // Permission denied or unavailable -> polite fallback
+    logAnalyticsEvent('location_failed', geoResult);
+    showErrorState(
+      'Location not available',
+      'Please allow location access so we can deliver services directly to your doorstep.'
+    );
+    return;
+  }
+
+  // STEP 3: Capturing location... (2 seconds)
+  // Pulsing radar animation + reverse geocoding to sector/area name
+  showScreen('ob-screen-3');
+  const step3Fill = document.getElementById('step3-bar-fill');
+  if (step3Fill) {
+    step3Fill.classList.remove('anim-step3');
+    void step3Fill.offsetWidth;
+    step3Fill.classList.add('anim-step3');
+  }
+  updateStatusAnnouncement('Step 3: Capturing your location...');
+
+  const lat = geoResult.coords.latitude;
+  const lng = geoResult.coords.longitude;
+  currentAddressState.latitude = lat;
+  currentAddressState.longitude = lng;
+  currentAddressState.accuracy = geoResult.coords.accuracy;
+
+  const geocodePromise = performReverseGeocode(lat, lng);
+  const [geoData] = await Promise.all([
+    geocodePromise,
+    new Promise(r => setTimeout(r, 2000))
+  ]);
+
+  currentAddressState = {
+    ...currentAddressState,
+    ...geoData,
+    label: geoData.sector || geoData.locality || 'Current location'
+  };
+
+  updateScreen3UI();
+  logAnalyticsEvent('location_resolved', { lat, lng, formattedAddress: currentAddressState.formattedAddress });
+
+  // After Step 3 completes, allow user to click Continue OR automatically enter after 1 second
+  autoRedirectTimer = setTimeout(() => {
+    completeLocationFlowAndEnterSite();
+  }, 1000);
 }
 
 /**
  * Open Address Bottom Sheet Modal
  */
-async function openAddressModal() {
+function openAddressModal() {
+  clearTimeout(autoRedirectTimer);
   const modal = document.getElementById('ob-address-modal');
   if (!modal) return;
 
   const gpsAreaInput = document.getElementById('ob-input-gps-area');
   if (gpsAreaInput) {
-    gpsAreaInput.value = currentAddressState.formattedAddress || '';
+    gpsAreaInput.value = currentAddressState.formattedAddress || 'Gurugram, Haryana';
   }
-
-  const aptInput = document.getElementById('ob-input-apartment');
-  const flatInput = document.getElementById('ob-input-flat');
-  const lmkInput = document.getElementById('ob-input-landmark');
-
-  if (aptInput) aptInput.value = currentAddressState.apartmentName || '';
-  if (flatInput) flatInput.value = currentAddressState.flatNo || '';
-  if (lmkInput) lmkInput.value = currentAddressState.landmark || '';
-
-  // Render saved addresses list
-  await renderSavedAddressesInSheet();
 
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
@@ -724,7 +548,7 @@ function closeAddressModal() {
 }
 
 /**
- * Handle Places Autocomplete Search with 300ms Debounce
+ * Handle Places Autocomplete Search
  */
 let autocompleteTimeout = null;
 function handlePlacesAutocompleteSearch(query) {
@@ -795,43 +619,29 @@ async function selectPlaceDetails(placeId) {
       })
     });
 
-    // Reset session token after place selection
     autocompleteSessionToken = null;
-
     const json = await res.json();
-    if (!json.ok || !json.place) {
-      throw new Error('Place details error');
+    if (json.ok && json.place) {
+      const p = json.place;
+      currentAddressState.latitude = p.latitude;
+      currentAddressState.longitude = p.longitude;
+      currentAddressState.formattedAddress = p.formattedAddress;
+      currentAddressState.city = p.city || 'Gurugram';
+      currentAddressState.postalCode = p.postalCode || '';
+      currentAddressState.label = p.sector || p.locality || 'Selected location';
+
+      const gpsAreaInput = document.getElementById('ob-input-gps-area');
+      if (gpsAreaInput) gpsAreaInput.value = p.formattedAddress;
     }
-
-    const p = json.place;
-    currentAddressState.latitude = p.latitude;
-    currentAddressState.longitude = p.longitude;
-    currentAddressState.formattedAddress = p.formattedAddress;
-    currentAddressState.houseNumber = p.houseNumber || '';
-    currentAddressState.street = p.street || '';
-    currentAddressState.locality = p.locality || '';
-    currentAddressState.sector = p.sector || '';
-    currentAddressState.city = p.city || 'Gurugram';
-    currentAddressState.district = p.district || '';
-    currentAddressState.state = p.state || '';
-    currentAddressState.postalCode = p.postalCode || '';
-    currentAddressState.country = p.country || 'India';
-    currentAddressState.label = 'Selected location';
-
-    const gpsAreaInput = document.getElementById('ob-input-gps-area');
-    if (gpsAreaInput) gpsAreaInput.value = p.formattedAddress;
-
-    await checkServiceabilityForCurrentLocation();
-    logAnalyticsEvent('location_changed', { source: 'autocomplete', placeId, pincode: p.postalCode });
   } catch (err) {
     console.error('Failed to get place details:', err);
   }
 }
 
 /**
- * Complete Address Form Validation & Save
+ * Save manual address and complete
  */
-async function saveAddressAndComplete() {
+function saveAddressAndComplete() {
   const aptInput = document.getElementById('ob-input-apartment');
   const flatInput = document.getElementById('ob-input-flat');
   const lmkInput = document.getElementById('ob-input-landmark');
@@ -863,157 +673,25 @@ async function saveAddressAndComplete() {
   currentAddressState.flatNo = flat;
   currentAddressState.landmark = landmark;
 
-  // Build full address string
   const addressParts = [];
   if (flat) addressParts.push(flat);
   if (apartment) addressParts.push(apartment);
   if (landmark) addressParts.push(landmark);
   if (currentAddressState.formattedAddress) addressParts.push(currentAddressState.formattedAddress);
 
-  const fullAddressStr = addressParts.join(', ');
-
-  // Save/Upsert to Supabase only when the project is configured and a session exists.
-  try {
-    if (!supabase) throw new Error('Supabase is not configured; address remains saved on this device.');
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const userId = session.user.id;
-      const savedList = await loadSavedAddressesForUser();
-
-      // Check if coordinates match within 100m of existing saved address
-      const existing = savedList.find(a =>
-        getDistanceMeters(currentAddressState.latitude, currentAddressState.longitude, a.latitude, a.longitude) <= 100
-      );
-
-      if (existing) {
-        // Update existing address
-        await supabase
-          .from('user_addresses')
-          .update({
-            label: currentAddressState.label,
-            latitude: currentAddressState.latitude,
-            longitude: currentAddressState.longitude,
-            formatted_address: currentAddressState.formattedAddress,
-            apartment_name: apartment,
-            flat_no: flat,
-            landmark: landmark,
-            pincode: currentAddressState.postalCode,
-            city: currentAddressState.city,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existing.id);
-      } else {
-        // Insert new address
-        await supabase
-          .from('user_addresses')
-          .insert([{
-            user_id: userId,
-            label: currentAddressState.label,
-            latitude: currentAddressState.latitude,
-            longitude: currentAddressState.longitude,
-            formatted_address: currentAddressState.formattedAddress,
-            apartment_name: apartment,
-            flat_no: flat,
-            landmark: landmark,
-            pincode: currentAddressState.postalCode,
-            city: currentAddressState.city,
-            is_default: savedList.length === 0
-          }]);
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to upsert user address to Supabase:', err);
-  }
-
-  // Persist to localStorage
-  const storagePayload = {
-    latitude: currentAddressState.latitude,
-    longitude: currentAddressState.longitude,
-    formattedAddress: currentAddressState.formattedAddress,
-    apartmentName: apartment,
-    flatNo: flat,
-    landmark: landmark,
-    fullAddress: fullAddressStr,
-    city: currentAddressState.city,
-    pincode: currentAddressState.postalCode,
-    label: currentAddressState.label,
-    timestamp: Date.now()
-  };
-
-  try {
-    localStorage.setItem('bpe_location', JSON.stringify(storagePayload));
-    localStorage.setItem('bpe_city', JSON.stringify(currentAddressState.city || 'Gurugram'));
-  } catch (e) {}
-
-  window.BPE_GPS_LOCATION = storagePayload;
-
-  // Emit custom event
-  const continueEvent = new CustomEvent('bpe:continue', { detail: storagePayload });
-  window.dispatchEvent(continueEvent);
+  currentAddressState.fullAddress = addressParts.join(', ');
 
   closeAddressModal();
-
-  // Hide overlay and reveal app
-  const container = document.getElementById('bpe-location-flow-container');
-  if (container) container.style.display = 'none';
-  document.body.classList.remove('onboarding-active');
-
-  if (window.location.hash !== '#/' && window.location.hash !== '') {
-    window.location.hash = '#/';
-  } else {
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
-  }
-}
-
-/**
- * Handle Unserviceable Area Notify Request Submission
- */
-async function submitNotifyRequest() {
-  const pincodeEl = document.getElementById('ob-notify-pincode');
-  const inputEl = document.getElementById('ob-notify-input');
-  const errEl = document.getElementById('ob-notify-err');
-
-  const contact = inputEl ? inputEl.value.trim() : '';
-  const pincode = currentAddressState.postalCode || '122001';
-
-  if (!contact) {
-    if (errEl) errEl.hidden = false;
-    return;
-  }
-  if (errEl) errEl.hidden = true;
-
-  try {
-    const res = await fetch('/api/notify-serviceability', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pincode,
-        emailOrPhone: contact,
-        lat: currentAddressState.latitude,
-        lng: currentAddressState.longitude
-      })
-    });
-
-    const json = await res.json();
-    if (json.ok) {
-      alert('Thank you! We will notify you as soon as services launch in your area.');
-      document.getElementById('ob-notify-modal').classList.remove('open');
-    } else {
-      alert(json.error || 'Submission failed. Please try again.');
-    }
-  } catch (err) {
-    alert('Network error. Please try again.');
-  }
+  completeLocationFlowAndEnterSite();
 }
 
 /**
  * Bind DOM Event Listeners
  */
 function bindOverlayEvents() {
-  // Screen 3 Continue
+  // Screen 3 Continue button
   document.getElementById('ob-btn-continue')?.addEventListener('click', () => {
-    if (!currentAddressState.serviceable) return;
-    openAddressModal();
+    completeLocationFlowAndEnterSite();
   });
 
   // Screen 3 Change Location
@@ -1021,15 +699,25 @@ function bindOverlayEvents() {
     openAddressModal();
   });
 
-  // Confirm on map screen
-  document.getElementById('ob-btn-confirm-map')?.addEventListener('click', () => {
-    showScreen('ob-screen-3');
-    updateScreen3UI();
+  // Error screen continue with default Gurugram location
+  document.getElementById('ob-btn-error-continue')?.addEventListener('click', () => {
+    currentAddressState = {
+      ...currentAddressState,
+      latitude: 28.4035,
+      longitude: 76.9712,
+      formattedAddress: 'Sector 85, Gurugram, Haryana',
+      sector: 'Sector 85',
+      city: 'Gurugram',
+      state: 'Haryana',
+      postalCode: '122004',
+      label: 'Sector 85, Gurugram'
+    };
+    completeLocationFlowAndEnterSite();
   });
 
-  // Error screen retry
+  // Error screen retry GPS
   document.getElementById('ob-btn-error-retry')?.addEventListener('click', () => {
-    startRealLocationFetch();
+    runThreeStepLocationSequence();
   });
 
   // Error screen manual search
@@ -1052,22 +740,6 @@ function bindOverlayEvents() {
     closeAddressModal();
   });
 
-  // Notify Me Modal trigger (if unserviceable link clicked)
-  document.getElementById('ob-serviceability-alert')?.addEventListener('click', () => {
-    const notifyModal = document.getElementById('ob-notify-modal');
-    const pCodeEl = document.getElementById('ob-notify-pincode');
-    if (pCodeEl) pCodeEl.textContent = currentAddressState.postalCode || 'your area';
-    if (notifyModal) notifyModal.classList.add('open');
-  });
-
-  document.getElementById('ob-btn-submit-notify')?.addEventListener('click', () => {
-    submitNotifyRequest();
-  });
-
-  document.getElementById('ob-btn-close-notify')?.addEventListener('click', () => {
-    document.getElementById('ob-notify-modal').classList.remove('open');
-  });
-
   // Address label selector buttons (Home/Work/Other)
   document.querySelectorAll('.btn-address-label').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1081,16 +753,6 @@ function bindOverlayEvents() {
       btn.classList.add('active');
       currentAddressState.label = btn.getAttribute('data-label') || 'Home';
     });
-  });
-
-  // Network Offline / Online events
-  window.addEventListener('offline', () => {
-    showErrorState('Offline Mode', 'You are currently offline. Please check your internet connection.');
-  });
-
-  window.addEventListener('online', () => {
-    updateStatusAnnouncement('Connection restored. Retrying location fetch...');
-    startRealLocationFetch();
   });
 }
 
@@ -1108,68 +770,12 @@ export function attachHeaderLocationSelectorHook() {
 }
 
 /**
- * Main Initialization Flow
+ * Main Initialization Flow - Runs on EVERY refresh/load as requested
  */
 export async function initLocationFlow() {
   initOverlayDOM();
   attachHeaderLocationSelectorHook();
-
-  const minSplashPromise = new Promise(resolve => setTimeout(resolve, 1200));
-
-  // Check cached location in localStorage
-  let cached = null;
-  try {
-    const raw = localStorage.getItem('bpe_location');
-    if (raw) cached = JSON.parse(raw);
-  } catch (e) {}
-
-  await minSplashPromise;
-
-  if (cached && cached.latitude && cached.longitude) {
-    // Returning visit: skip overlay, use cached location instantly
-    window.BPE_GPS_LOCATION = cached;
-    currentAddressState = { ...currentAddressState, ...cached };
-
-    const container = document.getElementById('bpe-location-flow-container');
-    if (container) container.style.display = 'none';
-    document.body.classList.remove('onboarding-active');
-
-    // Refresh location silently in background
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const dist = getDistanceMeters(cached.latitude, cached.longitude, pos.coords.latitude, pos.coords.longitude);
-          if (dist > 200) {
-            console.log(`Background location update: moved ${Math.round(dist)}m > 200m`);
-            await performReverseGeocode(pos.coords.latitude, pos.coords.longitude);
-            await checkServiceabilityForCurrentLocation();
-
-            const updatedPayload = {
-              latitude: currentAddressState.latitude,
-              longitude: currentAddressState.longitude,
-              formattedAddress: currentAddressState.formattedAddress,
-              city: currentAddressState.city,
-              pincode: currentAddressState.postalCode,
-              label: currentAddressState.label,
-              timestamp: Date.now()
-            };
-
-            try {
-              localStorage.setItem('bpe_location', JSON.stringify(updatedPayload));
-            } catch (e) {}
-
-            window.BPE_GPS_LOCATION = updatedPayload;
-            window.dispatchEvent(new CustomEvent('bpe:continue', { detail: updatedPayload }));
-          }
-        },
-        (err) => console.warn('Background location refresh error:', err),
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
-      );
-    }
-  } else {
-    // First visit: start full 3-screen location detection
-    startRealLocationFetch();
-  }
+  runThreeStepLocationSequence();
 }
 
 // Auto-run initialization when DOM is ready
