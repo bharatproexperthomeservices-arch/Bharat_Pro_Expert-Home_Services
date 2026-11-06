@@ -79,6 +79,55 @@ function parseGoogleAddressComponents(components) {
 }
 
 /**
+ * OpenStreetMap Nominatim reverse geocode fallback
+ */
+async function reverseGeocodeWithNominatim(numLat, numLng) {
+  const osmUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${numLat}&lon=${numLng}&addressdetails=1`;
+  const osmRes = await fetch(osmUrl, {
+    headers: {
+      'User-Agent': 'BharatProExpert/1.0 (contact: bharatproexpert@gmail.com)'
+    }
+  });
+
+  if (!osmRes.ok) {
+    throw new Error(`Nominatim request failed: ${osmRes.status}`);
+  }
+
+  const osmData = await osmRes.json();
+  const addr = osmData.address || {};
+
+  const houseNumber = addr.house_number || '';
+  const street = addr.road || addr.residential || '';
+  const sector = addr.suburb || addr.neighbourhood || addr.subdivision || '';
+  const locality = addr.residential || addr.neighbourhood || addr.suburb || '';
+  const city = addr.city || addr.town || addr.city_district || addr.district || 'Gurugram';
+  const district = addr.city_district || addr.district || addr.county || '';
+  const state = addr.state || 'Haryana';
+  const postalCode = addr.postcode || '';
+  const country = addr.country || 'India';
+
+  // Build clean display address
+  const readableParts = [sector || locality, city, state].filter(Boolean);
+  const formattedAddress = readableParts.join(', ') || osmData.display_name || `${numLat}, ${numLng}`;
+
+  return {
+    formattedAddress,
+    houseNumber,
+    street,
+    locality,
+    sector,
+    city,
+    district,
+    state,
+    postalCode,
+    country,
+    latitude: numLat,
+    longitude: numLng,
+    source: 'nominatim'
+  };
+}
+
+/**
  * 1. POST /api/geocode/reverse
  * Input: { lat, lng }
  * Output: { ok: true, data: { formattedAddress, houseNumber, street, locality, sector, city, district, state, postalCode, country, lat, lng } }
@@ -108,31 +157,59 @@ router.post('/geocode/reverse', async (req, res) => {
     }
 
     const apiKey = process.env.GOOGLE_MAPS_API_KEY_SERVER;
-    if (!apiKey) {
-      return res.status(500).json({ ok: false, error: 'Google Maps Server API key is not configured' });
+    let resultPayload = null;
+
+    if (apiKey && apiKey !== 'your-google-maps-server-key') {
+      try {
+        const googleUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${numLat},${numLng}&key=${apiKey}`;
+        const googleRes = await fetch(googleUrl);
+        const googleData = await googleRes.json();
+
+        if (googleData.status === 'OK' && googleData.results && googleData.results.length > 0) {
+          const firstResult = googleData.results[0];
+          const parsed = parseGoogleAddressComponents(firstResult.address_components || []);
+          const formattedAddress = firstResult.formatted_address || `${numLat}, ${numLng}`;
+
+          resultPayload = {
+            formattedAddress,
+            ...parsed,
+            latitude: numLat,
+            longitude: numLng,
+            source: 'google'
+          };
+        }
+      } catch (gErr) {
+        console.warn('Google Maps geocoding attempt failed, falling back to Nominatim:', gErr.message);
+      }
     }
 
-    const googleUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${numLat},${numLng}&key=${apiKey}`;
-    const googleRes = await fetch(googleUrl);
-    const googleData = await googleRes.json();
-
-    if (googleData.status !== 'OK' || !googleData.results || googleData.results.length === 0) {
-      return res.status(422).json({
-        ok: false,
-        error: googleData.error_message || `Geocoding failed with status: ${googleData.status}`
-      });
+    // If Google was not configured or failed, use OpenStreetMap Nominatim reverse geocode
+    if (!resultPayload) {
+      try {
+        resultPayload = await reverseGeocodeWithNominatim(numLat, numLng);
+      } catch (osmErr) {
+        console.warn('Nominatim geocoding error:', osmErr.message);
+      }
     }
 
-    const firstResult = googleData.results[0];
-    const parsed = parseGoogleAddressComponents(firstResult.address_components || []);
-    const formattedAddress = firstResult.formatted_address || `${numLat}, ${numLng}`;
-
-    const resultPayload = {
-      formattedAddress,
-      ...parsed,
-      latitude: numLat,
-      longitude: numLng
-    };
+    // Final fallback if both fail
+    if (!resultPayload) {
+      resultPayload = {
+        formattedAddress: `${numLat.toFixed(4)}, ${numLng.toFixed(4)}`,
+        houseNumber: '',
+        street: '',
+        locality: 'Current Location',
+        sector: '',
+        city: 'Gurugram',
+        district: 'Gurugram',
+        state: 'Haryana',
+        postalCode: '',
+        country: 'India',
+        latitude: numLat,
+        longitude: numLng,
+        source: 'coordinates'
+      };
+    }
 
     // Cache for 24 hours
     geocodeCache.set(cacheKey, {

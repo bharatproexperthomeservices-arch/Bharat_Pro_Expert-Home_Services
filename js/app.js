@@ -1674,130 +1674,42 @@ import {
   try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () { if (!S.theme) { applyTheme(); refresh(); } }); } catch (e) { /* old browsers */ }
   window.addEventListener('hashchange', function () { if (parseRoute().name !== 'partner') drafts.partner = {}; });
 
-  /* ---------- Splash Screen Controller ---------- */
-  var splashController = (function () {
-    var targetPercent = 0;
-    var currentPercent = 0;
-    var barEl = document.getElementById('splash-progress');
-    var statusEl = document.getElementById('splash-status');
-    var splashEl = document.getElementById('splash-screen');
-    var animationFrame = null;
-    var isDone = false;
-
-    function updateUI() {
-      if (barEl) {
-        barEl.style.width = Math.min(100, Math.max(0, currentPercent)) + '%';
-      }
-    }
-
-    function step() {
-      if (currentPercent < targetPercent) {
-        currentPercent += Math.max(0.8, (targetPercent - currentPercent) * 0.18);
-        if (Math.abs(targetPercent - currentPercent) < 0.2) {
-          currentPercent = targetPercent;
-        }
-        updateUI();
-        if (currentPercent < targetPercent) {
-          animationFrame = requestAnimationFrame(step);
-        } else if (currentPercent >= 100 && !isDone) {
-          finish();
-        }
-      }
-    }
-
-    function setMilestone(percent, statusText) {
-      if (isDone) return;
-      if (percent > targetPercent) {
-        targetPercent = percent;
-        if (statusText && statusEl) {
-          statusEl.textContent = statusText;
-        }
-        if (animationFrame) cancelAnimationFrame(animationFrame);
-        animationFrame = requestAnimationFrame(step);
-      }
-    }
-
-    function finish() {
-      if (isDone) return;
-      isDone = true;
-      targetPercent = 100;
-      currentPercent = 100;
-      updateUI();
-      if (statusEl) statusEl.textContent = 'Just a moment...';
-      setTimeout(function () {
-        if (splashEl) {
-          splashEl.classList.add('splash-hidden', 'opacity-0', 'pointer-events-none');
-          setTimeout(function () {
-            if (splashEl && splashEl.parentNode) {
-              splashEl.parentNode.removeChild(splashEl);
-            }
-          }, 600);
-        }
-      }, 250);
-    }
-
-    return {
-      setMilestone: setMilestone,
-      finish: finish
-    };
-  })();
-
-  // Milestone 0% -> 20%: Document & Font Readiness
-  if (document.readyState === 'complete') {
-    splashController.setMilestone(20, 'Just a moment...');
-  } else {
-    window.addEventListener('load', function () {
-      splashController.setMilestone(20, 'Just a moment...');
-    });
-  }
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(function () {
-      splashController.setMilestone(20, 'Just a moment...');
-    }).catch(function () {});
-  }
-
   applyTheme();
   render(false);
 
-  // Asynchronous network milestone tracking
-  var authDone = false;
-  var cmsDone = false;
-
-  function checkInitializationComplete() {
-    if (authDone && cmsDone) {
-      splashController.setMilestone(100, 'Just a moment...');
-      splashController.finish();
+  // Listen to location flow update event to refresh UI and selected city/area
+  window.addEventListener('bpe:continue', function (e) {
+    var locData = e.detail;
+    if (locData && locData.city) {
+      S.city = locData.city;
+      save('bpe_city', S.city);
     }
-  }
+    refresh();
+  });
 
-  // Milestone 20% -> 50%: Auth session check
+  // Auth session check
   try {
     var unsubscribeAuth = subscribeAuthState(function (err, userObj) {
-      authDone = true;
-      splashController.setMilestone(50, 'Just a moment...');
       if (err) {
         console.error("Auth Step 2 error in auth listener:", err);
       } else if (userObj) {
         console.log("Auth Step 2 complete: Auth state synced for UID:", userObj.uid);
-        var currentStored = load('bpe_user', null);
-        if (!currentStored || currentStored.uid !== userObj.uid || !currentStored.phone) {
-          S.user = Object.assign({}, currentStored || {}, userObj, {
-            name: (currentStored && currentStored.name) || userObj.name || 'Bharat Pro Customer',
-            phone: (currentStored && currentStored.phone) || userObj.phone || ''
+        var localUser = load('bpe_user', null);
+        if (!localUser || localUser.uid !== userObj.uid || !localUser.phone) {
+          S.user = Object.assign({}, localUser || {}, userObj, {
+            name: (localUser && localUser.name) || userObj.name || 'Bharat Pro Customer',
+            phone: (localUser && localUser.phone) || userObj.phone || ''
           });
           save('bpe_user', S.user);
           refresh();
         }
       }
-      checkInitializationComplete();
     });
-  } catch (err) {
-    authDone = true;
-    splashController.setMilestone(50, 'Just a moment...');
-    console.error("Auth Step 2 error initializing subscribeAuthState:", err);
-    checkInitializationComplete();
+  } catch (authErr) {
+    console.error("Auth Step 2 error initializing subscribeAuthState:", authErr);
   }
 
+  // Process Google redirect result if returning from redirect sign-in
   checkGoogleRedirectResult().then(function (res) {
     if (res.success && res.user) {
       console.log("Auth Step 1 complete: Google redirect auth processed successfully", res.user.uid);
@@ -1807,46 +1719,29 @@ import {
       delete drafts.loginError;
       if (S.sheet) closeSheet();
       toast(t('googleSuccess'));
-      if (parseRoute().name === 'checkout') refresh();
-      else location.hash = '#/account';
+      if (currentRoute && currentRoute.name === 'checkout') {
+        refresh();
+      } else {
+        location.hash = '#/account';
+      }
     } else if (!res.success && !res.noResult) {
       console.error("Auth Step 1 error in Google redirect result:", res.error);
-      if (res.error) {
-        drafts.loginError = res.error;
-      }
+      if (res.error) drafts.loginError = res.error;
       toast(res.error || 'Google sign-in failed');
       refresh();
     }
-  }).catch(function (err) {
-    console.error('Auth Step 1 error checking redirect result:', err);
+  }).catch(function (e) {
+    console.error("Auth Step 1 error checking redirect result:", e);
   });
 
-  // Milestone 50% -> 80%: CMS data/catalog fetch
+  // Real-time CMS sync
   try {
-    var initialCmsReceived = false;
     subscribeCMS(function (type) {
-      if (!initialCmsReceived) {
-        initialCmsReceived = true;
-        cmsDone = true;
-        splashController.setMilestone(80, 'Just a moment...');
-        checkInitializationComplete();
-      }
       console.log("CMS update received for:", type);
       rebuildLookups();
       refresh();
     });
   } catch (cmsErr) {
-    cmsDone = true;
-    splashController.setMilestone(80, 'Just a moment...');
     console.warn("CMS Real-Time Subscription error:", cmsErr);
-    checkInitializationComplete();
   }
-
-  // Safety fallback timeout: ensure splash screen closes within 3.5s if network is exceptionally slow or offline
-  setTimeout(function () {
-    authDone = true;
-    cmsDone = true;
-    splashController.setMilestone(100, 'Just a moment...');
-    splashController.finish();
-  }, 3500);
 })();

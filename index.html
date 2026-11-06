@@ -161,14 +161,14 @@ body.onboarding-active {
 /* Tricolor Progress Bar */
 .tricolor-loader {
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
   margin-top: auto;
 }
 
 .tricolor-track {
-  height: 4px;
+  height: 6px;
   width: 100%;
-  background: rgba(11, 27, 61, 0.08);
+  background: rgba(11, 27, 61, 0.1);
   border-radius: 99px;
   overflow: hidden;
   position: relative;
@@ -177,15 +177,41 @@ body.onboarding-active {
 .tricolor-fill {
   position: absolute;
   inset: 0;
-  width: 45%;
+  width: 0%;
   background: linear-gradient(90deg, var(--saffron) 0%, #FFFFFF 50%, var(--green) 100%);
   border-radius: 99px;
-  animation: tricolorSlide 1.8s ease-in-out infinite;
 }
 
-@keyframes tricolorSlide {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(250%); }
+.tricolor-fill.anim-step1 {
+  animation: step1Progress 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.tricolor-fill.anim-step2 {
+  animation: step2Progress 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.tricolor-fill.anim-step3 {
+  animation: step3Progress 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes step1Progress {
+  0% { width: 0%; }
+  30% { width: 45%; }
+  70% { width: 85%; }
+  100% { width: 100%; }
+}
+
+@keyframes step2Progress {
+  0% { width: 0%; }
+  40% { width: 60%; }
+  80% { width: 90%; }
+  100% { width: 100%; }
+}
+
+@keyframes step3Progress {
+  0% { width: 0%; }
+  50% { width: 75%; }
+  100% { width: 100%; }
 }
 
 .tricolor-text {
@@ -197,11 +223,94 @@ body.onboarding-active {
   margin-top: 10px;
 }
 
-/* Screen 2: Radar Pulse & Pin */
-.radar-container {
+/* Screen 2: Dropping Pin Animation (डंडा सा गिरता है) */
+.pin-drop-container {
   position: relative;
   width: calc(var(--u) * 8);
   height: calc(var(--u) * 8);
+  margin-bottom: calc(var(--u) * 1.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pin-drop-stick {
+  width: 50px;
+  height: 50px;
+  border-radius: 50% 50% 50% 0;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px rgba(197, 160, 89, 0.45);
+  animation: pinDropBounce 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  position: relative;
+  z-index: 3;
+}
+
+.pin-drop-stick::after {
+  content: "";
+  width: 22px;
+  height: 22px;
+  background: var(--white);
+  border-radius: 50%;
+  position: absolute;
+}
+
+.pin-shadow {
+  position: absolute;
+  bottom: 6px;
+  width: 32px;
+  height: 8px;
+  background: rgba(11, 27, 61, 0.2);
+  border-radius: 50%;
+  animation: shadowScale 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  z-index: 1;
+}
+
+@keyframes pinDropBounce {
+  0% {
+    transform: translateY(-160px) rotate(-45deg) scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(0px) rotate(-45deg) scale(1.1);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(-15px) rotate(-45deg) scale(0.95);
+  }
+  100% {
+    transform: translateY(0px) rotate(-45deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shadowScale {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.3);
+    opacity: 0.35;
+  }
+  80% {
+    transform: scale(0.85);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.25;
+  }
+}
+
+/* Screen 3: Radar Pulse Animation */
+.radar-container {
+  position: relative;
+  width: calc(var(--u) * 8.5);
+  height: calc(var(--u) * 8.5);
   margin-bottom: calc(var(--u) * 1.5);
   display: flex;
   align-items: center;
@@ -212,16 +321,16 @@ body.onboarding-active {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 1.5px solid rgba(197, 160, 89, 0.4);
-  animation: radarPulse 2.4s var(--ease) infinite;
+  border: 2px solid rgba(34, 197, 94, 0.5);
+  animation: radarPulse 2s var(--ease) infinite;
 }
 
-.radar-ring:nth-child(2) { animation-delay: 0.8s; }
-.radar-ring:nth-child(3) { animation-delay: 1.6s; }
+.radar-ring:nth-child(2) { animation-delay: 0.65s; }
+.radar-ring:nth-child(3) { animation-delay: 1.3s; }
 
 @keyframes radarPulse {
   0% { transform: scale(0.3); opacity: 0; }
-  50% { opacity: 1; }
+  50% { opacity: 0.85; }
   100% { transform: scale(1.4); opacity: 0; }
 }
 
