@@ -705,7 +705,7 @@ import {
 
     return backBar(t('checkout'), '#/cart') +
       locationBannerHtml +
-      '<form class="detail__block" data-form="checkout" novalidate><h2>' + esc(t('address')) + '</h2>' +
+      '<form class="detail__block checkout-layout" data-form="checkout" novalidate><div class="checkout__form-column"><h2>' + esc(t('address')) + '</h2>' +
       field(t('name'), 'co.name', { ac: 'name' }) + field(t('phone'), 'co.phone', { type: 'tel', inputmode: 'numeric', max: 10, ac: 'tel-national' }) +
       field(t('house'), 'co.house', { ac: 'address-line1' }) + field(t('area'), 'co.area', { ac: 'address-line2' }) +
       field(t('pincode'), 'co.pincode', { inputmode: 'numeric', max: 6, ac: 'postal-code' }) + field(t('landmark'), 'co.landmark') +
@@ -729,8 +729,8 @@ import {
           '<svg width="32" height="32" viewBox="0 0 24 24"><path fill="#002e6e" d="M3 6h18v12H3z"/><path fill="#00baf2" d="M7 9h3v6H7zm5 0h5v2h-3v4h-2z"/></svg>' +
           '<span style="font-size:12px;font-weight:600">Paytm</span>' +
         '</button>' +
-      '</div>' + summary(c) +
-      '<button type="submit" class="btn btn--primary btn--block">' + esc(t('placeOrder')) + ' · ' + inr(c.total) + '</button></form>';
+      '</div><aside class="checkout__summary-column">' + summary(c) +
+      '<button type="submit" class="btn btn--primary btn--block">' + esc(t('placeOrder')) + ' · ' + inr(c.total) + '</button></aside></form>';
   }
 
   function validateCheckout() {
