@@ -20,6 +20,30 @@ create table if not exists public.partners (
   updated_at timestamptz not null default now()
 );
 
+-- Existing deployments may already have a Prisma-backed partners table. Add only
+-- the dispatch fields needed by this feature; preserve all existing partner columns.
+alter table public.partners
+  add column if not exists auth_user_id uuid,
+  add column if not exists full_name text,
+  add column if not exists pincode text,
+  add column if not exists skill_ids text[] not null default '{}',
+  add column if not exists availability_status text not null default 'AVAILABLE',
+  add column if not exists jobs_completed integer not null default 0,
+  add column if not exists updated_at timestamptz not null default now();
+
+do $
+begin
+  if exists (select 1 from information_schema.columns where table_schema='public' and table_name='partners' and column_name='name') then
+    execute 'update public.partners set full_name = coalesce(nullif(full_name, ''''), name) where full_name is null or full_name = ''''';
+  end if;
+  if exists (select 1 from information_schema.columns where table_schema='public' and table_name='partners' and column_name='skill') then
+    execute 'update public.partners set skill_ids = array[skill] where cardinality(skill_ids) = 0 and skill is not null';
+  end if;
+end $;
+
+update public.partners set full_name = coalesce(nullif(full_name, ''), 'Partner') where full_name is null or full_name = '';
+create unique index if not exists partners_auth_user_id_uidx on public.partners(auth_user_id) where auth_user_id is not null;
+
 create index if not exists partners_city_status_availability_idx
   on public.partners (lower(city), status, availability_status);
 create index if not exists partners_skill_ids_gin_idx on public.partners using gin (skill_ids);
@@ -67,7 +91,7 @@ security definer
 set search_path = public
 as $$
   select
-    count(*) filter (where p.status = 'ACTIVE') as active_partner_count,
+    count(*) filter (where upper(p.status) in ('ACTIVE','APPROVED')) as active_partner_count,
     count(*) filter (
       where p.status = 'ACTIVE'
         and p.availability_status = 'AVAILABLE'
