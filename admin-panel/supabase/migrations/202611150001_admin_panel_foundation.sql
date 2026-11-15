@@ -98,5 +98,20 @@ begin
   end if;
 end $$;
 
+grant select on public.admin_users to authenticated;
 grant select, insert, update, delete on public.admin_services, public.admin_site_settings, public.admin_media, public.admin_coupons to authenticated;
-grant select, update on public.bookings, public.partners to authenticated;
+
+-- notify_requests has historically been created by more than one additive migration.
+-- Grant the admin role its table privileges when the relation exists; RLS above remains authoritative.
+do $
+begin
+  if to_regclass('public.bookings') is not null then
+    execute 'grant select, update on public.bookings to authenticated';
+  end if;
+  if to_regclass('public.partners') is not null then
+    execute 'grant select, update on public.partners to authenticated';
+  end if;
+  if to_regclass('public.notify_requests') is not null then
+    execute 'grant select, update on public.notify_requests to authenticated';
+  end if;
+end $;
