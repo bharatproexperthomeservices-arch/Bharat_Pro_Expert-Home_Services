@@ -1033,104 +1033,6 @@ import {
       '<button type="submit" class="btn btn--primary btn--block">' + esc(t('submit')) + '</button></form>';
   }
 
-  /* ---------- SUPER ADMIN PANEL STATE & FUNCTIONS ---------- */
-  var ADMIN_PASS = 'bharatproexperthomeservices@9319953137';
-  var LOCKOUT_DURATION_MS = 15 * 60 * 1000;
-  var adminCaptchaCode = '';
-
-  function generateCaptcha() {
-    var chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-    var code = '';
-    for (var i = 0; i < 5; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    adminCaptchaCode = code;
-    return code;
-  }
-
-  function isAdminLoggedIn() {
-    return load('bpe_admin_auth', false) === true;
-  }
-
-  function getAdminLockoutUntil() {
-    var until = load('bpe_admin_lockout', 0);
-    return typeof until === 'number' ? until : 0;
-  }
-
-  function viewAdminLogin() {
-    if (isAdminLoggedIn()) {
-      location.hash = '#/admin';
-      return '';
-    }
-    if (!adminCaptchaCode) {
-      generateCaptcha();
-    }
-    var lockoutUntil = getAdminLockoutUntil();
-    var now = Date.now();
-    var isLocked = lockoutUntil > now;
-    var remainingMinutes = isLocked ? Math.ceil((lockoutUntil - now) / 60000) : 0;
-
-    return backBar('Super Admin Login', '#/') +
-      '<div class="detail__block" style="max-width:440px;margin:24px auto">' +
-        '<h2>🔒 Super Admin Authentication</h2>' +
-        '<p style="color:var(--text-sub);margin-bottom:16px">Enter Super Admin Password and Security Capture Code to access system settings.</p>' +
-        (isLocked
-          ? '<div style="background:#FF3B301A;border:1px solid #FF3B30;border-radius:8px;padding:12px;margin-bottom:16px;color:#FF3B30;font-size:14px;font-weight:600">' +
-              '⛔ High Security Lockout Active! 1 failed login attempt detected. Login is locked for 15 minutes. Please try again in ' + remainingMinutes + ' minute(s).' +
-            '</div>'
-          : '') +
-        '<form data-form="admin-login" novalidate>' +
-          field('Admin Password', 'admin.pass', { type: 'password', ph: 'Enter Admin Password', auto: true, ac: 'current-password' }) +
-          '<div style="margin-bottom:16px">' +
-            '<label class="field__label">Security Capture Code</label>' +
-            '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">' +
-              '<div style="background:var(--bg-sub, #f0f0f0);border:2px dashed var(--primary, #007AFF);padding:10px 18px;font-family:monospace;font-size:22px;font-weight:bold;letter-spacing:6px;user-select:none;border-radius:8px;color:var(--text, #000)">' + esc(adminCaptchaCode) + '</div>' +
-              '<button type="button" class="btn btn--ghost btn--sm" data-act="refresh-captcha" title="Refresh CAPTCHA">🔄 Refresh</button>' +
-            '</div>' +
-          '</div>' +
-          field('Enter Capture Code', 'admin.captcha', { ph: 'Enter CAPTCHA Code', ac: 'off' }) +
-          '<button type="submit" class="btn btn--primary btn--block"' + (isLocked ? ' disabled style="opacity:0.6;cursor:not-allowed"' : '') + '>Login to Super Admin Panel</button>' +
-        '</form>' +
-      '</div>';
-  }
-
-  function viewAdminDashboard() {
-    if (!isAdminLoggedIn()) {
-      location.hash = '#/admin';
-      return '';
-    }
-
-    var h = '<div class="admin-shell">' +
-      '<header class="admin-header">' +
-        '<h1 class="admin-title">👑 Bharat Pro Expert — Super Admin Panel</h1>' +
-        '<button type="button" class="btn btn--ghost btn--sm" data-act="admin-logout">Logout Admin</button>' +
-      '</header>' +
-      '<div class="admin-body">' +
-        '<aside class="admin-sidebar" aria-label="Admin Navigation">' +
-          '<nav class="admin-nav">' +
-            '<a href="#/admin" class="admin-nav__item is-active">📊 Dashboard</a>' +
-          '</nav>' +
-        '</aside>' +
-        '<main class="admin-content">' +
-          '<div class="empty" style="padding:40px 20px">' +
-            '<div aria-hidden="true" style="font-size:48px;margin-bottom:12px">📦</div>' +
-            '<h2 style="font-size:22px;font-weight:700;margin-bottom:8px">Admin Panel Code Snippets Available</h2>' +
-            '<p style="color:var(--text-sub);max-width:500px;margin:0 auto">React Admin Panel snippets are generated in the <code>ADMIN_PANEL_SNIPPETS</code> directory for deployment via Google AI Studio.</p>' +
-          '</div>' +
-        '</main>' +
-      '</div>' +
-    '</div>';
-
-    return h;
-  }
-
-  function viewAdminRouter() {
-    if (!isAdminLoggedIn()) {
-      return viewAdminLogin();
-    }
-    return viewAdminDashboard();
-  }
-
   function viewNotFound() {
     return emptyState('🧭', t('notFound'), t('notFoundSub'), '#/', t('goHome'));
   }
@@ -1197,7 +1099,6 @@ import {
       case 'login': return { name: 'login', nav: 'account', title: t('loginTitle'), view: viewLoginPage };
       case 'help': return { name: 'help', nav: 'account', title: t('help'), view: viewHelp };
       case 'partner': return { name: 'partner', nav: 'account', title: t('partner'), view: viewPartner };
-      case 'admin': return { name: 'admin', nav: 'account', subRoute: p[1] || 'login', param: p[2] || '', title: 'Super Admin Panel', view: function () { return viewAdminRouter(p[1], p[2], p[3]); } };
       default: return { name: '404', nav: '', title: t('notFound'), view: viewNotFound };
     }
   }
@@ -1278,7 +1179,7 @@ import {
     theme: function () { S.theme = isDark() ? 'light' : 'dark'; save('bpe_theme', S.theme); applyTheme(); refresh(); },
     login: function () { drafts.login = {}; drafts.errs = {}; delete drafts.loginError; location.hash = '#/login'; },
     logout: function () {
-      firebaseLogout().catch(function (e) {
+      supabaseLogout().catch(function (e) {
         console.error("Auth Step error on logout:", e);
       });
       S.user = null;
@@ -1387,15 +1288,6 @@ import {
       if (b) { b.cancelled = true; persistBookings(); }
       closeSheet(); toast(t('cancelledToast')); refresh();
     },
-    'admin-logout': function () {
-      save('bpe_admin_auth', false);
-      toast('Logged out of Super Admin Panel');
-      location.hash = '#/admin';
-    },
-    'refresh-captcha': function () {
-      generateCaptcha();
-      refresh();
-    }
   };
   function setLang(l) { S.lang = l; save('bpe_lang', l); applyTheme(); renderSheet(); refresh(); }
   function applyCoupon(code) {
@@ -1501,7 +1393,7 @@ import {
       drafts.verifyLoading = true;
       if (S.sheet) renderSheet(); else refresh();
       toast('Verifying OTP...');
-      verifyPhoneOtp(drafts.login.otp).then(function (res) {
+      verifyPhoneOtp(drafts.login.phone, drafts.login.otp).then(function (res) {
         drafts.verifyLoading = false;
         if (res.success) {
           console.log("Auth Step 3 complete: OTP verified successfully");
@@ -1548,38 +1440,6 @@ import {
       all.push({ name: p.name.trim(), phone: p.phone, city: p.city || citiesList2[0], skill: p.skill || (catsList2[0] && catsList2[0].id), exp: p.exp || '0', at: Date.now() });
       save('bpe_partners', all);
       drafts.partner = { sent: true }; drafts.errs = {}; refresh();
-    } else if (kind === 'admin-login') {
-      var lockoutUntil = getAdminLockoutUntil();
-      var now = Date.now();
-      if (lockoutUntil > now) {
-        var mins = Math.ceil((lockoutUntil - now) / 60000);
-        toast('Login locked due to failed attempt. Try again in ' + mins + ' min');
-        refresh();
-        return;
-      }
-
-      var pass = ((drafts.admin || {}).pass || '').trim();
-      var captchaInput = ((drafts.admin || {}).captcha || '').trim().toUpperCase();
-
-      if (!captchaInput || captchaInput !== adminCaptchaCode) {
-        generateCaptcha();
-        toast('Invalid Security Capture Code! Please try again');
-        refresh();
-        return;
-      }
-
-      if (pass === ADMIN_PASS) {
-        save('bpe_admin_auth', true);
-        save('bpe_admin_lockout', 0);
-        drafts.admin = {};
-        toast('Welcome Super Admin');
-        refresh();
-      } else {
-        var newLockout = Date.now() + LOCKOUT_DURATION_MS;
-        save('bpe_admin_lockout', newLockout);
-        toast('Invalid Admin credentials! Access locked for 15 minutes');
-        refresh();
-      }
     }
   });
 
