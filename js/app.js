@@ -102,7 +102,7 @@ import {
       couponMin: 'Add more services to use this coupon', lang: 'Language', dark: 'Dark mode', city: 'City', chooseCity: 'Choose your city',
       placeOrder: 'Confirm booking', address: 'Service address', name: 'Full name', phone: 'Mobile number', house: 'House / flat no.',
       area: 'Area / locality', pincode: 'Pincode', landmark: 'Landmark (optional)', pickDate: 'Pick a date', pickSlot: 'Pick a time slot',
-      payment: 'Payment', online: 'Online Payment (Razorpay / UPI / Cards)', today: 'Today', tomorrow: 'Tomorrow',
+      payment: 'Payment', online: 'Online Payment (Cashfree / Razorpay / UPI / Cards)', today: 'Today', tomorrow: 'Tomorrow',
       status: ['Confirmed', 'Expert assigned', 'On the way', 'Done'], cancelled: 'Cancelled', cancel: 'Cancel booking',
       reschedule: 'Reschedule', save: 'Save', close: 'Close', details: 'View details', noBookings: 'No bookings yet',
       noBookingsSub: 'Your booked services will appear here.', sendOtp: 'Send OTP', verify: 'Verify & login', otp: 'Enter 6-digit OTP',
@@ -137,7 +137,7 @@ import {
       couponMin: 'इस कूपन के लिए और सेवाएँ जोड़ें', lang: 'भाषा', dark: 'डार्क मोड', city: 'शहर', chooseCity: 'अपना शहर चुनें',
       placeOrder: 'बुकिंग पक्की करें', address: 'सेवा का पता', name: 'पूरा नाम', phone: 'मोबाइल नंबर', house: 'मकान / फ्लैट नंबर',
       area: 'इलाका / मोहल्ला', pincode: 'पिनकोड', landmark: 'लैंडमार्क (वैकल्पिक)', pickDate: 'तारीख चुनें', pickSlot: 'समय चुनें',
-      payment: 'भुगतान', online: 'ऑनलाइन भुगतान (Razorpay / UPI / कार्ड)', today: 'आज', tomorrow: 'कल',
+      payment: 'भुगतान', online: 'ऑनलाइन भुगतान (Cashfree / Razorpay / UPI / कार्ड)', today: 'आज', tomorrow: 'कल',
       status: ['पक्की', 'एक्सपर्ट तय', 'रास्ते में', 'पूरा'], cancelled: 'रद्द', cancel: 'बुकिंग रद्द करें',
       reschedule: 'समय बदलें', save: 'सेव करें', close: 'बंद करें', details: 'विवरण देखें', noBookings: 'अभी कोई बुकिंग नहीं',
       noBookingsSub: 'आपकी बुक की गई सेवाएँ यहाँ दिखेंगी।', sendOtp: 'OTP भेजें', verify: 'सत्यापित करें', otp: '6 अंकों का OTP डालें',
@@ -744,115 +744,100 @@ import {
     drafts.errs = e;
     return Object.keys(e).length === 0;
   }
-  function placeOrder() {
-    var co = drafts.co, c = calc();
-    var id;
-    do { id = 'BPE' + ('' + Math.floor(Math.random() * 1000000)).padStart(6, '0'); } while (getBooking(id));
-    var serverBookingId = 'bpe_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
+  function postJsonWithTimeout(url, payload, timeoutMs) {
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, timeoutMs);
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal })
+      .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, status: response.status, data: data }; }); })
+      .finally(function () { clearTimeout(timeout); });
+  }
 
-    var cartItemsPayload = S.cart.map(function (l) { return { id: l.id, qty: l.qty }; });
-
-    toast('Fetching payment details...');
-
-    // First fetch quote from backend to guarantee exact server-authoritative price match
-    fetch('/api/create-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        mode: 'quote',
-        items: cartItemsPayload,
-        couponCode: S.coupon || ''
-      })
-    }).then(function (qRes) {
-      return qRes.json();
-    }).then(function (qData) {
-      var serverTotal = (qData.quote && typeof qData.quote.total === 'number') ? qData.quote.total : c.total;
-
-      var orderPayload = {
-        bookingId: serverBookingId,
-        items: cartItemsPayload,
-        couponCode: S.coupon || '',
-        clientTotal: serverTotal,
-        customerName: co.name.trim(),
-        customerPhone: co.phone.trim(),
-        customerEmail: (S.user && S.user.email) ? S.user.email : ''
-      };
-
-      return fetch('/api/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderPayload)
-      });
-    }).then(function (res) {
-      return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data }; });
-    }).then(function (res) {
-      if (!res.ok) {
-        toast('Order creation error: ' + (res.data.error || 'Payment gateway failed.'));
-        return;
-      }
-
-      var gatewayData = res.data;
-      if (gatewayData.gateway === 'razorpay') {
-        if (typeof window.Razorpay === 'undefined') {
-          toast('Razorpay SDK failed to load. Please refresh.');
-          return;
-        }
-
-        var rzpOptions = {
-          key: gatewayData.key_id,
-          amount: gatewayData.amount,
-          currency: gatewayData.currency,
-          name: BPE_GST_DETAILS.businessName,
-          description: 'Booking ' + id,
-          order_id: gatewayData.order_id,
-          prefill: {
-            name: co.name.trim(),
-            contact: co.phone.trim(),
-            email: (S.user && S.user.email) ? S.user.email : ''
-          },
-          theme: { color: '#007AFF' },
-          handler: function (response) {
-            toast('Verifying payment signature...');
-            fetch('/api/verify-payment', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                gateway: 'razorpay',
-                bookingId: serverBookingId,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature
-              })
-            }).then(function (vRes) {
-              return vRes.json();
-            }).then(function (vData) {
-              if (vData.verified) {
-                finalizeBooking(id, co, c, vData.payment_id);
-              } else {
-                toast('Payment verification failed: ' + (vData.error || 'Invalid signature'));
-              }
-            }).catch(function (err) {
-              toast('Payment verification network error');
-            });
-          },
-          modal: {
-            ondismiss: function () {
-              toast('Payment cancelled. Booking was not generated.');
-            }
-          }
-        };
-
-        var rzp = new window.Razorpay(rzpOptions);
-        rzp.on('payment.failed', function (resp) {
-          toast('Payment failed: ' + (resp.error.description || 'Transaction unsuccessful'));
-        });
-        rzp.open();
-      } else {
-        toast('Online payment order created: ' + gatewayData.order_id);
-      }
-    }).catch(function (err) {
-      toast('Failed to reach payment gateway. Try again.');
+  function openRazorpayCheckout(gatewayData, serverBookingId, displayId, co, c) {
+    if (typeof window.Razorpay !== 'function') { toast('Razorpay SDK failed to load. Please refresh.'); return; }
+    var rzp = new window.Razorpay({
+      key: gatewayData.key_id, amount: gatewayData.amount, currency: gatewayData.currency,
+      name: BPE_GST_DETAILS.businessName, description: 'Booking ' + displayId, order_id: gatewayData.order_id,
+      prefill: { name: co.name.trim(), contact: co.phone.trim(), email: (S.user && S.user.email) ? S.user.email : '' },
+      theme: { color: '#007AFF' },
+      handler: function (response) {
+        toast('Verifying payment signature...');
+        fetch('/api/verify-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+          gateway: 'razorpay', bookingId: serverBookingId, razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id, razorpay_signature: response.razorpay_signature
+        }) }).then(function (vRes) { return vRes.json(); }).then(function (vData) {
+          if (vData.verified) finalizeBooking(displayId, co, c, vData.payment_id);
+          else toast('Payment verification failed: ' + (vData.error || 'Invalid signature'));
+        }).catch(function () { toast('Payment verification network error'); });
+      },
+      modal: { ondismiss: function () { toast('Payment cancelled. Booking was not generated.'); } }
     });
+    rzp.on('payment.failed', function (resp) { toast('Payment failed: ' + ((resp.error && resp.error.description) || 'Transaction unsuccessful')); });
+    rzp.open();
+  }
+
+  async function placeOrder() {
+    var co = drafts.co, c = calc(), displayId;
+    do { displayId = 'BPE' + ('' + Math.floor(Math.random() * 1000000)).padStart(6, '0'); } while (getBooking(displayId));
+    var serverBookingId = 'bpe_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
+    var cartItemsPayload = S.cart.map(function (l) { return { id: l.id, qty: l.qty }; });
+    toast('Fetching payment details...');
+    try {
+      var quoteResponse = await fetch('/api/create-order', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'quote', items: cartItemsPayload, couponCode: S.coupon || '' }) });
+      var quoteData = await quoteResponse.json();
+      if (!quoteResponse.ok || !quoteData.quote || typeof quoteData.quote.total !== 'number') {
+        toast('Order creation error: ' + (quoteData.error || 'Unable to calculate checkout total.')); return;
+      }
+      c = quoteData.quote;
+      var orderPayload = { bookingId: serverBookingId, items: cartItemsPayload, couponCode: S.coupon || '',
+        clientTotal: c.total, customerName: co.name.trim(), customerPhone: co.phone.trim(),
+        customerEmail: (S.user && S.user.email) ? S.user.email : '' };
+      var created = null;
+      try { created = await postJsonWithTimeout('/api/create-order', orderPayload, 60000); }
+      catch (firstError) {
+        if (firstError.name !== 'AbortError' && firstError.name !== 'TypeError') throw firstError;
+      }
+      if (created && created.ok && created.data.gateway === 'cashfree') {
+        var gatewayData = created.data;
+        save('bpe_pending_payment', { serverBookingId: serverBookingId, displayId: displayId, orderId: gatewayData.order_id,
+          co: co, pricing: c, cart: S.cart.slice(), coupon: S.coupon, savedAt: Date.now() });
+        try {
+          if (typeof window.Cashfree !== 'function') throw new Error('Cashfree SDK unavailable');
+          var cashfree = window.Cashfree({ mode: gatewayData.environment === 'production' ? 'production' : 'sandbox' });
+          var checkoutResult = await cashfree.checkout({ paymentSessionId: gatewayData.payment_session_id, redirectTarget: '_modal' });
+          if (checkoutResult && checkoutResult.error) throw new Error(checkoutResult.error.message || 'Cashfree checkout failed');
+          if (checkoutResult && checkoutResult.redirect) return;
+          var verifyResponse = await fetch('/api/verify-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gateway: 'cashfree', bookingId: serverBookingId, order_id: gatewayData.order_id }) });
+          var verifyData = await verifyResponse.json();
+          if (verifyData.verified) {
+            localStorage.removeItem('bpe_pending_payment');
+            finalizeBooking(displayId, co, c, verifyData.payment_id); return;
+          }
+          toast('Payment not completed. If money was deducted, call +91 89202 52647.'); return;
+        } catch (cashfreeError) {
+          console.warn('Cashfree checkout failed; retrying with Razorpay:', cashfreeError.message || cashfreeError);
+        }
+      } else if (created && created.ok && created.data.gateway === 'razorpay') {
+        openRazorpayCheckout(created.data, serverBookingId, displayId, co, c); return;
+      } else if (created && created.data && created.data.code === 'CHECKOUT_TOTAL_MISMATCH') {
+        toast(created.data.error || 'The checkout total changed. Please retry.'); return;
+      }
+      var retryPayload = Object.assign({}, orderPayload, { preferredGateway: 'razorpay' });
+      try {
+        var retry = await postJsonWithTimeout('/api/create-order', retryPayload, 60000);
+        if (retry.ok && retry.data.gateway === 'razorpay') {
+          openRazorpayCheckout(retry.data, serverBookingId, displayId, co, c); return;
+        }
+        if (retry.data && retry.data.code === 'CHECKOUT_TOTAL_MISMATCH') {
+          toast(retry.data.error || 'The checkout total changed. Please retry.'); return;
+        }
+      } catch (retryError) { console.error('Razorpay fallback order request failed:', retryError.message || retryError); }
+      toast('Payment temporarily unavailable. Call +91 89202 52647.');
+    } catch (error) {
+      console.error('Payment setup failed:', error.message || error);
+      toast('Payment temporarily unavailable. Call +91 89202 52647.');
+    }
   }
 
   async function finalizeBooking(id, co, c, paymentId) {
@@ -1115,104 +1100,6 @@ import {
       '<button type="submit" class="btn btn--primary btn--block">' + esc(t('submit')) + '</button></form>';
   }
 
-  /* ---------- SUPER ADMIN PANEL STATE & FUNCTIONS ---------- */
-  var ADMIN_PASS = 'bharatproexperthomeservices@9319953137';
-  var LOCKOUT_DURATION_MS = 15 * 60 * 1000;
-  var adminCaptchaCode = '';
-
-  function generateCaptcha() {
-    var chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-    var code = '';
-    for (var i = 0; i < 5; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    adminCaptchaCode = code;
-    return code;
-  }
-
-  function isAdminLoggedIn() {
-    return load('bpe_admin_auth', false) === true;
-  }
-
-  function getAdminLockoutUntil() {
-    var until = load('bpe_admin_lockout', 0);
-    return typeof until === 'number' ? until : 0;
-  }
-
-  function viewAdminLogin() {
-    if (isAdminLoggedIn()) {
-      location.hash = '#/admin';
-      return '';
-    }
-    if (!adminCaptchaCode) {
-      generateCaptcha();
-    }
-    var lockoutUntil = getAdminLockoutUntil();
-    var now = Date.now();
-    var isLocked = lockoutUntil > now;
-    var remainingMinutes = isLocked ? Math.ceil((lockoutUntil - now) / 60000) : 0;
-
-    return backBar('Super Admin Login', '#/') +
-      '<div class="detail__block" style="max-width:440px;margin:24px auto">' +
-        '<h2>🔒 Super Admin Authentication</h2>' +
-        '<p style="color:var(--text-sub);margin-bottom:16px">Enter Super Admin Password and Security Capture Code to access system settings.</p>' +
-        (isLocked
-          ? '<div style="background:#FF3B301A;border:1px solid #FF3B30;border-radius:8px;padding:12px;margin-bottom:16px;color:#FF3B30;font-size:14px;font-weight:600">' +
-              '⛔ High Security Lockout Active! 1 failed login attempt detected. Login is locked for 15 minutes. Please try again in ' + remainingMinutes + ' minute(s).' +
-            '</div>'
-          : '') +
-        '<form data-form="admin-login" novalidate>' +
-          field('Admin Password', 'admin.pass', { type: 'password', ph: 'Enter Admin Password', auto: true, ac: 'current-password' }) +
-          '<div style="margin-bottom:16px">' +
-            '<label class="field__label">Security Capture Code</label>' +
-            '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">' +
-              '<div style="background:var(--bg-sub, #f0f0f0);border:2px dashed var(--primary, #007AFF);padding:10px 18px;font-family:monospace;font-size:22px;font-weight:bold;letter-spacing:6px;user-select:none;border-radius:8px;color:var(--text, #000)">' + esc(adminCaptchaCode) + '</div>' +
-              '<button type="button" class="btn btn--ghost btn--sm" data-act="refresh-captcha" title="Refresh CAPTCHA">🔄 Refresh</button>' +
-            '</div>' +
-          '</div>' +
-          field('Enter Capture Code', 'admin.captcha', { ph: 'Enter CAPTCHA Code', ac: 'off' }) +
-          '<button type="submit" class="btn btn--primary btn--block"' + (isLocked ? ' disabled style="opacity:0.6;cursor:not-allowed"' : '') + '>Login to Super Admin Panel</button>' +
-        '</form>' +
-      '</div>';
-  }
-
-  function viewAdminDashboard() {
-    if (!isAdminLoggedIn()) {
-      location.hash = '#/admin';
-      return '';
-    }
-
-    var h = '<div class="admin-shell">' +
-      '<header class="admin-header">' +
-        '<h1 class="admin-title">👑 Bharat Pro Expert — Super Admin Panel</h1>' +
-        '<button type="button" class="btn btn--ghost btn--sm" data-act="admin-logout">Logout Admin</button>' +
-      '</header>' +
-      '<div class="admin-body">' +
-        '<aside class="admin-sidebar" aria-label="Admin Navigation">' +
-          '<nav class="admin-nav">' +
-            '<a href="#/admin" class="admin-nav__item is-active">📊 Dashboard</a>' +
-          '</nav>' +
-        '</aside>' +
-        '<main class="admin-content">' +
-          '<div class="empty" style="padding:40px 20px">' +
-            '<div aria-hidden="true" style="font-size:48px;margin-bottom:12px">📦</div>' +
-            '<h2 style="font-size:22px;font-weight:700;margin-bottom:8px">Admin Panel Code Snippets Available</h2>' +
-            '<p style="color:var(--text-sub);max-width:500px;margin:0 auto">React Admin Panel snippets are generated in the <code>ADMIN_PANEL_SNIPPETS</code> directory for deployment via Google AI Studio.</p>' +
-          '</div>' +
-        '</main>' +
-      '</div>' +
-    '</div>';
-
-    return h;
-  }
-
-  function viewAdminRouter() {
-    if (!isAdminLoggedIn()) {
-      return viewAdminLogin();
-    }
-    return viewAdminDashboard();
-  }
-
   function viewNotFound() {
     return emptyState('🧭', t('notFound'), t('notFoundSub'), '#/', t('goHome'));
   }
@@ -1279,7 +1166,6 @@ import {
       case 'login': return { name: 'login', nav: 'account', title: t('loginTitle'), view: viewLoginPage };
       case 'help': return { name: 'help', nav: 'account', title: t('help'), view: viewHelp };
       case 'partner': return { name: 'partner', nav: 'account', title: t('partner'), view: viewPartner };
-      case 'admin': return { name: 'admin', nav: 'account', subRoute: p[1] || 'login', param: p[2] || '', title: 'Super Admin Panel', view: function () { return viewAdminRouter(p[1], p[2], p[3]); } };
       default: return { name: '404', nav: '', title: t('notFound'), view: viewNotFound };
     }
   }
@@ -1360,7 +1246,7 @@ import {
     theme: function () { S.theme = isDark() ? 'light' : 'dark'; save('bpe_theme', S.theme); applyTheme(); refresh(); },
     login: function () { drafts.login = {}; drafts.errs = {}; delete drafts.loginError; location.hash = '#/login'; },
     logout: function () {
-      firebaseLogout().catch(function (e) {
+      supabaseLogout().catch(function (e) {
         console.error("Auth Step error on logout:", e);
       });
       S.user = null;
@@ -1469,15 +1355,6 @@ import {
       if (b) { b.cancelled = true; persistBookings(); }
       closeSheet(); toast(t('cancelledToast')); refresh();
     },
-    'admin-logout': function () {
-      save('bpe_admin_auth', false);
-      toast('Logged out of Super Admin Panel');
-      location.hash = '#/admin';
-    },
-    'refresh-captcha': function () {
-      generateCaptcha();
-      refresh();
-    }
   };
   function setLang(l) { S.lang = l; save('bpe_lang', l); applyTheme(); renderSheet(); refresh(); }
   function applyCoupon(code) {
@@ -1583,7 +1460,7 @@ import {
       drafts.verifyLoading = true;
       if (S.sheet) renderSheet(); else refresh();
       toast('Verifying OTP...');
-      verifyPhoneOtp(drafts.login.otp).then(function (res) {
+      verifyPhoneOtp(drafts.login.phone, drafts.login.otp).then(function (res) {
         drafts.verifyLoading = false;
         if (res.success) {
           console.log("Auth Step 3 complete: OTP verified successfully");
@@ -1630,38 +1507,6 @@ import {
       all.push({ name: p.name.trim(), phone: p.phone, city: p.city || citiesList2[0], skill: p.skill || (catsList2[0] && catsList2[0].id), exp: p.exp || '0', at: Date.now() });
       save('bpe_partners', all);
       drafts.partner = { sent: true }; drafts.errs = {}; refresh();
-    } else if (kind === 'admin-login') {
-      var lockoutUntil = getAdminLockoutUntil();
-      var now = Date.now();
-      if (lockoutUntil > now) {
-        var mins = Math.ceil((lockoutUntil - now) / 60000);
-        toast('Login locked due to failed attempt. Try again in ' + mins + ' min');
-        refresh();
-        return;
-      }
-
-      var pass = ((drafts.admin || {}).pass || '').trim();
-      var captchaInput = ((drafts.admin || {}).captcha || '').trim().toUpperCase();
-
-      if (!captchaInput || captchaInput !== adminCaptchaCode) {
-        generateCaptcha();
-        toast('Invalid Security Capture Code! Please try again');
-        refresh();
-        return;
-      }
-
-      if (pass === ADMIN_PASS) {
-        save('bpe_admin_auth', true);
-        save('bpe_admin_lockout', 0);
-        drafts.admin = {};
-        toast('Welcome Super Admin');
-        refresh();
-      } else {
-        var newLockout = Date.now() + LOCKOUT_DURATION_MS;
-        save('bpe_admin_lockout', newLockout);
-        toast('Invalid Admin credentials! Access locked for 15 minutes');
-        refresh();
-      }
     }
   });
 
@@ -1676,6 +1521,37 @@ import {
 
   applyTheme();
   render(false);
+
+  // Cashfree payment return reconciliation
+  (function handleCashfreeReturn() {
+    try {
+      var params = new URLSearchParams(location.search);
+      var cashfreeOrderId = params.get('cashfree_order_id');
+      var returnedBookingId = params.get('booking_id');
+      if (!cashfreeOrderId || !returnedBookingId) return;
+      params.delete('cashfree_order_id');
+      params.delete('booking_id');
+      var remainingQuery = params.toString();
+      history.replaceState(null, '', location.pathname + (remainingQuery ? '?' + remainingQuery : '') + location.hash);
+      var pending = load('bpe_pending_payment', null);
+      fetch('/api/verify-payment', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gateway: 'cashfree', bookingId: returnedBookingId, order_id: cashfreeOrderId }) })
+        .then(function (response) { return response.json(); }).then(function (result) {
+          if (!result.verified) { toast('Payment not confirmed yet. If money was deducted, call +91 89202 52647.'); return; }
+          if (pending && pending.serverBookingId === returnedBookingId && pending.orderId === cashfreeOrderId &&
+              pending.savedAt && Date.now() - pending.savedAt < 7200000) {
+            drafts.co = pending.co; S.cart = pending.cart; S.coupon = pending.coupon; save('bpe_cart', S.cart);
+            localStorage.removeItem('bpe_pending_payment');
+            finalizeBooking(pending.displayId, drafts.co, pending.pricing, result.payment_id);
+          } else {
+            toast('Payment confirmed. Reference: ' + (result.payment_id || cashfreeOrderId));
+            location.hash = '#/bookings';
+          }
+        }).catch(function () {
+          toast('Payment status could not be checked. Call +91 89202 52647. Reference: ' + cashfreeOrderId);
+        });
+    } catch (error) { toast('Payment return error. Call +91 89202 52647.'); }
+  })();
 
   // Listen to location flow update event to refresh UI and selected city/area
   window.addEventListener('bpe:continue', function (e) {
@@ -1710,6 +1586,7 @@ import {
   }
 
   // Process Google redirect result if returning from redirect sign-in
+  if (typeof checkGoogleRedirectResult === 'function') {
   checkGoogleRedirectResult().then(function (res) {
     if (res.success && res.user) {
       console.log("Auth Step 1 complete: Google redirect auth processed successfully", res.user.uid);
@@ -1719,7 +1596,7 @@ import {
       delete drafts.loginError;
       if (S.sheet) closeSheet();
       toast(t('googleSuccess'));
-      if (currentRoute && currentRoute.name === 'checkout') {
+      if (current && current.name === 'checkout') {
         refresh();
       } else {
         location.hash = '#/account';
@@ -1733,8 +1610,10 @@ import {
   }).catch(function (e) {
     console.error("Auth Step 1 error checking redirect result:", e);
   });
+  }
 
   // Real-time CMS sync
+  if (typeof subscribeCMS === 'function') {
   try {
     subscribeCMS(function (type) {
       console.log("CMS update received for:", type);
@@ -1743,5 +1622,6 @@ import {
     });
   } catch (cmsErr) {
     console.warn("CMS Real-Time Subscription error:", cmsErr);
+  }
   }
 })();

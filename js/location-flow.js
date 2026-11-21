@@ -345,7 +345,7 @@ function completeLocationFlowAndEnterSite() {
     apartmentName: currentAddressState.apartmentName || '',
     flatNo: currentAddressState.flatNo || '',
     landmark: currentAddressState.landmark || '',
-    fullAddress: currentAddressState.formattedAddress,
+    fullAddress: currentAddressState.fullAddress || currentAddressState.formattedAddress,
     city: currentAddressState.city || 'Gurugram',
     pincode: currentAddressState.postalCode || '122001',
     label: currentAddressState.label || 'Current location',
@@ -751,7 +751,7 @@ function bindOverlayEvents() {
       btn.style.background = 'var(--navy)';
       btn.style.color = '#fff';
       btn.classList.add('active');
-      currentAddressState.label = btn.getAttribute('data-label') || 'Home';
+      currentAddressState.addressLabel = btn.getAttribute('data-label') || 'Home';
     });
   });
 }

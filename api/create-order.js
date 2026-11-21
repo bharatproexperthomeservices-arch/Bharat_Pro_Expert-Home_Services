@@ -172,94 +172,76 @@ export default async function handler(req, res) {
     return json(res, 400, { error: "Enter a valid customer name and 10-digit phone number.", code: "INVALID_CUSTOMER_DETAILS" });
   }
 
-  // Priority: Razorpay first if available, else Cashfree
-  if (hasRazorpay) {
+  // Priority: Cashfree first for live checkout, Razorpay as fallback.
+  const forceRazorpay = String(req.body?.preferredGateway || "").trim().toLowerCase() === "razorpay";
+
+  async function createRazorpayOrder() {
+    if (!hasRazorpay) return null;
     try {
-      const razorpay = new Razorpay({
-        key_id: razorpayKeyId,
-        key_secret: razorpayKeySecret
-      });
-
-      const orderOptions = {
-        amount: quote.total * 100, // in paise
-        currency: "INR",
-        receipt: bookingId.slice(0, 40),
-        notes: {
-          bookingId,
-          customerName,
-          customerPhone,
-          gstin: BUSINESS_GST_DETAILS.gstin,
-          businessName: BUSINESS_GST_DETAILS.businessName
-        }
-      };
-
-      const order = await razorpay.orders.create(orderOptions);
-      return json(res, 201, {
-        gateway: "razorpay",
-        order_id: order.id,
-        key_id: razorpayKeyId,
+      const razorpay = new Razorpay({ key_id: razorpayKeyId, key_secret: razorpayKeySecret });
+      const order = await razorpay.orders.create({
         amount: quote.total * 100,
         currency: "INR",
-        quote,
-        businessGst: BUSINESS_GST_DETAILS
+        receipt: bookingId.slice(0, 40),
+        notes: { bookingId, customerName, customerPhone, gstin: BUSINESS_GST_DETAILS.gstin, businessName: BUSINESS_GST_DETAILS.businessName }
       });
+      return { gateway: "razorpay", order_id: order.id, key_id: razorpayKeyId, amount: quote.total * 100,
+        currency: "INR", quote, businessGst: BUSINESS_GST_DETAILS };
     } catch (error) {
       console.error("Razorpay order creation failed:", error?.message || error);
-      return json(res, 502, { error: "Razorpay order creation failed.", code: "RAZORPAY_ORDER_CREATION_FAILED" });
+      return null;
     }
   }
 
-  // Cashfree Order Creation
-  const isProduction = process.env.CASHFREE_ENV === "production";
-  const apiBase = isProduction ? "https://api.cashfree.com/pg" : "https://sandbox.cashfree.com/pg";
-  const appBaseUrl = (process.env.PUBLIC_APP_URL || process.env.FRONTEND_ORIGIN || "").split(",")[0].trim().replace(/\/$/, "");
-  const orderId = bookingId.slice(0, 45);
-  const payload = {
-    order_id: orderId,
-    order_amount: quote.total,
-    order_currency: "INR",
-    customer_details: {
-      customer_id: bookingId.slice(0, 50),
-      customer_name: customerName,
-      customer_email: customerEmail || undefined,
-      customer_phone: customerPhone
-    },
-    order_meta: {
-      return_url: appBaseUrl ? `${appBaseUrl}/?cashfree_order_id={order_id}&booking_id=${encodeURIComponent(bookingId)}` : undefined
-    },
-    order_note: `Bharat Pro Expert GSTIN:${BUSINESS_GST_DETAILS.gstin} booking ${bookingId}`
-  };
-
-  try {
-    const response = await fetch(`${apiBase}/orders`, {
-      method: "POST",
-      headers: {
-        "x-client-id": cashfreeAppId,
-        "x-client-secret": cashfreeSecretKey,
-        "x-api-version": "2025-01-01",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
-    const order = await response.json().catch(() => ({}));
-    if (!response.ok || typeof order.order_id !== "string" || typeof order.payment_session_id !== "string" ||
-        Number(order.order_amount) !== quote.total || order.order_currency !== "INR") {
-      console.error("Cashfree order creation failed:", response.status, order.code || order.type || "provider_error");
-      return json(res, 502, { error: "Cashfree could not create the payment order. Check server logs and Cashfree credentials, then retry.", code: "CASHFREE_ORDER_CREATION_FAILED" });
+  async function createCashfreeOrder() {
+    if (!hasCashfree) return null;
+    const isProduction = process.env.CASHFREE_ENV === "production";
+    const apiBase = isProduction ? "https://api.cashfree.com/pg" : "https://sandbox.cashfree.com/pg";
+    const appBaseUrl = (process.env.PUBLIC_APP_URL || process.env.FRONTEND_ORIGIN || "").split(",")[0].trim().replace(/\/$/, "");
+    const orderId = bookingId.slice(0, 45);
+    const payload = {
+      order_id: orderId, order_amount: quote.total, order_currency: "INR",
+      customer_details: { customer_id: bookingId.slice(0, 50), customer_name: customerName,
+        customer_email: customerEmail || undefined, customer_phone: customerPhone },
+      order_meta: { return_url: appBaseUrl ? `${appBaseUrl}/?cashfree_order_id={order_id}&booking_id=${encodeURIComponent(bookingId)}` : undefined },
+      order_note: `Bharat Pro Expert GSTIN:${BUSINESS_GST_DETAILS.gstin} booking ${bookingId}`
+    };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    try {
+      const response = await fetch(`${apiBase}/orders`, {
+        method: "POST",
+        headers: { "x-client-id": cashfreeAppId, "x-client-secret": cashfreeSecretKey,
+          "x-api-version": "2025-01-01", "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(payload), signal: controller.signal
+      });
+      const order = await response.json().catch(() => ({}));
+      if (!response.ok || typeof order.order_id !== "string" || typeof order.payment_session_id !== "string" ||
+          Number(order.order_amount) !== quote.total || order.order_currency !== "INR") {
+        console.error("Cashfree order creation failed:", response.status, order.code || order.type || "provider_error");
+        return null;
+      }
+      return { gateway: "cashfree", order_id: order.order_id, payment_session_id: order.payment_session_id,
+        amount: quote.total * 100, currency: "INR", quote, businessGst: BUSINESS_GST_DETAILS,
+        environment: isProduction ? "production" : "sandbox" };
+    } catch (error) {
+      console.error(error?.name === "AbortError" ? "Cashfree order creation timeout after 60000ms" : "Cashfree order request failed:",
+        error?.message || "Unknown error");
+      return null;
+    } finally {
+      clearTimeout(timeout);
     }
-    return json(res, 201, {
-      gateway: "cashfree",
-      order_id: order.order_id,
-      payment_session_id: order.payment_session_id,
-      amount: quote.total * 100,
-      currency: "INR",
-      quote,
-      businessGst: BUSINESS_GST_DETAILS,
-      environment: isProduction ? "production" : "sandbox"
-    });
-  } catch (error) {
-    console.error("Cashfree order request failed:", error?.message || "Unknown error");
-    return json(res, 502, { error: "Unable to reach Cashfree. Please retry in a moment.", code: "CASHFREE_NETWORK_ERROR" });
   }
+
+  if (!forceRazorpay && hasCashfree) {
+    const cashfreeOrder = await createCashfreeOrder();
+    if (cashfreeOrder) return json(res, 201, cashfreeOrder);
+    console.warn("Cashfree unavailable; falling back to Razorpay.");
+  }
+  const razorpayOrder = await createRazorpayOrder();
+  if (razorpayOrder) return json(res, 201, razorpayOrder);
+  return json(res, 502, {
+    error: "Both payment gateways are temporarily unavailable. Please retry in a moment or call +91 89202 52647.",
+    code: "ALL_GATEWAYS_FAILED"
+  });
 }
