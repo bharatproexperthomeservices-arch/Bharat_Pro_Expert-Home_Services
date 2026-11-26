@@ -756,20 +756,29 @@ import {
     return new Promise(function (resolve, reject) {
       if (typeof window.Cashfree === 'function') { resolve(); return; }
       var script = document.querySelector('script[data-cashfree-sdk]');
+      if (script && script.getAttribute('data-loaded') === 'true') {
+        script.remove();
+        script = null;
+      }
       if (!script) {
         script = document.createElement('script');
         script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
         script.async = true;
         script.setAttribute('data-cashfree-sdk', 'true');
-        document.head.appendChild(script);
       }
       script.addEventListener('load', function () {
+        script.setAttribute('data-loaded', 'true');
         if (typeof window.Cashfree === 'function') resolve();
-        else reject(new Error('Cashfree SDK did not initialize'));
+        else {
+          script.remove();
+          reject(new Error('Cashfree SDK did not initialize'));
+        }
       }, { once: true });
       script.addEventListener('error', function () {
+        script.remove();
         reject(new Error('Cashfree SDK failed to load'));
       }, { once: true });
+      if (!script.isConnected) document.head.appendChild(script);
     });
   }
 
