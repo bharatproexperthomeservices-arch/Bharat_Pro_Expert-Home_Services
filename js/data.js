@@ -425,7 +425,7 @@
       { emoji: '🔍', title: 'Choose a cleaning', sub: 'Pick from 60+ cleaning services' },
       { emoji: '📅', title: 'Select date & time', sub: 'Book a slot that suits you' },
       { emoji: '🧹', title: 'Experts arrive', sub: 'A trained team brings machines and chemicals' },
-      { emoji: '✅', title: 'Secure online payment', sub: 'Pay securely by UPI, card or netbanking' }
+      { emoji: '✅', title: 'Secure online payment', sub: 'UPI, cards and netbanking accepted' }
     ],
 
     trust: [
@@ -437,7 +437,7 @@
 
     faqs: [
       { q: 'How do I book a cleaning?', a: 'Choose a service, add it to the cart, pick a date and time slot, enter your address and confirm. It takes under two minutes.' },
-      { q: 'When do I pay?', a: 'Pay securely online by UPI, card or netbanking while booking. If you are not satisfied, we offer a free re-clean within 48 hours.' },
+      { q: 'When do I pay?', a: 'You pay securely online (UPI / card / netbanking) while booking. If you are not satisfied, we re-clean free of charge within 48 hours.' },
       { q: 'What do I need to arrange?', a: 'Please keep water and a power point ready and tell your society guard about the visit. Our experts carry ID cards and bring the machines, tools and chemicals.' },
       { q: 'Are the chemicals safe for kids and pets?', a: 'We use eco-safe, skin-friendly products. Keep pets in another room until the surfaces dry.' },
       { q: 'How long does a deep cleaning take?', a: 'A 2 BHK apartment takes about 7 hours with a team of 2 to 4 experts. The exact time is shown on each service page.' },
