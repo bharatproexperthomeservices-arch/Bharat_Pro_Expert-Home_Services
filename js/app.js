@@ -102,7 +102,7 @@ import {
       couponMin: 'Add more services to use this coupon', lang: 'Language', dark: 'Dark mode', city: 'City', chooseCity: 'Choose your city',
       placeOrder: 'Confirm booking', address: 'Service address', name: 'Full name', phone: 'Mobile number', house: 'House / flat no.',
       area: 'Area / locality', pincode: 'Pincode', landmark: 'Landmark (optional)', pickDate: 'Pick a date', pickSlot: 'Pick a time slot',
-      payment: 'Payment', online: 'Online Payment (Cashfree / Razorpay / UPI / Cards)', today: 'Today', tomorrow: 'Tomorrow',
+      payment: 'Payment', online: 'Online Payment (UPI / Cards / Netbanking)', today: 'Today', tomorrow: 'Tomorrow',
       status: ['Confirmed', 'Expert assigned', 'On the way', 'Done'], cancelled: 'Cancelled', cancel: 'Cancel booking',
       reschedule: 'Reschedule', save: 'Save', close: 'Close', details: 'View details', noBookings: 'No bookings yet',
       noBookingsSub: 'Your booked services will appear here.', sendOtp: 'Send OTP', verify: 'Verify & login', otp: 'Enter 6-digit OTP',
@@ -137,7 +137,7 @@ import {
       couponMin: 'इस कूपन के लिए और सेवाएँ जोड़ें', lang: 'भाषा', dark: 'डार्क मोड', city: 'शहर', chooseCity: 'अपना शहर चुनें',
       placeOrder: 'बुकिंग पक्की करें', address: 'सेवा का पता', name: 'पूरा नाम', phone: 'मोबाइल नंबर', house: 'मकान / फ्लैट नंबर',
       area: 'इलाका / मोहल्ला', pincode: 'पिनकोड', landmark: 'लैंडमार्क (वैकल्पिक)', pickDate: 'तारीख चुनें', pickSlot: 'समय चुनें',
-      payment: 'भुगतान', online: 'ऑनलाइन भुगतान (Cashfree / Razorpay / UPI / कार्ड)', today: 'आज', tomorrow: 'कल',
+      payment: 'भुगतान', online: 'ऑनलाइन भुगतान (UPI / कार्ड / नेटबैंकिंग)', today: 'आज', tomorrow: 'कल',
       status: ['पक्की', 'एक्सपर्ट तय', 'रास्ते में', 'पूरा'], cancelled: 'रद्द', cancel: 'बुकिंग रद्द करें',
       reschedule: 'समय बदलें', save: 'सेव करें', close: 'बंद करें', details: 'विवरण देखें', noBookings: 'अभी कोई बुकिंग नहीं',
       noBookingsSub: 'आपकी बुक की गई सेवाएँ यहाँ दिखेंगी।', sendOtp: 'OTP भेजें', verify: 'सत्यापित करें', otp: '6 अंकों का OTP डालें',
@@ -752,6 +752,36 @@ import {
       .finally(function () { clearTimeout(timeout); });
   }
 
+  function ensureCashfreeSdk() {
+    return new Promise(function (resolve, reject) {
+      if (typeof window.Cashfree === 'function') { resolve(); return; }
+      var script = document.querySelector('script[data-cashfree-sdk]');
+      if (script && script.getAttribute('data-loaded') === 'true') {
+        script.remove();
+        script = null;
+      }
+      if (!script) {
+        script = document.createElement('script');
+        script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+        script.async = true;
+        script.setAttribute('data-cashfree-sdk', 'true');
+      }
+      script.addEventListener('load', function () {
+        script.setAttribute('data-loaded', 'true');
+        if (typeof window.Cashfree === 'function') resolve();
+        else {
+          script.remove();
+          reject(new Error('Cashfree SDK did not initialize'));
+        }
+      }, { once: true });
+      script.addEventListener('error', function () {
+        script.remove();
+        reject(new Error('Cashfree SDK failed to load'));
+      }, { once: true });
+      if (!script.isConnected) document.head.appendChild(script);
+    });
+  }
+
   function openRazorpayCheckout(gatewayData, serverBookingId, displayId, co, c) {
     if (typeof window.Razorpay !== 'function') { toast('Razorpay SDK failed to load. Please refresh.'); return; }
     var rzp = new window.Razorpay({
@@ -802,7 +832,7 @@ import {
         save('bpe_pending_payment', { serverBookingId: serverBookingId, displayId: displayId, orderId: gatewayData.order_id,
           co: co, pricing: c, cart: S.cart.slice(), coupon: S.coupon, savedAt: Date.now() });
         try {
-          if (typeof window.Cashfree !== 'function') throw new Error('Cashfree SDK unavailable');
+          await ensureCashfreeSdk();
           var cashfree = window.Cashfree({ mode: gatewayData.environment === 'production' ? 'production' : 'sandbox' });
           var checkoutResult = await cashfree.checkout({ paymentSessionId: gatewayData.payment_session_id, redirectTarget: '_modal' });
           if (checkoutResult && checkoutResult.error) throw new Error(checkoutResult.error.message || 'Cashfree checkout failed');
